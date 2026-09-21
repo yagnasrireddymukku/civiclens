@@ -228,9 +228,12 @@ request → get_db dependency (opens a Session) → route/service function
 
 ## 12. Explicitly Not Built Yet
 
-- Any business route (domain content, search, AI, eligibility, tracking)
-  or its request/response models — only `health`/`health/ready` exist
-  (§11), and neither is a business route.
+- Any domain-content business route (jobs, exams, schemes, services,
+  scholarships, representatives, elections, eligibility, tracking, AI) or
+  its request/response models — only `health`/`health/ready` (§11) and
+  `/search` (Phase 5, [SEARCH.md](SEARCH.md) §12) exist so far, and
+  `/search` has nothing real to index yet (no domain route has published
+  anything into it).
 - Concrete rate-limit thresholds, cache headers, or CDN interaction rules
   (deferred to [SECURITY.md](SECURITY.md) / [ARCHITECTURE.md](ARCHITECTURE.md)
   performance work in later phases).

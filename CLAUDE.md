@@ -6,10 +6,13 @@ enforcement summary. When in doubt, the linked document is authoritative.
 
 ## Current Phase
 
-The project is in **Phase 0 — Architecture & Governance**
-(see [docs/ROADMAP.md](docs/ROADMAP.md)). No application code, database
-migrations, or real government data exist yet, and none should be added
-until Phase 1 is explicitly approved.
+Phases 0–4 are complete and approved (architecture/governance, monorepo
+foundation, database + core data model, frontend design system). The
+project is now in **Phase 5 — Search Infrastructure**
+(see [docs/ROADMAP.md](docs/ROADMAP.md)). Real government data still does
+not exist and must not be added until the project explicitly enters a
+real-data phase — search infrastructure work uses clearly-synthetic
+fixtures only (see [docs/DATA_GOVERNANCE.md](docs/DATA_GOVERNANCE.md) §7).
 
 ## Non-Negotiable Rules
 

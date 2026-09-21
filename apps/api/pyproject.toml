@@ -21,17 +21,6 @@ dev = [
     "pytest-cov>=7.1.0",
     "ruff>=0.16.8",
 ]
-test = [
-    "pgserver>=0.1.4",
-]
-
-[tool.uv]
-# `test` is a real, if unusual, runtime dependency of the test suite (an
-# embedded PostgreSQL binary — see tests/conftest.py) rather than a pure
-# dev tool, but `uv sync`/`uv run pytest` should still pick it up without
-# an extra flag.
-default-groups = ["dev", "test"]
-
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
@@ -42,6 +31,13 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+# FastAPI's own idiom is `param: T = Depends(...)`/`= Query(...)` in a
+# route signature default — bugbear's B008 (no function calls in
+# defaults) exists for a real footgun (a mutable default shared across
+# calls), which doesn't apply here since FastAPI evaluates these per
+# request, not once at def time.
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Path", "fastapi.Body"]
 
 [tool.mypy]
 python_version = "3.12"

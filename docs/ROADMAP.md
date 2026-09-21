@@ -164,20 +164,53 @@ until the prior phase's acceptance criteria are met and, per
 ## Phase 5 — Search Infrastructure
 - **Objective**: Stand up Postgres-based search per
   [SEARCH.md](SEARCH.md) / [ADR-005](ADR/ADR-005-search-architecture.md).
-- **Dependencies**: Phase 3 (needs at least one domain table to index —
-  can use Phase 6 tables, so may run just after Phase 6 begins).
-- **Files/modules**: `apps/api/app/search/`.
-- **Technical work**: `tsvector` columns/indexes, `pg_trgm` indexes,
-  search query API, autocomplete endpoint.
-- **Tests**: Search relevance tests against fixture data; typo-tolerance
-  test cases.
-- **Documentation**: [SEARCH.md](SEARCH.md) updated with real query
-  patterns and index definitions.
+- **Dependencies**: Phase 3 only, not Phase 6 — this document originally
+  assumed indexing needed a real domain table to point at, but the
+  "clean search abstraction" requirement led to a generic, polymorphic
+  `search_documents` projection (`entity_type`/`entity_id`, no FK to any
+  domain table, matching `sources`'s existing pattern) instead of
+  per-domain generated columns, so Phase 5 ran entirely against synthetic
+  fixtures with no Phase 6 dependency. A disclosed scope correction, not
+  an oversight (see [SEARCH.md](SEARCH.md) §3, [DATABASE.md](DATABASE.md)
+  §8).
+- **Files/modules**: `apps/api/app/search/` (models, schemas, service,
+  enums, fixtures), `apps/api/app/api/v1/search.py`,
+  `apps/api/scripts/seed_search_fixtures.py`,
+  `apps/web/app/[locale]/search/`, `apps/web/lib/search.ts`; shared
+  response types added to `packages/types`/`packages/validation`.
+- **Technical work**: `search_documents` table with a generated
+  `search_vector`, weighted A/B/C across title/summary/body
+  (`app/search/models.py`); exact `websearch_to_tsquery` matching with a
+  `word_similarity`-based `pg_trgm` fallback for typos (`app/search/
+  service.py`); filters (entity_type/state/district/category/status/date
+  range), pagination, and a `sort=last_verified` override; `GET
+  /api/v1/search` (`app/api/v1/search.py`); a locale-aware, shareable-URL
+  search page composing Phase 4's `SearchBar`/`SearchResultCard` with a
+  persistent "development data" notice. Autocomplete was scoped out
+  (§4 of [SEARCH.md](SEARCH.md)) — not needed for this phase's
+  acceptance criteria.
+- **Tests**: 14 deterministic backend service tests plus a migration
+  up/down/up-again test (`apps/api/tests/test_search/`); 10 frontend
+  tests covering the results/empty/error/fuzzy-fallback states and the
+  query/pagination navigation (`apps/web/app/[locale]/search/`).
+- **Documentation**: [SEARCH.md](SEARCH.md), [DATABASE.md](DATABASE.md),
+  [API.md](API.md), and [TESTING.md](TESTING.md) updated with the
+  realized schema, query flow, and test infrastructure.
 - **Acceptance criteria**: Search endpoint returns correct, ranked results
-  for fixture data including a deliberately misspelled query.
+  for fixture data including a deliberately misspelled query
+  ("recuritment" → "Recruitment") — verified directly against a live
+  backend, not just unit tests.
 - **Risks**: Postgres FTS Telugu limitations (see
-  [ADR-005](ADR/ADR-005-search-architecture.md)) — tracked as a known
-  limitation, not blocking.
+  [ADR-005](ADR/ADR-005-search-architecture.md)) — tracked as a known,
+  documented limitation, not blocking. One real regression found and
+  fixed during implementation, not assumed away: the migration's own
+  `CREATE EXTENSION pg_trgm` broke every existing Phase 1/3 backend test,
+  since those ran against `pgserver` (a pip-installed embedded Postgres),
+  whose Windows build doesn't bundle `pg_trgm`. Fixed by moving every
+  backend test onto a shared full-PostgreSQL test fixture (a `postgres:16`
+  CI service container, or a local full-Postgres binary distribution) and
+  removing the now-unnecessary `pgserver` dependency entirely — see
+  [TESTING.md](TESTING.md) §3.
 - **Rollback**: Search is a read-side projection; disabling it does not
   affect source-of-truth data.
 

@@ -1,4 +1,3 @@
-import tempfile
 from collections.abc import Generator
 from pathlib import Path
 
@@ -8,43 +7,25 @@ from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session
 
 from alembic import command
-from tests.test_db._pg_utils import start_test_postgres, to_sqlalchemy_url
 
 ALEMBIC_INI_PATH = Path(__file__).resolve().parents[2] / "alembic.ini"
 
 
 @pytest.fixture(scope="session")
-def pg_instance():
-    """One real Postgres server for the whole test session — see
-    tests/test_db/_pg_utils.py for why `pgserver` instead of Docker."""
-    with tempfile.TemporaryDirectory(prefix="civiclens_test_pg_") as tmpdir:
-        server = start_test_postgres(tmpdir)
-        try:
-            yield server
-        finally:
-            server.cleanup()
-
-
-@pytest.fixture(scope="session")
-def test_database_url(pg_instance) -> str:
-    return to_sqlalchemy_url(pg_instance.get_uri())
-
-
-@pytest.fixture(scope="session")
-def alembic_config(test_database_url: str) -> Config:
+def alembic_config(full_pg_database_url: str) -> Config:
     config = Config(str(ALEMBIC_INI_PATH))
-    config.set_main_option("sqlalchemy.url", test_database_url)
+    config.set_main_option("sqlalchemy.url", full_pg_database_url)
     return config
 
 
 @pytest.fixture(scope="session")
 def migrated_engine(
-    alembic_config: Config, test_database_url: str
+    alembic_config: Config, full_pg_database_url: str
 ) -> Generator[Engine, None, None]:
     """Runs every migration once per test session, then hands back a
     plain SQLAlchemy engine pointed at the now-migrated database."""
     command.upgrade(alembic_config, "head")
-    engine = create_engine(test_database_url, future=True)
+    engine = create_engine(full_pg_database_url, future=True)
     try:
         yield engine
     finally:

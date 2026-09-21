@@ -229,9 +229,22 @@ in the initial migration; verified by an automated test
 ([TESTING.md](TESTING.md)) that runs upgrade → downgrade → upgrade.
 
 **Test execution detail.** Integration/model tests run against a real
-PostgreSQL instance via `pgserver` (a pip-installable embedded Postgres
-with prebuilt binaries), not Docker — this development environment has
-no Docker/WSL2 available. Production and every deployed environment
-remain plain PostgreSQL per [ADR-004](ADR/ADR-004-postgresql.md); this is
-purely how the test suite provisions a database, detailed in
-[TESTING.md](TESTING.md).
+PostgreSQL instance, not Docker — this development environment has no
+Docker/WSL2 available. As of Phase 3 this was `pgserver` (a
+pip-installable embedded Postgres); as of Phase 5 it's a full-PostgreSQL
+binary distribution instead, since the migration chain now requires
+`pg_trgm` (§8), which `pgserver`'s Windows build doesn't bundle.
+Production and every deployed environment remain plain PostgreSQL per
+[ADR-004](ADR/ADR-004-postgresql.md); this is purely how the test suite
+provisions a database, detailed in [TESTING.md](TESTING.md).
+
+## 8. Phase 5 Implementation Note: `search_documents`
+
+Phase 5 added one table outside the entity groups above:
+`search_documents`, Civic Search's read-side projection
+([SEARCH.md](SEARCH.md) §3, §12) — polymorphic (`entity_type`/`entity_id`,
+no foreign key to any domain table, matching §2.7's `sources` pattern),
+since no domain table exists yet for it to project from. It is not a
+system of record (§1) and carries its own `source_id`/
+`verification_status` columns so provenance survives into search
+results even before a domain table exists to look them up from.

@@ -46,13 +46,17 @@ mocks:
   `join_transaction_mode="create_savepoint"` so ORM-level `commit()` calls
   in the code under test don't end the outer test transaction early), so
   tests never leak state or need manual cleanup.
-- A **separate test database**, created/migrated via Alembic — as of
-  Phase 3, provisioned per test session via `pgserver` (a pip-installable
-  embedded PostgreSQL with prebuilt binaries), not Docker: this
-  development environment has no Docker/WSL2 available. CI or a future
-  environment with Docker may use a Postgres service container instead —
-  either way it's a real, disposable Postgres, never dev/production and
-  never a mock.
+- A **separate test database**, created/migrated via Alembic. As of
+  Phase 3 this was provisioned via `pgserver` (a pip-installable embedded
+  PostgreSQL), since this development environment has no Docker/WSL2. As
+  of Phase 5, the migration chain unconditionally requires `pg_trgm`
+  (search_documents' `gin_trgm_ops` index, [SEARCH.md](SEARCH.md)), which
+  `pgserver`'s Windows build does not bundle — so every backend test now
+  runs against a full PostgreSQL instead: a `postgres:16` service
+  container in CI, or a local full-PostgreSQL binary distribution in this
+  development environment (`apps/api/tests/_full_pg_utils.py`, resolved
+  via the `full_pg_database_url` fixture). Either way it's a real,
+  disposable Postgres, never dev/production and never a mock.
 - Coverage: repository/query behavior, cross-module reads (e.g.
   eligibility reading domain tables), API-route-to-DB round trips
   (`get_db` dependency commit-on-success/rollback-on-exception, tested

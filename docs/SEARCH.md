@@ -1,9 +1,15 @@
 # CivicLens — Civic Search Engine Architecture
 
-This document defines the target architecture for Engine A, Civic Search,
-per [ADR-005](ADR/ADR-005-search-architecture.md). It is the reference for
-Phase 5 ("Search Infrastructure" — [ROADMAP.md](ROADMAP.md)). **No search
-index, query endpoint, or ranking logic exists yet.**
+This document defines the architecture for Engine A, Civic Search, per
+[ADR-005](ADR/ADR-005-search-architecture.md). **Phase 5 ("Search
+Infrastructure" — [ROADMAP.md](ROADMAP.md)) implemented the search
+infrastructure itself** — the `search_documents` projection, the
+`GET /api/v1/search` endpoint, and the frontend search page — **using
+synthetic fixtures only.** No real domain module (jobs, exams, schemes,
+services, scholarships, representatives, elections, documents) exists
+yet, so nothing real is indexed yet either; §3 and §12–13 describe what
+was actually built, and are updated again as each real domain module
+starts calling `upsert_search_document` (§12).
 
 ## 1. Core Principle: Search Is a Projection, Not a System of Record
 
@@ -42,100 +48,126 @@ corpus size (two states, a curated domain set) — not a permanent ceiling.
 
 ## 3. What Gets Indexed
 
-A generated `search_vector` (`tsvector`) column per searchable entity,
-combining weighted fields, plus companion `pg_trgm` indexes on the
-highest-value autocomplete fields:
+Rather than a generated `search_vector` column on each domain table,
+Phase 5 built one generic, polymorphic projection table,
+`search_documents` (`apps/api/app/search/models.py`), keyed on
+`(entity_type, entity_id, locale)` with no foreign key to any domain
+table — matching the `sources`/`change_records` polymorphic pattern
+already used elsewhere ([ARCHITECTURE.md](ARCHITECTURE.md) §6). This was
+chosen over per-domain generated columns because **no domain table exists
+yet** (§1's "clean search abstraction" requirement, this phase's scope):
+a future domain module (jobs, schemes, ...) calls
+`upsert_search_document`/`remove_search_document`
+(`apps/api/app/search/service.py`) when it publishes or retires an
+entity; nothing outside that module ever constructs a `tsquery` or
+touches `search_vector` directly, so replacing the underlying engine
+later (§10) means rewriting `app/search/service.py`, not every future
+caller.
 
-| Entity | Indexed fields (weighted) |
-|---|---|
-| `jobs` | title (A), organization name (B), department name (C), description (D) |
-| `job_notifications` | notification_number (B) |
-| `exams` | name (A), conducting_body name (B) |
-| `schemes` | name (A), description (B), target beneficiary summary (C) |
-| `scholarships` | name (A), education_level (B), description (C) |
-| `services` | name (A), description (B), channel (C) |
-| `representatives` | name (A), constituency name (B), role (C) |
-| `elections` | constituency name (A), election_date-derived label (B) |
-| `documents` | name (A), typical_use (B) |
+Each row carries: `title`, `summary`, `searchable_text` (weighted A/B/C
+respectively — title outranks summary outranks incidental body text),
+`route`, `state_id`/`district_id` (nullable FKs), `category`, `status`,
+`source_id` (FK, `NOT NULL`) and `verification_status` — provenance is
+carried on every row, never optional (§13's `source` field on every
+result). A trigram (`gin_trgm_ops`) index on `title` backs §5's fallback;
+a GIN index on `search_vector` backs exact matching.
 
-Weighting (`A`–`D`, Postgres FTS's standard rank weights) biases ranking
-toward title/name matches over incidental description matches. Only
-`VERIFIED` and `NEEDS_REVIEW` records are indexed (§7) — `UNVERIFIED` and
-soft-deleted rows are excluded by the indexing query itself, not filtered
-at query time, so they can never leak into results by omission of a
-filter.
+Only `VERIFIED` and `NEEDS_REVIEW` documents are indexable —
+`upsert_search_document` raises `ValueError` if called with any other
+`VerificationStatus`, so `UNVERIFIED`/`EXPIRED` content can never reach
+the index by omission of a filter; a caller must explicitly call
+`remove_search_document` when an entity's status changes.
 
-Locale-specific text (English/Telugu translatable fields,
-[DATABASE.md](DATABASE.md) §0.4) is indexed per-locale: a Telugu query
-matches Telugu-locale field content, not a machine transliteration of the
-English field.
+Locale-specific text is indexed per-locale (`locale` is part of the
+uniqueness key): a Telugu query matches Telugu-locale rows, not a machine
+transliteration of the English field.
 
 ## 4. Autocomplete Design
+
+**Not built in Phase 5** — this phase's scope was full search only
+(`GET /api/v1/search`), not a separate as-you-type suggestion endpoint.
+The design below remains the plan for when autocomplete is prioritized:
 
 - Prefix/substring matching via `pg_trgm` similarity (`%` operator) against
   the same weighted title/name fields, ordered by similarity score, capped
   to a small result count (e.g., top 8) for low-latency as-you-type
   suggestions.
-- Autocomplete is a distinct, cheaper query path from full search — it
-  does not run the full `tsquery` ranking pipeline, since it optimizes for
+- Autocomplete would be a distinct, cheaper query path from full search —
+  not running the full `tsquery` ranking pipeline, since it optimizes for
   latency on every keystroke rather than exhaustive relevance.
 
 ## 5. Typo Tolerance
 
-`pg_trgm` similarity scoring (not edit-distance/Levenshtein directly)
-handles minor misspellings by falling back from an exact/`tsquery` match
-to a trigram-similarity match when the exact match returns few or no
-results — e.g., "TSPC" still surfaces "TSPSC" results. This is the
-mechanism validated by Phase 5's acceptance criterion (a deliberately
-misspelled query must return correct ranked results,
-[ROADMAP.md](ROADMAP.md) Phase 5).
+Implemented in `search_documents()` (`app/search/service.py`) as a
+two-step fallback, never a blended/merged score (kept deterministic and
+testable, §8): first, an exact `websearch_to_tsquery` match; only if that
+returns **zero** rows does the query re-run using
+`word_similarity(query, title) > 0.4` (a `pg_trgm` function, not plain
+`similarity()` — see the code comment for why: `similarity()` scores a
+short query against a long title's *entire* text and under-scores an
+obvious typo, while `word_similarity()` scores it against the title's
+best-matching substring). This threshold and mechanism were verified
+directly against fixtures: a real typo ("pasport") scores 0.70; unrelated
+text scores 0.0. The response's `query.fuzzy_fallback_used` flag tells
+the caller (and the frontend, §13) which path served the result, so a UI
+can honestly label a fuzzy-matched result set.
 
 ## 6. Filters
 
-Per FR-SR2, applied as SQL `WHERE` clauses alongside the text-search
-predicate, on indexed columns — never as post-filtering of an
-already-paged result set:
+Implemented in `_apply_filters()` (`app/search/service.py`) as SQL
+`WHERE` clauses AND-ed with the text-search predicate, applied
+identically to the count query and the results query and to both the
+exact and fuzzy branches — never post-filtering an already-paged result
+set (per FR-SR2 and [API.md](API.md) §6):
 
-- **Domain** (jobs/exams/schemes/services/scholarships/representatives/
-  elections/documents)
-- **State** / **district** (via the geography foreign keys,
+- **`entity_type`** (the future domain discriminator — no fixed enum yet
+  at Phase 5 since no domain module exists; see §11)
+- **`state_id`** / **`district_id`** (the geography foreign keys,
   [DATABASE.md](DATABASE.md) §2.1)
-- **Status** (upcoming/open/closed, or entity-specific status)
-- **Date range** (against relevant `deadlines`/`published_date` fields)
+- **`category`** / **`status`** (free-text, entity-defined at this phase)
+- **`date_from`** / **`date_to`** (against `last_verified_at`)
 
-Filters combine with the text query as AND conditions, matching the
-convention in [API.md](API.md) §6.
+Every query param is bound via SQLAlchemy, never string-interpolated —
+directly verified with a hostile query string
+(`tests/test_search/test_service.py::test_query_string_is_not_vulnerable_to_sql_injection`).
 
 ## 7. Multilingual Query Handling & Known Limitations
 
-- Query language is detected (or explicitly supplied by the client based
-  on active locale, [FRONTEND.md](FRONTEND.md) §7) and routed to the
-  matching locale's indexed content.
-- **Known, accepted MVP limitation** (per
-  [ADR-005](ADR/ADR-005-search-architecture.md)): PostgreSQL has no native
-  Telugu text-search configuration (no Telugu stemming/lemmatization
-  dictionary equivalent to `english`'s). Telugu search at MVP relies on:
-  - `simple` (unstemmed) `tsvector` configuration for Telugu text, plus
-  - `pg_trgm` similarity as the primary practical matching mechanism for
-    Telugu queries, since stemming-based ranking isn't available.
-  This means Telugu search quality is expected to lag English search
-  quality — a documented gap, not a silent one. It is surfaced honestly
-  (no claim of equivalent linguistic sophistication) and is the leading
-  trigger for the upgrade path in §9.
+- The caller supplies `locale` explicitly (from the active
+  frontend locale, [FRONTEND.md](FRONTEND.md) §7) — Civic Search does not
+  attempt language *detection*; it routes to the matching locale's
+  indexed rows (`SearchDocument.locale`, part of the uniqueness key).
+- **Known, accepted MVP limitation**, implemented exactly as
+  [ADR-005](ADR/ADR-005-search-architecture.md) anticipated: PostgreSQL
+  has no native Telugu text-search configuration (no stemming
+  dictionary equivalent to `english`'s). `_ts_config()`
+  (`app/search/service.py`) selects the `english` FTS configuration for
+  `locale="en"` and falls back to `simple` (unstemmed) for every other
+  locale, `pg_trgm` similarity being the primary practical matching
+  mechanism once stemming-based ranking isn't available. This means
+  Telugu search quality is expected to lag English search quality — a
+  documented gap, not a silent one, and the leading trigger for the
+  upgrade path in §10.
 
 ## 8. Relevance & Ranking
 
-- Primary signal: `ts_rank`/`ts_rank_cd` weighted by field (§3).
-- Secondary tie-breaker: recency (e.g., `published_date`/`updated_at`) for
-  time-sensitive domains (jobs, exams) where a newer notification should
-  generally outrank an older one of similar textual relevance.
-- Verification status is not a ranking signal that hides content, but
-  `NEEDS_REVIEW` results are visually flagged in the UI per
-  [DATA_GOVERNANCE.md](DATA_GOVERNANCE.md) §4 — ranking and trust
-  signaling are kept as separate concerns.
-- No personalization or click-through-based ranking at MVP — results are
-  deterministic for a given query + filter set, which also keeps search
-  behavior testable ([ROADMAP.md](ROADMAP.md) Phase 5 test requirement).
+- Primary signal on an exact match: `ts_rank_cd` over the weighted
+  `search_vector` (§3). Primary signal on a fuzzy-fallback match (§5):
+  the `word_similarity` score itself.
+- Secondary tie-breaker in both cases: recency (`last_verified_at`,
+  nulls last) — `_order_by_relevance_or_recency()`.
+- `sort=last_verified` (`SearchSortOption`, an explicit two-value
+  allow-list, never an arbitrary client-supplied column name) overrides
+  relevance ordering entirely when the caller wants newest-first.
+- Verification status is not a ranking signal that hides content — a
+  `NEEDS_REVIEW` document ranks exactly where its text relevance places
+  it; the frontend surfaces its status via a distinct badge
+  (§13) per [DATA_GOVERNANCE.md](DATA_GOVERNANCE.md) §4 — ranking and
+  trust signaling are kept as separate concerns.
+- No personalization, popularity, or political ranking (this phase's
+  explicit prohibition) — results are deterministic for a given query +
+  filter set, which also keeps search behavior testable (14 deterministic
+  tests in `tests/test_search/test_service.py`).
 
 ## 9. Intent Detection — Relationship to Civic AI
 
@@ -181,13 +213,77 @@ anything but the disposable index itself.
 
 ## 11. Explicitly Not Built Yet
 
-- Any actual `tsvector` column, index, or query implementation.
+- Any real domain module indexing anything — every row in the database
+  today comes from `app/search/fixtures.py`'s synthetic fixtures
+  (`TEST_JOB`/`TEST_SERVICE`/`TEST_SCHEME`, gated to `local`/`test`
+  environments only), never real government data
+  ([DATA_GOVERNANCE.md](DATA_GOVERNANCE.md) §7).
+- Autocomplete (§4) and any dedicated as-you-type endpoint.
 - Any Meilisearch (or other dedicated search engine) infrastructure — not
   provisioned until a §10 trigger is met and documented.
 - Semantic/vector-based search ranking — that capability lives in Civic
   AI's retrieval layer ([AI_ARCHITECTURE.md](AI_ARCHITECTURE.md) §3), not
   in Civic Search itself, at this phase.
+- Search analytics / zero-result-query logging
+  ([OBSERVABILITY.md](OBSERVABILITY.md)).
 
-This document defines the target search architecture for Phase 5; it is
-updated with real query patterns and index definitions once implementation
-begins, per [ROADMAP.md](ROADMAP.md) Phase 5's documentation requirement.
+## 12. Implementation: `search_documents` & API Contract
+
+- **Table**: `search_documents` (`app/search/models.py`), migrated in
+  `alembic/versions/5d30d9b37791_add_search_documents.py`. The migration
+  runs `CREATE EXTENSION IF NOT EXISTS pg_trgm` itself — every environment
+  that migrates to `head`, including test infrastructure
+  (`apps/api/tests/_full_pg_utils.py`), needs a Postgres build shipping
+  that contrib module (see [TESTING.md](TESTING.md) §3).
+- **Write path**: `upsert_search_document()` / `remove_search_document()`
+  (`app/search/service.py`) — the only functions that ever write to this
+  table. A future domain module calls these from wherever it currently
+  persists an entity; this phase does not add a hook for that (no domain
+  module exists yet).
+- **Read path**: `search_documents()` (`app/search/service.py`) — see §5,
+  §6, §8 for its query flow, filters, and ranking.
+- **Endpoint**: `GET /api/v1/search` (`app/api/v1/search.py`), query
+  params bound via `SearchQueryParams`
+  (`app/search/schemas.py`): `q` (≤200 chars), `entity_type`, `state_id`,
+  `district_id`, `category`, `status`, `date_from`, `date_to`, `locale`
+  (default `en`), `page`/`page_size` (default 20, max 50, per
+  [API.md](API.md) §6's pagination convention), `sort`. Response is
+  `SearchResponse`: `results` (each carrying a public composite
+  `id` — `"{entity_type}:{entity_id}"`, never the raw internal
+  `search_documents.id`, per [API.md](API.md) §12 — plus `source`
+  provenance and `verification_status` on every item), `pagination`, and
+  `query` (echoes `q`/`locale` and `fuzzy_fallback_used`, §5).
+
+## 13. Frontend Integration
+
+- `apps/web/app/[locale]/search/page.tsx` — a Server Component reading
+  `q`/`page` from `searchParams`, so results are shareable/bookmarkable
+  URLs (`/en/search?q=...`, `/te/search?q=...`) that reproduce on reload
+  with no client-side result state.
+- Composes Phase 4's `SearchBar` and `SearchResultCard`
+  (`apps/web/components/civic`) — `SearchControls.tsx` is the one
+  Client Component island, handling the query input and pagination
+  control, navigating to a new `?q=&page=` URL on submit/page-change
+  rather than fetching client-side.
+- **Every result on this page is synthetic fixture data** (§11) — the
+  page renders a persistent, translated "Development data" notice
+  (`Search.devDataTitle`/`devDataBody` in `messages/*.json`) above the
+  results for exactly this reason; it must not be removed before real
+  domain data exists, and should be revisited once it does (per this
+  phase's explicit "do not present synthetic results as production
+  CivicLens information" requirement).
+- `verification_status` maps to a `SourceBadge` (`VERIFIED` → "verified",
+  anything else indexable → "available") rather than the fuller
+  `VerificationStatus` badge component, matching `SearchResultCard`'s
+  existing (Phase 4) prop contract.
+- Shared response types/schemas live in `@civiclens/types` and
+  `@civiclens/validation` (`SearchResponse`, `searchResponseSchema`) —
+  the first hand-written domain types in those packages, added ahead of
+  the OpenAPI-generation tooling named in [API.md](API.md) §10.
+- A failed/unreachable API call renders an honest inline error state
+  (never a crash), matching `apps/web/lib/api.ts`'s existing
+  `getApiHealth` contract — see `apps/web/lib/search.ts`.
+
+This document is updated again with real query patterns once a real
+domain module starts calling `upsert_search_document`, per
+[ROADMAP.md](ROADMAP.md)'s documentation requirement.

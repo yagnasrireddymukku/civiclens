@@ -47,6 +47,26 @@ jobs:
     defaults:
       run:
         working-directory: apps/api
+    # Every backend test that migrates a database to `head` needs
+    # `pg_trgm` (the search_documents migration creates a gin_trgm_ops
+    # index unconditionally, docs/SEARCH.md), so this job runs a real
+    # Postgres service container rather than an embedded/pip-installed
+    # one — it ships every contrib module. See tests/_full_pg_utils.py
+    # and tests/conftest.py's `full_pg_database_url` fixture.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      CIVICLENS_TEST_FULL_PG_URL: postgresql+psycopg://postgres:postgres@localhost:5432/postgres
     steps:
       - uses: actions/checkout@v4
 
