@@ -1,0 +1,49 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-4);
+  height: 3rem;
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  transition: border-color var(--duration-fast) var(--easing-standard);
+}
+
+.field:focus-within {
+  border-color: var(--color-focus-ring);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-focus-ring) 20%, transparent);
+}
+
+.input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font: var(--text-body);
+  color: var(--color-text-primary);
+}
+
+.input::placeholder {
+  color: var(--color-text-muted);
+}
+
+/* Remove the default browser "clear" affordance styling inconsistency
+   across engines; the native clear button still works, just unstyled. */
+.input::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.status {
+  min-height: 1.25rem;
+  font: var(--text-caption);
+  color: var(--color-text-muted);
+  padding-left: var(--space-4);
+}

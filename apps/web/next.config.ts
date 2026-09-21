@@ -1,4 +1,7 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
+
+const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 const nextConfig: NextConfig = {
   // Workspace packages are consumed from source (no separate build step for
@@ -6,4 +9,4 @@ const nextConfig: NextConfig = {
   transpilePackages: ["@civiclens/types", "@civiclens/validation"],
 };
 
-export default nextConfig;
+export default withNextIntl(nextConfig);

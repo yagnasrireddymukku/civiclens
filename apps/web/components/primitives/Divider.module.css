@@ -1,0 +1,31 @@
+.horizontal {
+  width: 100%;
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: 0;
+}
+
+.vertical {
+  height: 100%;
+  width: 1px;
+  border: none;
+  background: var(--color-border);
+  margin: 0;
+}
+
+.withLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.line {
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+
+.label {
+  font: var(--text-caption);
+  color: var(--color-text-muted);
+}

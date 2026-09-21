@@ -55,7 +55,7 @@ until Phase 1 is explicitly approved.
     architecture without a corresponding `docs/` update is incomplete.
 17. **Keep migrations reversible where practical.** Every Alembic migration
     should have a working `downgrade`.
-18. **Maintain accessibility.** WCAG 2.1 AA is a floor, not a stretch goal,
+18. **Maintain accessibility.** WCAG 2.2 AA is a floor, not a stretch goal,
     per [docs/PRODUCT_REQUIREMENTS.md](docs/PRODUCT_REQUIREMENTS.md).
 19. **Maintain SEO.** No feature should regress metadata, canonical URLs,
     or crawlability without a documented reason.

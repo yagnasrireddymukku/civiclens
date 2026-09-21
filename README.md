@@ -75,10 +75,16 @@ pnpm dev
 cd apps/api && uv run uvicorn app.main:app --reload
 ```
 
-With both running, `http://localhost:3000` shows a live API status pulled
-from `GET /api/v1/health` — this proves the frontend/backend/shared-package
-wiring works; it is not the product homepage (that starts in
-[docs/ROADMAP.md](docs/ROADMAP.md) Phase 4).
+With both running:
+
+- `http://localhost:3000` redirects to `http://localhost:3000/en` (or
+  `/te` — see [docs/FRONTEND.md](docs/FRONTEND.md) §7) and shows a live
+  API status pulled from `GET /api/v1/health`, proving the frontend/
+  backend/shared-package wiring works. It is not the product homepage
+  yet — that starts in [docs/ROADMAP.md](docs/ROADMAP.md) Phase 6.
+- `http://localhost:3000/en/dev/design-system` is the internal design
+  system showcase (development only — it 404s in a production build; see
+  [docs/FRONTEND.md](docs/FRONTEND.md) §9).
 
 ## Testing, Linting, Type Checking
 

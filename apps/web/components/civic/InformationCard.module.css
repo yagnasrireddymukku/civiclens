@@ -1,0 +1,58 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.eyebrow {
+  font: var(--text-caption);
+  font-weight: 600;
+  color: var(--color-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.title {
+  font: var(--text-h4);
+}
+
+.titleLink {
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+
+.titleLink:hover {
+  text-decoration: underline;
+}
+
+.description {
+  font: var(--text-body-small);
+  color: var(--color-text-secondary);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  list-style: none;
+  font: var(--text-caption);
+  color: var(--color-text-muted);
+}
+
+.meta li {
+  display: inline-flex;
+  align-items: center;
+}
+
+.meta li:not(:last-child)::after {
+  content: "·";
+  margin-left: var(--space-3);
+  color: var(--color-border-strong);
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}

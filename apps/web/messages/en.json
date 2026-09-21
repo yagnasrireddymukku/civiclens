@@ -1,0 +1,70 @@
+{
+  "Shell": {
+    "skipToContent": "Skip to main content",
+    "brand": "CivicLens",
+    "tagline": "Search. Understand. Check. Act. Track.",
+    "userAreaSignIn": "Sign in",
+    "userAreaPlaceholder": "Accounts aren't available yet"
+  },
+  "LanguageSwitcher": {
+    "label": "Language",
+    "en": "English",
+    "te": "Telugu"
+  },
+  "Nav": {
+    "home": "Home",
+    "jobs": "Jobs",
+    "schemes": "Schemes",
+    "services": "Services",
+    "representatives": "Representatives",
+    "exams": "Exams",
+    "documents": "Documents",
+    "calculators": "Calculators",
+    "ai": "AI Assistant",
+    "comingSoon": "Coming soon",
+    "comingSoonHint": "Not built yet — see the CivicLens roadmap"
+  },
+  "Footer": {
+    "about": "About",
+    "contact": "Contact",
+    "privacy": "Privacy",
+    "terms": "Terms",
+    "disclaimer": "Disclaimer",
+    "tagline": "India's Personal Public-Information Intelligence Platform."
+  },
+  "Home": {
+    "heroEyebrow": "Phase 4 — Design System Foundation",
+    "heroTitle": "India's Personal Public-Information Intelligence Platform",
+    "heroTagline": "Search. Understand. Check. Act. Track.",
+    "heroBody": "CivicLens is under active development. This page demonstrates the application shell and design system — it is not the product homepage yet.",
+    "statusHeading": "Backend API status",
+    "statusReachable": "Reachable — {status} ({service} v{version})",
+    "statusUnreachable": "Not reachable from this page ({error}). Start apps/api and reload to see a live status.",
+    "showcaseCta": "View the design system showcase"
+  },
+  "NotFound": {
+    "title": "Page not found",
+    "returnHome": "Return home"
+  },
+  "ErrorBoundary": {
+    "title": "Something went wrong",
+    "description": "An unexpected error occurred while rendering this page.",
+    "retry": "Try again"
+  },
+  "Loading": {
+    "label": "Loading…"
+  },
+  "DesignSystem": {
+    "title": "CivicLens Design System",
+    "subtitle": "Internal, development-only reference — not a public CivicLens page.",
+    "colorsHeading": "Color",
+    "typographyHeading": "Typography",
+    "spacingHeading": "Spacing",
+    "radiiHeading": "Radius",
+    "shadowsHeading": "Elevation",
+    "primitivesHeading": "Primitives",
+    "civicHeading": "CivicLens components",
+    "responsiveHeading": "Responsive behavior",
+    "responsiveBody": "Resize the window, or use your browser's device toolbar, to see components adapt."
+  }
+}

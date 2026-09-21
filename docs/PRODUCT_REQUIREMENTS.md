@@ -106,7 +106,9 @@ implementation.
   named product requirement it serves.
 
 ### 2.5 Accessibility
-- NFR-ACC1: Public pages meet WCAG 2.1 AA at minimum.
+- NFR-ACC1: Public pages meet WCAG 2.2 AA at minimum (raised from 2.1 AA
+  during Phase 4 — 2.2 is a superset of 2.1's criteria, so this is a
+  higher bar, not a different one).
 - NFR-ACC2: Core flows (search, view opportunity, check eligibility) are
   usable via keyboard and screen reader.
 

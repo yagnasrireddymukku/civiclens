@@ -1,0 +1,71 @@
+{
+  "_comment": "Good-faith Telugu translations for the Phase 4 shell/foundation surface. Professional editorial review is a content task, not a code task — see docs/FRONTEND.md §7 (translation quality is a data/editorial concern, not a frontend rendering trick).",
+  "Shell": {
+    "skipToContent": "ప్రధాన కంటెంట్‌కు వెళ్లండి",
+    "brand": "CivicLens",
+    "tagline": "శోధించండి. అర్థం చేసుకోండి. తనిఖీ చేయండి. చర్య తీసుకోండి. ట్రాక్ చేయండి.",
+    "userAreaSignIn": "సైన్ ఇన్ చేయండి",
+    "userAreaPlaceholder": "ఖాతాలు ఇంకా అందుబాటులో లేవు"
+  },
+  "LanguageSwitcher": {
+    "label": "భాష",
+    "en": "ఇంగ్లీష్",
+    "te": "తెలుగు"
+  },
+  "Nav": {
+    "home": "హోమ్",
+    "jobs": "ఉద్యోగాలు",
+    "schemes": "పథకాలు",
+    "services": "సేవలు",
+    "representatives": "ప్రజా ప్రతినిధులు",
+    "exams": "పరీక్షలు",
+    "documents": "పత్రాలు",
+    "calculators": "కాలిక్యులేటర్లు",
+    "ai": "AI సహాయకుడు",
+    "comingSoon": "త్వరలో వస్తుంది",
+    "comingSoonHint": "ఇంకా నిర్మించలేదు — CivicLens రోడ్‌మ్యాప్ చూడండి"
+  },
+  "Footer": {
+    "about": "గురించి",
+    "contact": "సంప్రదించండి",
+    "privacy": "గోప్యత",
+    "terms": "నిబంధనలు",
+    "disclaimer": "నిరాకరణ",
+    "tagline": "భారతదేశపు వ్యక్తిగత ప్రజా-సమాచార ఇంటెలిజెన్స్ ప్లాట్‌ఫారమ్."
+  },
+  "Home": {
+    "heroEyebrow": "ఫేజ్ 4 — డిజైన్ సిస్టమ్ పునాది",
+    "heroTitle": "భారతదేశపు వ్యక్తిగత ప్రజా-సమాచార ఇంటెలిజెన్స్ ప్లాట్‌ఫారమ్",
+    "heroTagline": "శోధించండి. అర్థం చేసుకోండి. తనిఖీ చేయండి. చర్య తీసుకోండి. ట్రాక్ చేయండి.",
+    "heroBody": "CivicLens ప్రస్తుతం అభివృద్ధిలో ఉంది. ఈ పేజీ అప్లికేషన్ షెల్ మరియు డిజైన్ సిస్టమ్‌ను ప్రదర్శిస్తుంది — ఇది ఇంకా ఉత్పత్తి హోమ్‌పేజీ కాదు.",
+    "statusHeading": "బ్యాకెండ్ API స్థితి",
+    "statusReachable": "అందుబాటులో ఉంది — {status} ({service} v{version})",
+    "statusUnreachable": "ఈ పేజీ నుండి చేరుకోలేకపోయాము ({error}). apps/api ప్రారంభించి పేజీని రీలోడ్ చేయండి.",
+    "showcaseCta": "డిజైన్ సిస్టమ్ షోకేస్ చూడండి"
+  },
+  "NotFound": {
+    "title": "పేజీ కనుగొనబడలేదు",
+    "returnHome": "హోమ్‌కు తిరిగి వెళ్లండి"
+  },
+  "ErrorBoundary": {
+    "title": "ఏదో తప్పు జరిగింది",
+    "description": "ఈ పేజీని ప్రదర్శించేటప్పుడు ఊహించని లోపం సంభవించింది.",
+    "retry": "మళ్లీ ప్రయత్నించండి"
+  },
+  "Loading": {
+    "label": "లోడ్ అవుతోంది…"
+  },
+  "DesignSystem": {
+    "title": "CivicLens డిజైన్ సిస్టమ్",
+    "subtitle": "అంతర్గత, డెవలప్‌మెంట్-మాత్రమే రిఫరెన్స్ — ఇది ప్రజా CivicLens పేజీ కాదు.",
+    "colorsHeading": "రంగు",
+    "typographyHeading": "టైపోగ్రఫీ",
+    "spacingHeading": "స్పేసింగ్",
+    "radiiHeading": "రేడియస్",
+    "shadowsHeading": "ఎలివేషన్",
+    "primitivesHeading": "ప్రిమిటివ్‌లు",
+    "civicHeading": "CivicLens కాంపొనెంట్‌లు",
+    "responsiveHeading": "రెస్పాన్సివ్ ప్రవర్తన",
+    "responsiveBody": "కాంపొనెంట్‌లు ఎలా సర్దుబాటు అవుతాయో చూడటానికి విండోను రీసైజ్ చేయండి."
+  }
+}

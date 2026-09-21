@@ -1,27 +1,11 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+import type { ReactNode } from "react";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-export const metadata: Metadata = {
-  title: "CivicLens",
-  description:
-    "India's Personal Public-Information Intelligence Platform — architecture foundation (Phase 1).",
-};
-
-export default function RootLayout({ children }: LayoutProps<"/">) {
-  return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <body>{children}</body>
-    </html>
-  );
+/**
+ * Deliberately does not render <html>/<body> — the locale isn't known
+ * at this level yet (docs/FRONTEND.md §7). app/[locale]/layout.tsx
+ * renders the actual document shell once the locale segment resolves;
+ * this is next-intl's documented App Router pattern for i18n routing.
+ */
+export default function RootLayout({ children }: { children: ReactNode }) {
+  return children;
 }

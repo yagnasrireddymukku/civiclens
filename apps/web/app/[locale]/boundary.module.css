@@ -1,0 +1,21 @@
+.wrapper {
+  padding-block: var(--space-16) var(--space-8);
+  max-width: 32rem;
+}
+
+.title {
+  font: var(--text-h1);
+  margin-bottom: var(--space-3);
+}
+
+.description {
+  font: var(--text-body);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-6);
+}
+
+.link {
+  color: var(--color-primary);
+  font-weight: 600;
+  text-decoration: underline;
+}

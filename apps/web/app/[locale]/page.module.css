@@ -1,0 +1,48 @@
+.hero {
+  padding-block: var(--space-16) var(--space-12);
+  max-width: 42rem;
+}
+
+.eyebrow {
+  font: var(--text-label);
+  color: var(--color-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: var(--space-3);
+}
+
+.title {
+  font: var(--text-display);
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-4);
+}
+
+.tagline {
+  font: var(--text-h4);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-4);
+}
+
+.body {
+  font: var(--text-body);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-6);
+}
+
+.showcaseLink {
+  display: inline-flex;
+  color: var(--color-primary);
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.status {
+  padding-block: var(--space-6);
+  border-top: 1px solid var(--color-border);
+  max-width: 42rem;
+}
+
+.statusHeading {
+  font: var(--text-h4);
+  margin-bottom: var(--space-2);
+}

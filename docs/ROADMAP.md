@@ -113,24 +113,53 @@ until the prior phase's acceptance criteria are met and, per
 
 ## Phase 4 — Frontend + Design System
 - **Objective**: Implement the design system primitives and app shell.
-- **Scope**: Design tokens, component library base, layout, i18n scaffold
-  (English/Telugu), no real content pages yet.
-- **Dependencies**: Phase 1 (can run in parallel with Phases 2–3).
-- **Files/modules**: `apps/web/app/`, `apps/web/components/ui/`,
-  `apps/web/styles/`, `apps/web/i18n/`.
-- **Technical work**: Implement tokens/components per
-  [FRONTEND.md](FRONTEND.md) design-system spec; locale routing scaffold.
-- **Tests**: Component unit tests (rendering, accessibility roles);
-  Storybook or equivalent visual reference (only if justified — avoid
-  unnecessary tooling per [CLAUDE.md](../CLAUDE.md)).
-- **Documentation**: [FRONTEND.md](FRONTEND.md) finalized with real
-  component inventory.
+- **Scope**: Design tokens, component library base, layout, i18n
+  foundation (English/Telugu), no real content pages.
+- **Dependencies**: Phase 1 (ran independently of Phases 2–3).
+- **Files/modules**: `apps/web/app/globals.css` (tokens),
+  `apps/web/components/{primitives,feedback,navigation,layout,civic}/`,
+  `apps/web/components/icons.tsx`, `apps/web/i18n/`, `apps/web/proxy.ts`,
+  `apps/web/messages/{en,te}.json`, `apps/web/app/[locale]/` (restructured
+  from Phase 1's flat `app/`), `apps/web/lib/seo.ts`. No
+  `apps/web/components/ui/` or `apps/web/styles/` — folder names refined
+  during implementation; see [FRONTEND.md](FRONTEND.md) §4.
+- **Technical work**: CSS custom-property design tokens (no Tailwind);
+  ~20 primitives/feedback/navigation components (native `<dialog>`,
+  `<details>`, `<select>` used instead of hand-built equivalents where
+  possible); 9 CivicLens-specific components (`SourceBadge`,
+  `VerificationStatus`, `EligibilityStatus`, `DeadlineBadge`,
+  `LastVerified`, `OfficialSourceCard`, `InformationCard`,
+  `SearchResultCard`, `SearchBar`); `AppShell`/`TopNav`/`Footer` with a
+  "coming soon" pattern for unbuilt nav sections (no dead links);
+  `next-intl`-based locale routing (`/en`, `/te`) with a working
+  language switcher; a development-only design-system showcase page,
+  blocked in production at the proxy layer.
+- **Tests**: Component tests for accessibility-critical behavior (`Tabs`
+  keyboard/ARIA, `Dialog` open/close/labeling, `VerificationStatus`
+  never-color-alone), a `LanguageSwitcher` test proving the i18n
+  foundation actually switches locale, plus the existing `Button`/home-page
+  tests updated for the new route structure. No Storybook — not justified
+  at this scale ([CLAUDE.md](../CLAUDE.md) rule 13).
+- **Documentation**: [FRONTEND.md](FRONTEND.md) updated with the realized
+  component inventory, token values, and i18n implementation;
+  [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md) NFR-ACC1 raised from
+  WCAG 2.1 AA to 2.2 AA per this phase's instruction (a superset, not a
+  conflicting bar).
 - **Acceptance criteria**: App shell renders in English and Telugu locale
-  routes with placeholder content; base accessibility checks pass.
+  routes with placeholder content; lint/typecheck/format/build/test all
+  pass for both `apps/web` and (regression-checked, unchanged)
+  `apps/api`; the showcase page 404s in a production build and renders in
+  development.
 - **Risks**: Design system built ahead of real content needs, causing
   rework — mitigated by validating tokens/components against Phase 6's
-  actual job-listing page before finalizing.
-- **Rollback**: Revert; no backend dependency.
+  actual job-listing page before finalizing. One real bug found and fixed
+  during implementation: `notFound()` called from inside the showcase
+  page component did not reliably produce an HTTP 404 in a production
+  build (observed directly, not assumed) — the authoritative guard is
+  now `apps/web/proxy.ts`, with the in-page `notFound()` kept only as
+  defense in depth.
+- **Rollback**: Revert; no backend dependency (confirmed — `apps/api`'s
+  Phase 3 test suite was re-run unchanged and stayed green throughout).
 
 ## Phase 5 — Search Infrastructure
 - **Objective**: Stand up Postgres-based search per

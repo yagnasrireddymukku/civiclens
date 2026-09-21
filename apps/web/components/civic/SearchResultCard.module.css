@@ -1,0 +1,31 @@
+.result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.domain {
+  font: var(--text-caption);
+  color: var(--color-text-muted);
+}
+
+.title {
+  font: var(--text-h4);
+}
+
+.title a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.title a:hover {
+  text-decoration: underline;
+}
+
+.snippet {
+  font: var(--text-body-small);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-1);
+}

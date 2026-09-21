@@ -1,0 +1,25 @@
+.skeleton {
+  display: inline-block;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    100deg,
+    var(--color-border) 30%,
+    var(--color-secondary-hover) 50%,
+    var(--color-border) 70%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+.circle {
+  border-radius: var(--radius-pill);
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}

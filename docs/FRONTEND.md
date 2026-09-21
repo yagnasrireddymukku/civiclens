@@ -1,10 +1,12 @@
 # CivicLens — Frontend Architecture
 
-This document defines the target Next.js frontend architecture and design
-system **specification** — visual direction, structure, and conventions,
-not implemented components. It is the reference for Phase 4 ("Frontend +
-Design System" — [ROADMAP.md](ROADMAP.md)), refined against real content
-needs starting Phase 6. **No frontend code exists yet.**
+This document defines the Next.js frontend architecture and design
+system. **Phase 4 status**: the design system (tokens, primitives,
+CivicLens-specific components), application shell, and English/Telugu
+i18n foundation are implemented (`apps/web/components/`,
+`apps/web/app/globals.css`, `apps/web/i18n/`) — see §4, §6, §7, §11 for
+what's real today. No domain content pages exist yet; those land
+incrementally starting Phase 6 against this foundation.
 
 ## 1. Scope & Relationship to Other Docs
 
@@ -16,7 +18,7 @@ needs starting Phase 6. **No frontend code exists yet.**
   this document is where their realization is defined, since neither owns
   new backend data ([DATABASE.md](DATABASE.md) §1).
 - SEO requirements that constrain rendering strategy: [SEO.md](SEO.md).
-- Accessibility floor: WCAG 2.1 AA, per NFR-ACC1
+- Accessibility floor: WCAG 2.2 AA, per NFR-ACC1
   ([PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md) §2.5).
 
 ## 2. Page / Route Structure
@@ -68,26 +70,67 @@ human review first.
 
 ## 4. Component Architecture
 
-- Three-tier component structure: **primitives** (button, input, badge,
-  card — design-system tokens applied, no domain knowledge),
-  **patterns** (source-attribution block, verification-status badge,
-  eligibility-condition row, deadline timeline — domain-shaped but reused
-  across multiple pages), and **page compositions** (a job detail page
-  assembles patterns + primitives; owns layout, not visual rules).
-- Domain-specific data shapes come from `packages/types`
-  (generated from the OpenAPI schema, [API.md](API.md) §10) — no
-  component hand-declares a type that duplicates a backend model.
+Realized as five folders under `apps/web/components/`, each with an
+`index.ts` barrel:
+
+| Folder | Contains | Examples |
+|---|---|---|
+| `primitives/` | Generic atoms, no domain knowledge | Button, Input, Textarea, Select, Checkbox, RadioGroup, Switch, Card, Badge, Divider, Skeleton, Spinner |
+| `feedback/` | Overlays and status surfaces | Alert, Tooltip, Dialog, Toast (+ `ToastProvider`) |
+| `navigation/` | Wayfinding | Tabs, Breadcrumb, Pagination, Dropdown |
+| `layout/` | App shell | AppShell, TopNav, Footer, Container, LanguageSwitcher |
+| `civic/` | CivicLens-specific, domain-shaped but not domain-data-owning | SourceBadge, VerificationStatus, LastVerified, OfficialSourceCard, EligibilityStatus, DeadlineBadge, SearchResultCard, InformationCard, SearchBar |
+
+Conventions:
+- Each component is one `.tsx` + one co-located `.module.css` file (no
+  per-component subfolder) — kept flat since a folder-per-component adds
+  structure without benefit at this scale.
+- Every civic component's props are the data it needs, supplied by the
+  caller — none of them fetch, and none contain placeholder real-looking
+  government content (docs/DATA_GOVERNANCE.md §7). Fixture text used in
+  the design-system showcase (§9) is unambiguously fictional.
+- `VerificationStatus`, `EligibilityStatus`, and `DeadlineBadge` mirror
+  enum values from `apps/api` (`app/sources/enums.py`,
+  [ELIGIBILITY_ENGINE.md](ELIGIBILITY_ENGINE.md) §3) exactly — the
+  frontend doesn't invent its own status vocabulary.
+- A hand-authored icon set (`components/icons.tsx`, ~8 icons) is used
+  instead of an icon package dependency (this phase's "avoid giant icon
+  packages" rule).
+- Domain-specific data shapes will come from `packages/types`
+  (generated from the OpenAPI schema, [API.md](API.md) §10) once real
+  domain endpoints exist (Phase 6+) — no component hand-declares a type
+  that duplicates a backend model.
 - Server Components by default (App Router); a component opts into Client
   Component status only when it needs interactivity, browser APIs, or
-  state — kept minimal to preserve SSR/SSG benefits.
+  state (`TopNav` for the mobile menu toggle, `LanguageSwitcher`,
+  `Dialog`, `Toast`, `Tabs`, `SearchBar`) — kept minimal to preserve
+  SSR/SSG benefits.
+
+Accessible-by-construction choices worth naming explicitly, since they
+avoid a UI-library dependency (this phase's rule) by leaning on native
+HTML behavior:
+- **Select** wraps the native `<select>` (full keyboard/mobile-picker
+  support for free).
+- **Dialog** wraps the native `<dialog>` element + `showModal()` (native
+  focus trap, `Escape`-to-close, top-layer rendering).
+- **Dropdown** is built on `<details>/<summary>`.
+- **Tabs** hand-implements the WAI-ARIA tabs pattern (roving tabindex,
+  arrow-key navigation) since no native element covers it.
+- **Tooltip** is CSS-only (`:hover`/`:focus-within`), no positioning
+  library.
+- **Switch** is a native checkbox with `role="switch"` (ARIA 1.2).
 
 ## 5. State Management
 
-- No global client-state library at MVP (no Redux/Zustand/etc. by
-  default) — React Server Components + URL state (search filters, page
-  number) + React `useState`/`useReducer` for local component state cover
-  the identified needs, consistent with avoiding premature dependencies
-  ([CLAUDE.md](../CLAUDE.md) rule 13).
+- No global client-state library (no Redux/Zustand/etc.) — React Server
+  Components + URL state (search filters, page number) + React
+  `useState`/`useReducer` for local component state cover the identified
+  needs, consistent with avoiding premature dependencies
+  ([CLAUDE.md](../CLAUDE.md) rule 13). The one small exception is
+  `ToastProvider` (`components/feedback/Toast.tsx`), a plain React
+  Context holding an in-memory toast queue — deliberately not a general
+  state-management pattern, just the minimum needed for a cross-tree
+  transient-notification API.
 - Server data fetching uses the generated typed client directly in Server
   Components/Route Handlers where possible; client-side data fetching
   (dashboard, Civic AI) uses a minimal fetch-and-cache pattern (e.g.,
@@ -101,65 +144,161 @@ human review first.
 ## 6. Design System Specification
 
 Visual direction — **modern, trustworthy, restrained**, appropriate for a
-civic-trust product, not a consumer/marketing product:
+civic-trust product, not a consumer/marketing product. All tokens live in
+`apps/web/app/globals.css` as CSS custom properties on `:root`.
 
-- **Color**: deep navy as the primary brand/surface-accent color, white/
-  near-white as the dominant surface color. Saffron and green used only as
-  restrained accent colors (status highlights, small UI accents) —
-  deliberately not a literal, flag-derived color scheme applied broadly,
-  to keep the product visually neutral per the political-neutrality
-  requirement ([DATA_GOVERNANCE.md](DATA_GOVERNANCE.md) §5). Semantic
-  colors (verified/needs-review/expired/unverified status, per
-  [DATA_GOVERNANCE.md](DATA_GOVERNANCE.md) §4) are a distinct token set
-  from brand accent colors, so status meaning is never confused with
-  decoration.
-- **Surfaces**: rounded cards (moderate radius, not pill-shaped), subtle
-  shadows for elevation (not heavy drop-shadows), generous whitespace.
-  Avoid excessive glassmorphism/blur effects — clarity and legibility over
-  visual trend-chasing, since the audience includes low-bandwidth mobile
-  users and older devices.
-- **Typography**: a modern, highly legible sans-serif for English; a
-  typeface with genuine Telugu script support and comparable weight/style
-  range for Telugu content, so neither locale looks like an afterthought
-  (see §7). Type scale is defined as design tokens, not per-component
-  magic numbers.
-- **Tokens**: color, spacing, radius, shadow, and type-scale values are
-  defined once as design tokens (implementation detail decided at
-  Phase 4 — CSS variables or a Tailwind theme config) and consumed by
-  every primitive component — no component hardcodes a raw color/spacing
+- **Styling approach**: plain CSS Modules + CSS custom properties — no
+  Tailwind, no component-library dependency (this phase's "avoid
+  unnecessary UI libraries" rule; also keeps the shipped CSS/JS small,
+  per this phase's performance rule). Every component reads tokens via
+  `var(--token-name)`; none hardcodes a raw color/spacing/radius/shadow
   value.
-- **Mobile-first**: layouts are designed and tested at mobile viewport
-  widths first, matching the primary access pattern for Indian civic
-  information consumers, then progressively enhanced for larger screens.
-- **Accessibility**: WCAG 2.1 AA is the floor (NFR-ACC1) — sufficient
-  color contrast (including for status badges), visible focus states,
-  semantic HTML landmarks, and full keyboard operability for search, view,
-  and eligibility-check flows (NFR-ACC2). Accessibility is validated with
-  automated checks (e.g., axe) in component tests plus manual keyboard/
-  screen-reader passes for core flows — not automated checks alone.
+- **Color**: a deep-navy primary (`--color-primary`) with white/near-white
+  surfaces (`--color-background`, `--color-surface`). A single restrained,
+  desaturated warm `--color-accent` exists for sparing use (not applied
+  broadly) — deliberately not a literal flag-derived scheme, keeping the
+  product visually neutral per the political-neutrality requirement
+  ([DATA_GOVERNANCE.md](DATA_GOVERNANCE.md) §5). Semantic tokens
+  (`--color-success/warning/error/info`, each with a paired `-surface`
+  tint) are a distinct set from brand tokens, so status meaning is never
+  confused with decoration — and, per NFR-ACC2/§10 below, status is never
+  conveyed by color alone: every status component (`VerificationStatus`,
+  `EligibilityStatus`, `DeadlineBadge`) pairs its color with a distinct
+  icon and text label.
+- **Surfaces**: rounded cards (`--radius-lg`, moderate, not pill-shaped),
+  subtle shadows for elevation (`--shadow-sm/md/lg`, low-opacity),
+  generous whitespace via the spacing scale. No glassmorphism/blur
+  effects.
+- **Typography**: a system-font stack (`-apple-system, "Segoe UI", "Noto
+  Sans Telugu", "Nirmala UI", Roboto, ...`) rather than a downloaded
+  webfont — a deliberate choice that is both lighter (no extra network
+  request) and solves Telugu rendering for free, since the OS's own UI
+  font already covers Telugu glyphs on the platforms CivicLens targets.
+  The full scale (`--text-display/h1/h2/h3/h4/body/body-small/caption/
+  label/button`) is defined as shorthand `font` custom properties.
+- **Spacing**: a 4px-based scale, `--space-1` (4px) through `--space-20`
+  (80px).
+- **Radii**: `--radius-sm/md/lg/xl/pill`.
+- **Elevation**: `--shadow-sm/md/lg`, used only for cards (`elevated`
+  variant), dropdowns, dialogs, and toasts — not applied decoratively.
+- **Motion**: `--duration-fast/base/slow` + `--easing-standard`, used for
+  hover/focus/expand transitions. A single global
+  `prefers-reduced-motion: reduce` media query collapses all animation/
+  transition durations to near-zero — applied once, globally, rather than
+  requiring every component to remember a per-component guard.
+- **Mobile-first**: unprefixed styles are the mobile layout; a component
+  adds a `min-width` media query (documented breakpoints: 640/768/1024/
+  1280px) only when content genuinely needs to reflow — see `TopNav`'s
+  hamburger-to-inline-nav switch at 1024px as the concrete example.
+- **Dark mode**: **not implemented** as a user-facing feature in this
+  phase — no requirement in
+  [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md) names it, and adding
+  one without a real need would be exactly the kind of unjustified scope
+  this phase's own instructions warn against. Tokens are nonetheless
+  defined as CSS custom properties on `:root` specifically so a future,
+  complete dark theme could be added as a `:root[data-theme="dark"]`
+  override block without a component-by-component redesign — a
+  token-architecture choice, not a partial implementation. Revisit only
+  with a stated product requirement.
+- **Accessibility**: WCAG 2.2 AA is the floor — sufficient color contrast,
+  a visible high-contrast focus ring on every interactive element
+  (`:focus-visible` globally, never suppressed), semantic HTML landmarks,
+  a skip-to-content link (`AppShell`), and full keyboard operability
+  (verified for `Tabs` and `Dialog` by automated tests, see
+  [TESTING.md](TESTING.md)). Status is never color-only (above). A
+  development-only showcase page (§9) exists to visually spot-check all
+  of this together.
 
-## 7. Internationalization (English / Telugu)
+## 7. Internationalization (English / Telugu) — implemented, Phase 4
 
-- Locale-aware routing: `/en/...`, `/te/...`, matching
-  [ARCHITECTURE.md](ARCHITECTURE.md) §10. A locale-detection redirect at
-  `/` sends first-time visitors to a default locale; the choice is
-  sticky (cookie), never re-guessed on every visit.
-- UI chrome (navigation, buttons, labels) is translated via locale
-  catalogs (e.g., Next.js `next-intl`/App Router i18n conventions —
-  specific library chosen at Phase 4). Domain content (job titles,
-  scheme descriptions) is translated at the data layer
-  ([DATABASE.md](DATABASE.md) §0.4 translatable fields), not machine-
-  translated at render time — content translation quality is a data/
-  editorial concern, not a frontend rendering trick.
+- **Library**: `next-intl`, chosen over hand-rolling routing/catalogs — a
+  single, purpose-built, actively-maintained dependency for exactly this
+  need (justified per [CLAUDE.md](../CLAUDE.md) rule 13).
+- **Routing**: `apps/web/i18n/routing.ts` defines the locale list
+  (`en`, `te`) and `localePrefix: "always"` — every URL is
+  locale-prefixed (`/en/...`, `/te/...`), matching
+  [ARCHITECTURE.md](ARCHITECTURE.md) §10. `apps/web/proxy.ts` (Next.js's
+  middleware/proxy convention) runs `next-intl`'s middleware, which
+  redirects `/` to the negotiated locale and remembers the choice in a
+  cookie (sticky — never re-guessed on a later visit to `/`). Adding a
+  future locale (Hindi, Tamil, Kannada, Malayalam, Marathi, Bengali) is a
+  one-line change to the locale list plus a new `messages/<code>.json`
+  catalog — no component code changes.
+- **App structure**: `app/layout.tsx` is a bare passthrough (no `<html>`/
+  `<body>` — the locale isn't known yet at that level); `app/[locale]/
+  layout.tsx` renders the actual document shell, validates the locale
+  param (`notFound()` on an unrecognized one), and wraps children in
+  `NextIntlClientProvider` + `AppShell`. This is `next-intl`'s documented
+  App Router pattern, not a CivicLens invention.
+- **Catalogs**: `apps/web/messages/en.json` and `te.json`, namespaced by
+  UI area (`Shell`, `Nav`, `Footer`, `Home`, `NotFound`, `ErrorBoundary`,
+  `Loading`, `DesignSystem`, `LanguageSwitcher`). Telugu strings are
+  good-faith translations for this phase's shell/foundation surface —
+  professional editorial review is a content task for a later phase
+  (docs/FRONTEND.md's own principle below: translation quality is a
+  data/editorial concern, not a frontend rendering trick), not something
+  this phase certifies.
+- **Switching**: `components/layout/LanguageSwitcher.tsx`, a native
+  `<select>` using `next-intl`'s `useRouter`/`usePathname` to change
+  locale while staying on the current page.
+- Domain content (job titles, scheme descriptions — none exists yet) will
+  be translated at the data layer ([DATABASE.md](DATABASE.md) §0.4
+  translatable fields), not machine-translated at render time, once
+  domain phases land.
 - If a translated content field is unavailable for a given locale, the UI
-  falls back to the source-language content with a visible "not yet
-  translated" indicator — it never silently machine-translates or hides
-  the item, per NFR-I18N1 (translations are first-class, not an
-  afterthought).
-- Number, date, and currency formatting use locale-aware formatting
-  (`Intl` APIs), not hardcoded formats.
+  must fall back to the source-language content with a visible "not yet
+  translated" indicator — it must never silently machine-translate or
+  hide the item, per NFR-I18N1 (translations are first-class, not an
+  afterthought). No content exists yet to exercise this; the rule is
+  recorded here for the phase that first needs it.
+- Number/date formatting uses locale-aware `Intl` APIs, not hardcoded
+  formats — see `components/civic/LastVerified.tsx`
+  (`Intl.DateTimeFormat`).
 
-## 8. Life Event Navigator (Engine G)
+## 8. Application Shell — implemented, Phase 4
+
+`components/layout/AppShell.tsx` wraps every page: a skip-to-content
+link, `TopNav`, the page content in a `<main>` landmark, and `Footer`.
+
+- **TopNav** (`components/layout/TopNav.tsx`): brand/logo, primary
+  navigation, language control, and a user-area placeholder. No
+  authentication is implemented (that's ADR-009/Phase 15) — the
+  "sign in" control is a disabled button with a tooltip explaining
+  accounts aren't available yet, never a functional-looking control that
+  does nothing.
+- **Primary navigation's "coming soon" pattern**: every future section
+  named in [PRODUCT.md](PRODUCT.md) §5 (Jobs, Schemes, Services,
+  Representatives, Exams, Documents, Calculators, AI Assistant) has no
+  route yet. Per this phase's explicit instruction, these render as
+  non-interactive, clearly-labeled items with a "Coming soon" badge and a
+  tooltip — never as an `<a href>` to a route that 404s. The same
+  principle applies to the footer's legal links (About/Contact/Privacy/
+  Terms/Disclaimer): labeled text, not dead links, until those pages
+  exist (Phase 6+).
+- **Responsive**: a hamburger toggle below 1024px (`aria-expanded`/
+  `aria-controls` wired to the nav panel); an inline horizontal nav at
+  1024px and above.
+- **Footer** (`components/layout/Footer.tsx`): tagline + the same
+  labeled (not yet linked) legal items.
+
+## 9. Design System Showcase — implemented, Phase 4
+
+`app/[locale]/dev/design-system/` — an internal, development-only page
+demonstrating every token category and component with fictional
+placeholder content (this phase's §22/§27; fixtures follow
+[DATA_GOVERNANCE.md](DATA_GOVERNANCE.md) §7 naming conventions, e.g.
+"Test Board — Not Real"). It is **not a public CivicLens feature**,
+enforced two ways:
+1. `apps/web/proxy.ts` returns HTTP 404 for any `/{locale}/dev/*` path
+   when `NODE_ENV === "production"`, before any rendering happens.
+2. The page component itself also calls Next.js's `notFound()` under the
+   same condition, as defense in depth for any request path that might
+   bypass the proxy.
+
+It also sets `robots: { index: false, follow: false }` regardless of
+environment, so it can never be indexed even if reached.
+
+## 10. Life Event Navigator (Engine G)
 
 A **frontend composition layer**, not a new data domain
 ([ARCHITECTURE.md](ARCHITECTURE.md) §5, [DATABASE.md](DATABASE.md) §1). It
@@ -176,7 +315,7 @@ is realized as:
   change, not a schema or API change — consistent with the state-agnostic,
   data-driven design principle ([ARCHITECTURE.md](ARCHITECTURE.md) §3).
 
-## 9. Personal Civic Dashboard (Engine H)
+## 11. Personal Civic Dashboard (Engine H)
 
 Also a composition layer, authenticated, aggregating existing read
 endpoints for the current user:
@@ -190,16 +329,22 @@ endpoints for the current user:
   [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md) §1.9) — it is a
   read-aggregation view, not a recommendation engine.
 
-## 10. Explicitly Not Built Yet
+## 12. Explicitly Not Built Yet
 
-- Any actual page, component, or design token implementation.
-- Choice of specific client-state/data-fetching libraries beyond the
-  constraints in §5 (decided at Phase 4 against real page needs).
+- Any real domain content page (jobs/schemes/services/representatives/
+  etc.) — those land incrementally starting Phase 6 against this
+  foundation.
+- Choice of a client-side data-fetching library (SWR/React Query/etc.)
+  beyond the constraints in §5 — no page has real data-fetching needs
+  yet beyond the existing `lib/api.ts` health-check pattern; decided when
+  a real page needs it.
 - A component library published as a standalone package — components live
-  in `apps/web` until (if ever) a documented reuse need justifies
-  extraction.
+  in `apps/web` until (if ever) a documented reuse need (a second
+  consuming app) justifies extraction.
+- OpenAPI-generated types in `packages/types` (Phase 6+, once real
+  endpoints exist) — hand-written types are used where needed today.
+- Real translations reviewed by a professional Telugu editor (§7).
 
-This document defines the target frontend and design-system specification
-for Phase 4; it is finalized against a real component inventory once
-Phase 4 implementation begins, and validated against real content pages
-starting Phase 6.
+This document now reflects the realized Phase 4 design system and shell;
+it is extended, not rewritten, as real content pages land starting
+Phase 6.

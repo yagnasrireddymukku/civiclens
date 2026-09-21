@@ -202,7 +202,7 @@ authoritative checklist and threat model.
 ## 12. Accessibility Tests
 
 Per [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md) NFR-ACC1–2 and
-[CLAUDE.md](../CLAUDE.md) rule 18 (WCAG 2.1 AA is a floor):
+[CLAUDE.md](../CLAUDE.md) rule 18 (WCAG 2.2 AA is a floor):
 
 - **Automated** — `axe-core` in component tests (§11) plus a CI step over
   key rendered pages (job/scheme detail, search results, eligibility
