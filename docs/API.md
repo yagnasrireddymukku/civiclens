@@ -202,10 +202,35 @@ date) rather than published facts.
   is accurate, including error responses via FastAPI's documented
   exception-to-schema mapping.
 
-## 11. Explicitly Not Built Yet
+## 11. Database Dependency Injection & Health/Readiness (Phase 3)
 
-- Any actual route implementation, request/response model, or database
-  query.
+Every route that needs the database declares it via a FastAPI dependency
+— `Depends(get_db)` (`app/core/db/session.py`) — never by importing an
+engine/session directly or opening its own connection:
+
+```
+request → get_db dependency (opens a Session) → route/service function
+        → repository/query code → SQLAlchemy → PostgreSQL
+```
+
+- The request is the transaction boundary: `get_db` commits after the
+  route returns normally and rolls back if it raises — route/service code
+  never calls `session.commit()`/`session.rollback()` itself
+  ([DATABASE.md](DATABASE.md), transaction-management convention).
+- `GET /api/v1/health` (liveness) has no database dependency by design —
+  it answers "is the process up." `GET /api/v1/health/ready` (readiness,
+  Phase 3) checks the database using its own short-lived connection
+  (`get_engine()` directly, not `get_db`) rather than a request-scoped
+  session, since it's testing raw connectivity, not doing request work; it
+  returns the standard error envelope (§7) with `code: "NOT_READY"` and
+  HTTP 503 when the database is unreachable, never a hang — the engine
+  enforces a connect/statement timeout specifically so this fails fast.
+
+## 12. Explicitly Not Built Yet
+
+- Any business route (domain content, search, AI, eligibility, tracking)
+  or its request/response models — only `health`/`health/ready` exist
+  (§11), and neither is a business route.
 - Concrete rate-limit thresholds, cache headers, or CDN interaction rules
   (deferred to [SECURITY.md](SECURITY.md) / [ARCHITECTURE.md](ARCHITECTURE.md)
   performance work in later phases).

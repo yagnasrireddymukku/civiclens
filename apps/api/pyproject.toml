@@ -5,8 +5,11 @@ description = "CivicLens backend API (FastAPI). See docs/API.md and docs/ARCHITE
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "alembic>=1.20.0",
     "fastapi>=0.141.1",
+    "psycopg[binary]>=3.2",
     "pydantic-settings>=2.15.0",
+    "sqlalchemy>=2.0",
     "uvicorn[standard]>=0.53.0",
 ]
 
@@ -18,6 +21,16 @@ dev = [
     "pytest-cov>=7.1.0",
     "ruff>=0.16.8",
 ]
+test = [
+    "pgserver>=0.1.4",
+]
+
+[tool.uv]
+# `test` is a real, if unusual, runtime dependency of the test suite (an
+# embedded PostgreSQL binary — see tests/conftest.py) rather than a pure
+# dev tool, but `uv sync`/`uv run pytest` should still pick it up without
+# an extra flag.
+default-groups = ["dev", "test"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

@@ -98,14 +98,17 @@ civiclens/
 ├── apps/
 │   ├── web/              # Next.js + TypeScript frontend
 │   └── api/               # FastAPI backend (modular monolith)
+│       ├── alembic/         # migrations (Phase 3+)
 │       └── app/
+│           ├── geography/    # states/districts/constituencies (Phase 3+)
 │           ├── jobs/ exams/ schemes/ services/ scholarships/
 │           ├── representatives/ elections/
 │           ├── eligibility/ documents/
 │           ├── search/ ai/ tracking/ notifications/
-│           ├── sources/            # source & verification records
-│           ├── users/ auth/
-│           └── core/               # settings, db session, shared deps
+│           ├── sources/            # source & verification records (Phase 3+)
+│           ├── users/ auth/          # identity Phase 3+, auth flows later
+│           └── core/               # settings, db/ (engine, session, base,
+│                                    # model registry), shared deps
 ├── packages/
 │   ├── types/              # hand-written until OpenAPI-generated types
 │   │                        # land (API.md §10); shared TS types
@@ -125,8 +128,17 @@ Realized in Phase 1 with one adjustment from the original plan: the shared
 types package is named `packages/types` (not `packages/shared-types`), and
 `packages/validation` and a reserved, empty `packages/ui` were added — a
 naming/scope refinement made directly by product ownership when Phase 1 was
-kicked off, not a unilateral architecture change. No business logic,
-domain schema, or real data exists yet.
+kicked off, not a unilateral architecture change.
+
+Phase 3 added `apps/api/app/geography/` — not in the original sketch above
+— for state/district/constituency data: every future domain module needs
+it, so it gets the same clean module boundary as `sources`/`users` rather
+than living inside `core`. See [DATABASE.md](DATABASE.md) §7 for the full
+reconciliation, including why per-module (`sources/`, `users/`,
+`geography/`) was chosen over the single `app/core/models` location an
+earlier roadmap sketch had suggested. No business/domain-content logic
+(jobs, schemes, eligibility, search, AI, tracking, real government data)
+exists yet.
 
 ## 7. Ingestion & Change Detection (Architecture Summary)
 

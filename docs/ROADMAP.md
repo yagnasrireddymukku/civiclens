@@ -66,26 +66,50 @@ until the prior phase's acceptance criteria are met and, per
 
 ## Phase 3 — Database + Data Model
 - **Objective**: Implement the core schema from [DATABASE.md](DATABASE.md).
-- **Scope**: Alembic migrations for geography, institutions, provenance,
-  users/profiles tables. Domain-specific tables (jobs, schemes, etc.) are
-  added incrementally in their own phases (6–9), not all at once here.
-- **Dependencies**: Phase 2.
-- **Files/modules**: `apps/api/app/core/models`, `apps/api/alembic/`.
-- **Technical work**: SQLAlchemy models + Alembic migrations for
-  `states`, `districts`, `constituencies`, `organizations`, `departments`,
-  `sources`, `source_versions`, `verification_records`, `change_records`,
-  `users`, `profiles`.
-- **Tests**: Migration up/down tests; model constraint tests (uniqueness,
-  FK integrity).
-- **Documentation**: [DATABASE.md](DATABASE.md) updated with any deviations
-  discovered during implementation.
+- **Scope**: Alembic migrations for geography, provenance, users/profiles
+  tables. Institutions (organizations/departments) and all
+  domain-specific tables (jobs, schemes, etc.) are added incrementally in
+  their own phases (6–9), not here — a scope narrowing from this entry's
+  original wording, disclosed in [DATABASE.md](DATABASE.md) §7.
+- **Dependencies**: Phase 2 (folded into the start of this phase — the
+  backend foundation it called for was substantially established during
+  Phase 1).
+- **Files/modules**: `apps/api/app/core/db/` (engine, session, declarative
+  base, model registry), `apps/api/app/geography/`, `apps/api/app/sources/`,
+  `apps/api/app/users/` (each with `models.py` + `enums.py`),
+  `apps/api/alembic/`. Per-module rather than a single `app/core/models`
+  (this entry's original sketch) to match
+  [ARCHITECTURE.md](ARCHITECTURE.md) §6's modular-monolith module list —
+  see [DATABASE.md](DATABASE.md) §7 for the full reconciliation.
+- **Technical work**: SQLAlchemy 2.0 models + one Alembic migration for
+  `states`, `districts`, `constituencies` (with slugs — see
+  [DATABASE.md](DATABASE.md) §2.1), `sources`, `source_versions`,
+  `verification_records`, `change_records`, `users`, `profiles`;
+  lazy engine/session with a request-scoped `get_db` FastAPI dependency
+  (commit-on-success/rollback-on-exception); a `GET /api/v1/health/ready`
+  endpoint proving the DB foundation end to end.
+- **Tests**: Migration up/down/up-again test (catches an Alembic
+  autogenerate gap — native Postgres enum types aren't dropped by
+  `op.drop_table`, fixed explicitly); model constraint tests (uniqueness,
+  FK integrity, cascade/restrict delete behavior, native-enum rejection of
+  invalid values); `get_db` commit/rollback transaction tests; a
+  regression test proving the app still boots with no reachable database.
+  All run against a real PostgreSQL instance (via `pgserver`, since this
+  environment has no Docker/WSL2 — see [TESTING.md](TESTING.md)), never
+  mocks.
+- **Documentation**: [DATABASE.md](DATABASE.md) updated with the realized
+  schema, deferred sections, and module-layout reconciliation.
 - **Acceptance criteria**: Migrations apply cleanly on a fresh DB and
-  reverse cleanly; no seed data beyond clearly-fictional test fixtures.
+  reverse cleanly (verified, including a re-upgrade after downgrade); no
+  seed data beyond clearly-fictional test fixtures.
 - **Risks**: Schema churn once domain tables arrive — mitigated by
   reviewing [DATABASE.md](DATABASE.md) relationships before writing
-  migrations, not after.
+  migrations, not after. A connect/statement timeout was added to the
+  engine after manual testing showed an unreachable database could hang
+  a request indefinitely rather than failing fast.
 - **Rollback**: Alembic downgrade path required for every migration
-  ([CLAUDE.md](../CLAUDE.md): keep migrations reversible where practical).
+  ([CLAUDE.md](../CLAUDE.md): keep migrations reversible where practical) —
+  exercised by the migration test, not just asserted.
 
 ## Phase 4 — Frontend + Design System
 - **Objective**: Implement the design system primitives and app shell.
