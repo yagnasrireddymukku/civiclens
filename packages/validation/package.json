@@ -1,0 +1,23 @@
+{
+  "name": "@civiclens/validation",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared validation schemas for CivicLens frontend code. Domain schemas (jobs, schemes, eligibility, etc.) are added per ROADMAP.md phase as each domain lands — this package is deliberately near-empty at Phase 1.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@civiclens/config": "workspace:*",
+    "@eslint/js": "^9.18.0",
+    "eslint": "^9.18.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.19.1"
+  }
+}

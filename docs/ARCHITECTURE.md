@@ -107,17 +107,26 @@ civiclens/
 │           ├── users/ auth/
 │           └── core/               # settings, db session, shared deps
 ├── packages/
-│   ├── shared-types/      # OpenAPI-generated TS client + shared types
-│   └── config/            # shared lint/tsconfig/tooling config
+│   ├── types/              # hand-written until OpenAPI-generated types
+│   │                        # land (API.md §10); shared TS types
+│   ├── validation/          # shared Zod validation schemas
+│   ├── ui/                  # reserved — empty until a real cross-app
+│   │                        # component-reuse need exists (FRONTEND.md §10)
+│   └── config/              # shared tsconfig base
+├── scripts/                  # repo-level dev scripts
 ├── services/
-│   └── ingestion/          # data ingestion & change-detection (Phase 13+)
-├── infra/                  # Docker, IaC, deployment config
-├── docs/                    # this documentation
+│   └── ingestion/            # data ingestion & change-detection (Phase 13+)
+├── infra/                    # Docker, IaC, deployment config
+├── docs/                      # this documentation
 └── CLAUDE.md, README.md
 ```
 
-No application code, migrations, or fake data exist yet — this layout is
-the target for Phase 1 (see [ROADMAP.md](ROADMAP.md)).
+Realized in Phase 1 with one adjustment from the original plan: the shared
+types package is named `packages/types` (not `packages/shared-types`), and
+`packages/validation` and a reserved, empty `packages/ui` were added — a
+naming/scope refinement made directly by product ownership when Phase 1 was
+kicked off, not a unilateral architecture change. No business logic,
+domain schema, or real data exists yet.
 
 ## 7. Ingestion & Change Detection (Architecture Summary)
 

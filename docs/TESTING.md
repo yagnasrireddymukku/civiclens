@@ -51,7 +51,7 @@ mocks:
 
 FastAPI's generated OpenAPI schema is checked against actual API behavior
 so the frontend's generated client
-([ARCHITECTURE.md](ARCHITECTURE.md) §6, `packages/shared-types`) can't
+([ARCHITECTURE.md](ARCHITECTURE.md) §6, `packages/types`) can't
 silently drift:
 
 - Schema snapshot/diff check — an unintentional shape change fails CI.

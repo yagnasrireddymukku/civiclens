@@ -1,0 +1,12 @@
+node_modules
+.next
+dist
+coverage
+.venv
+apps/api
+pnpm-lock.yaml
+
+# Prose documentation is hand-formatted and reviewed as such (Phase 0
+# architecture checkpoint); Prettier reformatting it would produce large,
+# meaning-neutral diffs unrelated to Phase 1 scope.
+*.md

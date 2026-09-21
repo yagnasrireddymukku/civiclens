@@ -1,0 +1,55 @@
+# --- Node / pnpm ---------------------------------------------------------
+node_modules/
+.pnpm-store/
+.pnpm-debug.log*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- Next.js ---------------------------------------------------------
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# --- General JS build output ------------------------------------------
+dist/
+build/
+coverage/
+
+# --- Python ---------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+*.egg-info/
+.coverage
+.coverage.*
+htmlcov/
+
+# --- Environment / secrets ---------------------------------------------
+.env
+.env.local
+.env.*.local
+!.env.example
+*.pem
+*.key
+
+# --- Editors / IDE ---------------------------------------------------
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# --- OS ---------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Logs / temp ---------------------------------------------------------
+*.log
+.tmp/
+tmp/

@@ -13,11 +13,93 @@ deadlines — all grounded in verified, source-attributed data. See
 
 ## Status
 
-**Phase 0 — Architecture & Governance.** This repository currently
-contains product vision, architecture, and governance documentation only.
-No application code, database migrations, or data have been implemented
-yet. See [docs/ROADMAP.md](docs/ROADMAP.md) for the phased plan and
-[CLAUDE.md](CLAUDE.md) for the engineering rules that govern this project.
+**Phase 1 — Monorepo Foundation.** Phase 0 (product vision, architecture,
+and governance documentation) is complete — see [docs/](docs/) and
+[CLAUDE.md](CLAUDE.md). This phase adds the repository skeleton, tooling,
+and CI, with **no business functionality**: no jobs/schemes/eligibility/
+search/AI/tracking, no domain database schema, and no real government data.
+See [docs/ROADMAP.md](docs/ROADMAP.md) for the phased plan.
+
+## Project Structure
+
+```
+civiclens/
+├── apps/
+│   ├── web/           Next.js + TypeScript frontend
+│   └── api/            FastAPI backend (Python, managed by uv)
+├── packages/
+│   ├── types/          Shared TypeScript types (hand-written until
+│   │                    OpenAPI-generated types land, docs/API.md §10)
+│   ├── validation/      Shared Zod validation schemas
+│   ├── ui/              Reserved for a future shared UI package — empty
+│   │                    until apps/web has a real component-reuse need
+│   │                    (docs/FRONTEND.md §10)
+│   └── config/          Shared tsconfig base
+├── scripts/             Repo-level dev scripts (e.g. check-setup.mjs)
+├── docs/                 Architecture, governance, and roadmap (Phase 0)
+└── .github/workflows/    CI
+```
+
+## Prerequisites
+
+- Node.js >= 20 ([.nvmrc](.nvmrc) pins 20)
+- pnpm (`npm install -g pnpm`, or via [Corepack](https://pnpm.io/installation#using-corepack) if you have permission to enable it)
+- Python >= 3.12
+- [uv](https://docs.astral.sh/uv/) for the backend (`uv sync` will download a
+  matching Python automatically if needed)
+
+Run `pnpm check-setup` (or `node scripts/check-setup.mjs`) to verify these
+are all on your `PATH`.
+
+## Setup
+
+```bash
+# Frontend + shared packages
+pnpm install
+cp apps/web/.env.example apps/web/.env.local
+
+# Backend
+cd apps/api
+uv sync
+cp .env.example .env
+cd ../..
+```
+
+## Development
+
+```bash
+# Frontend (http://localhost:3000)
+pnpm dev
+
+# Backend, in a separate terminal (http://localhost:8000)
+cd apps/api && uv run uvicorn app.main:app --reload
+```
+
+With both running, `http://localhost:3000` shows a live API status pulled
+from `GET /api/v1/health` — this proves the frontend/backend/shared-package
+wiring works; it is not the product homepage (that starts in
+[docs/ROADMAP.md](docs/ROADMAP.md) Phase 4).
+
+## Testing, Linting, Type Checking
+
+```bash
+# From the repo root (frontend + shared packages)
+pnpm build       # also generates Next.js's route types; run before typecheck
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm format:check   # or `pnpm format` to fix
+
+# Backend
+cd apps/api
+uv run pytest
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy app
+```
+
+CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs all of the
+above on every pull request.
 
 ## Initial Scope
 

@@ -1,0 +1,11 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+allowBuilds:
+  # esbuild: required native binary for Vitest/Vite's dev/test pipeline.
+  # unrs-resolver: required native binary for ESLint's TS import resolver.
+  # Both are widely-used, actively maintained toolchain dependencies whose
+  # install scripts only fetch/build a platform binary — no code execution
+  # risk beyond what running the toolchain itself already implies.
+  esbuild: true
+  unrs-resolver: true

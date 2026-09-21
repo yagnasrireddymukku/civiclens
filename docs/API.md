@@ -188,14 +188,14 @@ date) rather than published facts.
 - FastAPI generates the OpenAPI 3 schema natively from route signatures and
   Pydantic models — the schema is never hand-maintained
   ([ADR-003](ADR/ADR-003-fastapi-backend.md)).
-- The schema is the single source of truth for `packages/shared-types`: a
+- The schema is the single source of truth for `packages/types`: a
   build step generates a typed TypeScript client (types + fetch wrappers)
   consumed by `apps/web`, so the frontend never hand-writes request/response
   types that could drift from the backend ([ARCHITECTURE.md](ARCHITECTURE.md)
   §6, [ADR-002](ADR/ADR-002-nextjs-frontend.md)).
 - Any backend route change that alters a response shape therefore surfaces
   as a type error in the frontend build the next time
-  `packages/shared-types` is regenerated — this is the intended contract-
+  `packages/types` is regenerated — this is the intended contract-
   drift guard, not a manual review step.
 - Route handlers document responses with explicit `response_model`s (not
   `response_model=None` with manual serialization) so the generated schema

@@ -1,0 +1,23 @@
+{
+  "name": "civiclens",
+  "version": "0.0.0",
+  "private": true,
+  "description": "CivicLens — India's Personal Public-Information Intelligence Platform. See docs/ for architecture; apps/api (FastAPI) is a separate Python project, not part of this pnpm workspace.",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "packageManager": "pnpm@12.5.1",
+  "scripts": {
+    "check-setup": "node scripts/check-setup.mjs",
+    "dev": "pnpm --filter @civiclens/web dev",
+    "build": "pnpm --filter @civiclens/web build",
+    "lint": "pnpm -r --if-present lint",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "pnpm -r --if-present test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "prettier": "^3.4.2"
+  }
+}

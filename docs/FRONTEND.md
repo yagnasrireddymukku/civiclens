@@ -10,7 +10,7 @@ needs starting Phase 6. **No frontend code exists yet.**
 
 - Technology choice and rendering rationale: [ADR-002](ADR/ADR-002-nextjs-frontend.md).
 - API contract consumed by every page: [API.md](API.md), via the generated
-  typed client in `packages/shared-types`.
+  typed client in `packages/types`.
 - Engines G (Life Event Navigator) and H (Personal Civic Dashboard) are
   frontend composition layers per [ARCHITECTURE.md](ARCHITECTURE.md) §5 —
   this document is where their realization is defined, since neither owns
@@ -74,7 +74,7 @@ human review first.
   eligibility-condition row, deadline timeline — domain-shaped but reused
   across multiple pages), and **page compositions** (a job detail page
   assembles patterns + primitives; owns layout, not visual rules).
-- Domain-specific data shapes come from `packages/shared-types`
+- Domain-specific data shapes come from `packages/types`
   (generated from the OpenAPI schema, [API.md](API.md) §10) — no
   component hand-declares a type that duplicates a backend model.
 - Server Components by default (App Router); a component opts into Client

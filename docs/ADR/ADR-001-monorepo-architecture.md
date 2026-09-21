@@ -30,7 +30,7 @@ there are multiple JS apps/packages with real build-graph complexity.
 
 ## Consequences
 - Single source of truth for API contracts (OpenAPI schema generated from
-  FastAPI, consumed by `packages/shared-types`).
+  FastAPI, consumed by `packages/types`).
 - One CI pipeline can run frontend + backend checks together on a PR.
 - Slightly more initial repo-structure setup than a single-app repo, offset
   by avoiding cross-repo release coordination later.

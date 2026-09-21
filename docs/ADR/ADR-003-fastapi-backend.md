@@ -29,7 +29,7 @@ and internal data validation.
 
 ## Consequences
 - Native OpenAPI schema generation drives typed client generation for the
-  frontend (`packages/shared-types`), keeping the contract in sync.
+  frontend (`packages/types`), keeping the contract in sync.
 - Async-first framework suits I/O-bound workloads (DB queries, LLM calls,
   external source fetches in ingestion).
 - Single language (Python) across API, eligibility engine, AI orchestration,

@@ -27,14 +27,19 @@ until the prior phase's acceptance criteria are met and, per
 - **Scope**: Directory structure, tooling configs, CI skeleton, linting.
 - **Dependencies**: Phase 0 approval.
 - **Files/modules**: `apps/web` (Next.js scaffold), `apps/api` (FastAPI
-  scaffold), `packages/shared-types`, `packages/config`, `infra/`,
-  root `pnpm-workspace.yaml`, `pyproject.toml`.
+  scaffold), `packages/types`, `packages/validation`, `packages/ui`
+  (reserved/empty), `packages/config`, `scripts/`, root
+  `pnpm-workspace.yaml`, `apps/api/pyproject.toml`.
 - **Technical work**: Scaffold apps, configure linting/formatting
-  (ESLint/Prettier, ruff/black), configure CI to run lint + build on PR.
-- **Tests**: CI pipeline runs successfully on an empty scaffold ("hello
-  world" health check only).
-- **Documentation**: Update [ARCHITECTURE.md](ARCHITECTURE.md) §6 if the
-  realized layout differs from the plan.
+  (ESLint/Prettier, ruff), configure CI to run lint + build + typecheck +
+  test on PR. A minimal `GET /api/v1/health` endpoint and a frontend
+  placeholder page that calls it prove the wiring end to end.
+- **Tests**: Backend pytest suite (health, config, error-envelope) and a
+  frontend Vitest test proving graceful degradation when the API is
+  unreachable — not a "hello world" placeholder test.
+- **Documentation**: [ARCHITECTURE.md](ARCHITECTURE.md) §6 updated to match
+  the realized layout (`packages/types` instead of `packages/shared-types`,
+  plus `packages/validation`/`packages/ui`).
 - **Acceptance criteria**: `pnpm install`, frontend dev server, and backend
   dev server all run locally; CI green.
 - **Risks**: Tooling version mismatches across OSes — mitigated by pinning

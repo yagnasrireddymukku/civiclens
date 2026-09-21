@@ -1,0 +1,8 @@
+{
+  "extends": "@civiclens/config/tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "jsx": "react-jsx"
+  },
+  "include": ["src"]
+}
