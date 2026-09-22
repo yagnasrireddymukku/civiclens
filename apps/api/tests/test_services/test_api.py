@@ -7,7 +7,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.jobs.service import sync_job_search_index
-from app.services.enums import DeliveryMode, ServicePublicationStatus
+from app.requirements.enums import DeliveryMode
+from app.services.enums import ServicePublicationStatus
 from app.services.service import sync_service_search_index
 from tests.test_jobs._helpers import make_job
 from tests.test_services._helpers import (

@@ -28,9 +28,17 @@ implemented — see §12, which also covers the `RequirementType`/
 **Phase 9 status**: Scholarships are represented as a `Scheme`
 specialization, not a new opportunities slice — see §13 for the
 architectural decision and the `scholarship_details` extension table it
-introduces. Exams and the rest of §2.3 remain design-only, implemented
-incrementally against real domain content in
-[ROADMAP.md](ROADMAP.md) Phase 10 onward.
+introduces.
+
+**Phase 10 status**: Documents & Certificates (§2.3, a genuinely new
+domain module this time — `app.documents`) is implemented — see §14,
+which also covers `DeliveryMode` moving to `app.requirements` (a second
+consumer, joining `RequirementType`/`ApplicationChannelType` there) and
+the additive `civic_document_id` columns Phase 6/7's already-shipped
+`service_required_documents`/`scheme_required_documents` tables gained.
+Exams remain design-only, implemented incrementally against real domain
+content in a future phase (this document does not guess which number,
+per [ROADMAP.md](ROADMAP.md)'s Phase 9/10 rescheduling note).
 
 ## 0. Design Rules
 
@@ -87,7 +95,7 @@ per-row provenance (contrast with §2.3's `source_id` columns).
   — not every department sits under a recruiting board), state_id
   (nullable). Same reference-data treatment as organizations.
 
-### 2.3 Opportunities — Jobs (Phase 6), Services (Phase 7), and Schemes (Phase 8, including Scholarships as a Phase 9 Scheme specialization) slices **implemented** (see §9, §10, §12, §13); exams deferred beyond Phase 9
+### 2.3 Opportunities — Jobs (Phase 6), Services (Phase 7), and Schemes (Phase 8, including Scholarships as a Phase 9 Scheme specialization) slices **implemented** (see §9, §10, §12, §13); `civic_documents` (Phase 10 — §14) is listed alongside them for its identical provenance pattern but is not itself part of this "opportunities" family — see §14 for why; exams remain deferred
 - **jobs** — id, slug (public identifier), locale, title, organization_id,
   department_id (nullable), summary, description, employment_type
   (`PERMANENT`/`CONTRACT`/`TEMPORARY`), category (free text), state_id,
@@ -137,11 +145,13 @@ per-row provenance (contrast with §2.3's `source_id` columns).
     (`AGE`/`RESIDENCY`/`INCOME`/`OCCUPATION`/`OTHER`), description
     (prose), min_value/max_value (nullable numeric range) — structured
     just enough for a future Eligibility Engine
-    ([ELIGIBILITY_ENGINE.md](ELIGIBILITY_ENGINE.md), Phase 10) to read
+    ([ELIGIBILITY_ENGINE.md](ELIGIBILITY_ENGINE.md), rescheduled from its
+    original Phase 10 slot — see [ROADMAP.md](ROADMAP.md)) to read
     without a migration; not that engine's own
     `attribute`/`operator`/`value` model
   - **service_required_documents** — id, service_id, name, description
-    (nullable), is_mandatory
+    (nullable), is_mandatory, civic_document_id (nullable FK to
+    `civic_documents.id`, added Phase 10 — §14)
   - **service_application_methods** — id, service_id, channel_type
     (`ONLINE`/`OFFLINE`/`MOBILE_APP`/`MEESEVA`/`DEPARTMENT_PORTAL`/
     `SERVICE_CENTER`/`IN_PERSON`/`OTHER`), url (nullable, never
@@ -169,9 +179,11 @@ per-row provenance (contrast with §2.3's `source_id` columns).
     the shared `RequirementType` enum — §11), description (prose),
     min_value/max_value (nullable numeric range) — the structured half
     of the beneficiary-profile/eligibility-foundation requirement, not
-    the Eligibility Engine's own predicate model (Phase 10)
+    the Eligibility Engine's own predicate model (rescheduled from its
+    original Phase 10 slot — see [ROADMAP.md](ROADMAP.md))
   - **scheme_required_documents** — id, scheme_id, name, description
-    (nullable), is_mandatory
+    (nullable), is_mandatory, civic_document_id (nullable FK to
+    `civic_documents.id`, added Phase 10 — §14)
   - **scheme_application_methods** — id, scheme_id, channel_type
     (reuses the shared `ApplicationChannelType` enum — §11), url
     (nullable, never fabricated), instructions (nullable prose)
@@ -185,7 +197,8 @@ per-row provenance (contrast with §2.3's `source_id` columns).
     — 9-value enum, nullable), course_discipline/institution_type/
     year_of_study (prose), study_mode (`StudyMode` — 5-value enum,
     nullable), minimum_percentage/minimum_cgpa (`Numeric`, nullable —
-    never evaluated against a real student, Phase 10's domain),
+    never evaluated against a real student, the Eligibility Engine's
+    domain, rescheduled from its original Phase 10 slot),
     academic_requirement_notes (prose), application_opens/
     application_closes/correction_window_end (nullable dates,
     source-backed only), academic_year (a label, not a date), renewable
@@ -195,18 +208,62 @@ per-row provenance (contrast with §2.3's `source_id` columns).
 
   The six child tables carry no provenance of their own — each
   inherits its parent `schemes` row's `source_id`.
+- **civic_documents** (Phase 10 — §14; not part of the Jobs/Services/
+  Schemes "opportunities" family, but listed here alongside them since
+  it shares the identical provenance/visibility pattern) — id, slug
+  (public identifier), locale, organization_id, department_id
+  (nullable), name, short_description, description, document_type
+  (`DocumentType` — 7-value enum), category (`DocumentCategory` —
+  13-value enum, a distinct axis from `document_type`), purpose (prose,
+  source-backed only, never an invented claim about legal significance),
+  state_id/district_id (both nullable, like `services`/`schemes`),
+  delivery_mode (reuses the shared `DeliveryMode` enum — §14),
+  official_document_url, application_url, fee_summary/
+  processing_time_summary/validity_summary/renewal_summary (text, never
+  a fabricated figure), service_id (nullable FK to `services.id` — the
+  "obtained through" relationship, §14), status (free text),
+  publication_status (`DRAFT`/`PUBLISHED`/`ARCHIVED` — its own
+  `document_publication_status` type), source_id, verification_status,
+  last_verified_at, deleted_at — same provenance/visibility pattern as
+  `jobs`/`services`/`schemes` (§9's denormalized-column rationale)
+  - **document_requirements** — id, document_id, requirement_type
+    (reuses the shared `RequirementType` enum — §11), description
+    (prose), min_value/max_value (nullable numeric range) — the
+    structured half of the eligibility-relevant-to-obtain-this-document
+    requirement, not the Eligibility Engine's own predicate model
+  - **document_supporting_documents** — id, document_id, name,
+    description (nullable), is_mandatory, civic_document_id (nullable,
+    self-referential FK to `civic_documents.id` — for when a supporting
+    document is itself a modeled `CivicDocument`, §14)
+  - **document_application_methods** — id, document_id, channel_type
+    (reuses the shared `ApplicationChannelType` enum — §11), url
+    (nullable, never fabricated), instructions (nullable prose)
 
-### 2.4 Requirements & Eligibility — deferred to Phase 10
-- **documents** — id, name, description, issuing_authority_id
-  (organization/department), typical_use
+  The three child tables carry no provenance of their own — each
+  inherits its parent `civic_documents` row's `source_id`.
+
+### 2.4 Requirements & Eligibility — the `documents`/`entity_documents` sketch below is **realized, Phase 10** (in a different shape — see §14); `eligibility_rules`/`eligibility_conditions` remain deferred (Eligibility Engine, rescheduled from this section's original "Phase 10" slot — see [ROADMAP.md](ROADMAP.md)'s Phase 9/10 rescheduling note; this document does not guess its new number)
+- ~~**documents** — id, name, description, issuing_authority_id
+  (organization/department), typical_use~~ — realized as `civic_documents`
+  (§14), with substantially more structure than sketched here (document
+  type/category taxonomies, purpose, delivery mode, fee/processing-time/
+  validity/renewal summaries, an "obtained through" `Service` link,
+  requirements, supporting documents, application methods) once a real
+  implementation phase worked out what the domain actually needed.
 - **eligibility_rules** — id, entity_type, entity_id (polymorphic reference
   to job/scheme/scholarship/service), source_id, effective_date
 - **eligibility_conditions** — id, rule_id, attribute (e.g. `age`,
   `qualification`, `domicile_state_id`, `income_annual`), operator
   (`>=`,`<=`,`in`,`==`, etc.), value — see
   [ELIGIBILITY_ENGINE.md](ELIGIBILITY_ENGINE.md) for evaluation semantics
-- Join table **entity_documents** — links jobs/schemes/services to required
-  `documents`
+- ~~Join table **entity_documents** — links jobs/schemes/services to required
+  `documents`~~ — **not built**; superseded by §14's smaller design: two
+  additive, nullable `civic_document_id` columns directly on
+  `service_required_documents`/`scheme_required_documents`, rather than a
+  generic polymorphic join table. Phase 10's kickoff explicitly weighed
+  and rejected the polymorphic-table shape this line originally sketched
+  (see §14's "options considered and rejected") once a real
+  implementation had to choose between the two.
 
 ### 2.5 Time — deferred to Phases 6–8 (alongside the entities deadlines attach to)
 - **deadlines** — id, entity_type, entity_id, stage (`notification`,
@@ -214,7 +271,7 @@ per-row provenance (contrast with §2.3's `source_id` columns).
   `admit_card`, `exam_date`, `answer_key`, `result`, custom), date,
   source_id, is_estimated (bool — some dates are provisional)
 
-### 2.6 People & Elections — deferred to Phase 9 (politically neutral — see
+### 2.6 People & Elections — deferred (Representatives & Elections, rescheduled from this section's original "Phase 9" slot — see [ROADMAP.md](ROADMAP.md)'s Phase 9/10 rescheduling note; this document does not guess its new number); politically neutral — see
 [DATA_GOVERNANCE.md](DATA_GOVERNANCE.md) §5)
 - **representatives** — id, name, role (`MLA`/`MP`/`Minister`/`CM`), party,
   constituency_id (nullable for state-wide roles), term_start, term_end,
@@ -665,3 +722,105 @@ as a **string** ("60.00") to preserve exact precision instead.
 `number`, caught before commit by the live smoke test (not by unit
 tests, which had mocked the API layer and so never exercised real
 serialization), and fixed to `string`.
+
+## 14. Phase 10 Implementation Notes: Documents & Certificates Domain
+
+**Architectural decision (Phase 10's §3/§32)**: Documents & Certificates
+is a genuinely first-class domain module (`app.documents`,
+`CivicDocument`) — **not** a `Scheme`/`Service` specialization, and not
+a generic polymorphic "everything is a document" abstraction folding
+`RequiredDocument`/`SchemeRequiredDocument` together with it. The
+distinction the kickoff drew is real and pre-existing in the data:
+`RequiredDocument`/`SchemeRequiredDocument` (§9, §12) are *requirements
+that a document be provided* — a name, a description, a mandatory flag,
+itemized under whatever parent needs one. `CivicDocument` is *the
+official document/certificate itself* — what an Income Certificate
+*is*: who issues it, what it's for, how to obtain one, what it costs,
+how long it's valid. These were never the same entity even before this
+phase; Phase 10 gives the second one a table for the first time.
+Options considered and rejected: (1) representing documents entirely as
+`Service` rows (an "Income Certificate Issuance" service already
+exists, but conflates the *act of issuing* with the *thing issued* —
+losing purpose/validity/renewal information a service has no field
+for) and (3) collapsing `RequiredDocument`/`SchemeRequiredDocument`/
+`CivicDocument` into one shared polymorphic table (exactly the
+complexity this phase's §32 names and prohibits).
+
+**`civic_documents` carries the same provenance/visibility pattern as
+every other domain** (§9/§10/§12) — denormalized `verification_status`/
+`last_verified_at`, `publication_status` as the one hard visibility
+gate (its own `document_publication_status` Postgres enum type, not
+shared with the other three domains' publication-status enums, for the
+same domain-scoping reason §10 gives). `document_type` (7-value enum:
+Certificate/Identity Document/Record/Permit/License/Registration/Other)
+and `document_category` (13-value enum: Personal/Identity/Residence/
+Income/Social Category/Education/Birth & Death/Disability/Land &
+Revenue/Employment/Business/Family/Other) are two separate controlled
+taxonomies, deliberately not collapsed into one — this phase's §6/§7
+asks for the *kind of official record* and the *subject matter* as
+distinct axes, the same way `Job.employment_type` and `Job.category`
+already are.
+
+**`document_requirements`/`document_application_methods` reuse the
+shared vocabulary** (`RequirementType`/`ApplicationChannelType` from
+`app.requirements.enums`) as their own tables, not shared ones — the
+same reasoning `ServiceRequirement`/`ApplicationMethod` already
+established, now confirmed by a fourth consumer.
+
+**`DeliveryMode` moved to `app.requirements.enums`** in this phase, for
+the identical "extract when a second consumer appears" reason §11
+extracted `RequirementType`/`ApplicationChannelType` — Documents needed
+the same online/offline/both vocabulary Services already defined. Pure
+Python/enum-level move, verified via `alembic check` showing zero
+schema diff; `services.delivery_mode` keeps the exact column it always
+had, just importing the enum class from its new location.
+
+**`document_supporting_documents` is `RequiredDocument`'s shape plus one
+addition**: a nullable, self-referential `civic_document_id` FK to
+`civic_documents.id` (`ON DELETE SET NULL`) — for when a supporting
+document (e.g. "Residence Certificate" required to obtain an Income
+Certificate) is itself a modeled `CivicDocument`. `NULL` when no such
+record exists yet, exactly like every other `*RequiredDocument` table's
+free-text-only default behavior.
+
+**The "obtained through" relationship** (this phase's §13) is a single
+nullable `service_id` FK directly on `civic_documents` (`ON DELETE SET
+NULL`), not a join table — unlike Scheme↔Service (§12's
+`SchemeRelatedService`), this phase names no per-relationship metadata
+(no `note` field requested), so a join table would have added
+infrastructure for nothing a plain FK doesn't already provide.
+
+**The "required by" reverse relationship** (this phase's §14/§22 of the
+kickoff — the "smallest relational design that allows future
+discovery" instruction) is two purely additive, nullable
+`civic_document_id` columns (`ON DELETE SET NULL`) added to the
+already-shipped `service_required_documents` (Phase 7) and
+`scheme_required_documents` (Phase 8) tables — not a new join table, not
+a generic polymorphic reference graph (both explicitly considered and
+rejected, per the module-level §32 discussion above). `NULL` on both by
+default (today's existing behavior, completely unchanged for every
+existing row); a source-backed link sets it. `app.documents.service.
+get_required_by()` is the one place this domain reads those two
+columns back across module boundaries — a legitimate, explicitly-
+modeled cross-domain read, the same precedent `app.schemes.service`
+already established reading `app.services.service.is_publicly_visible`
+for `related_services` (Phase 8). Critically, this reverse lookup is
+**never** inferred from two records happening to share a name — only a
+real `civic_document_id` link ever appears in `required_by`, per this
+phase's explicit §22 prohibition (verified by a dedicated test,
+`test_get_required_by_never_infers_from_matching_names`). Jobs have no
+document-requirement table at all (verified by hand: `app.jobs.models`
+defines only `Job`/`JobNotification`/`JobVacancy`), so Jobs never appear
+in `required_by` — an accurate absence, not a gap.
+
+**Fixture geography/organization/department are shared across all four
+domains, not duplicated**, extending §10's fix: `app/documents/
+fixtures.py` get-or-creates the same "Testland" state and "Test
+Recruitment Board — Not Real" organization every other domain's
+fixtures create. The linked `Service` and linked `Scheme` fixtures are
+likewise this module's own small get-or-create fixtures (not a hard
+dependency on `app.services.fixtures`/`app.schemes.fixtures` having run
+first), so `app/documents/fixtures.py` stays independently runnable —
+and the linked `Scheme`'s one `SchemeRequiredDocument` row is what gives
+`get_required_by()` something real to find, demonstrating the full
+reverse relationship end to end from fixture data alone.

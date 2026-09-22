@@ -415,3 +415,115 @@ export const schemeListResponseSchema = z.object({
 
 export type SchemeDetailInput = z.infer<typeof schemeDetailSchema>;
 export type SchemeListResponseInput = z.infer<typeof schemeListResponseSchema>;
+
+/**
+ * Mirrors `apps/api/app/documents/schemas.py` exactly (Phase 10).
+ * Reuses `sourceSummarySchema`/`organizationSummarySchema`/
+ * `departmentSummarySchema`/`paginationMetaSchema`/
+ * `requirementTypeSchema`/`applicationChannelTypeSchema`/
+ * `deliveryModeSchema`/`requirementSummarySchema`/
+ * `applicationMethodSummarySchema` above.
+ */
+export const documentTypeSchema = z.enum([
+  "CERTIFICATE",
+  "IDENTITY_DOCUMENT",
+  "RECORD",
+  "PERMIT",
+  "LICENSE",
+  "REGISTRATION",
+  "OTHER",
+]);
+
+export const documentCategorySchema = z.enum([
+  "PERSONAL",
+  "IDENTITY",
+  "RESIDENCE",
+  "INCOME",
+  "SOCIAL_CATEGORY",
+  "EDUCATION",
+  "BIRTH_DEATH",
+  "DISABILITY",
+  "LAND_REVENUE",
+  "EMPLOYMENT",
+  "BUSINESS",
+  "FAMILY",
+  "OTHER",
+]);
+
+export const documentListItemSchema = z.object({
+  slug: z.string(),
+  name: z.string(),
+  organization: organizationSummarySchema,
+  department: departmentSummarySchema.nullable(),
+  short_description: z.string().nullable(),
+  document_type: documentTypeSchema,
+  category: documentCategorySchema,
+  delivery_mode: deliveryModeSchema,
+  state: z.string().nullable(),
+  district: z.string().nullable(),
+  status: z.string().nullable(),
+  verification_status: verificationStatusSchema,
+  last_verified: z.string().nullable(),
+  source: sourceSummarySchema,
+});
+
+export const civicDocumentRefSummarySchema = z.object({
+  slug: z.string(),
+  name: z.string(),
+});
+
+export const supportingDocumentSummarySchema = z.object({
+  name: z.string(),
+  description: z.string().nullable(),
+  is_mandatory: z.boolean(),
+  civic_document: civicDocumentRefSummarySchema.nullable(),
+});
+
+export const serviceRefSummarySchema = z.object({
+  slug: z.string(),
+  name: z.string(),
+});
+
+export const requiredBySummarySchema = z.object({
+  entity_type: z.enum(["service", "scheme"]),
+  slug: z.string(),
+  name: z.string(),
+});
+
+export const documentDetailSchema = z.object({
+  slug: z.string(),
+  name: z.string(),
+  organization: organizationSummarySchema,
+  department: departmentSummarySchema.nullable(),
+  short_description: z.string().nullable(),
+  description: z.string().nullable(),
+  document_type: documentTypeSchema,
+  category: documentCategorySchema,
+  purpose: z.string().nullable(),
+  delivery_mode: deliveryModeSchema,
+  state: z.string().nullable(),
+  district: z.string().nullable(),
+  official_document_url: z.string().nullable(),
+  application_url: z.string().nullable(),
+  fee_summary: z.string().nullable(),
+  processing_time_summary: z.string().nullable(),
+  validity_summary: z.string().nullable(),
+  renewal_summary: z.string().nullable(),
+  status: z.string().nullable(),
+  verification_status: verificationStatusSchema,
+  last_verified: z.string().nullable(),
+  source: sourceSummarySchema,
+  requirements: z.array(requirementSummarySchema),
+  supporting_documents: z.array(supportingDocumentSummarySchema),
+  application_methods: z.array(applicationMethodSummarySchema),
+  service: serviceRefSummarySchema.nullable(),
+  required_by: z.array(requiredBySummarySchema),
+});
+
+export const documentListResponseSchema = z.object({
+  results: z.array(documentListItemSchema),
+  pagination: paginationMetaSchema,
+});
+
+export type DocumentDetailInput = z.infer<typeof documentDetailSchema>;
+export type DocumentListResponseInput = z.infer<typeof documentListResponseSchema>;

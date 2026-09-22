@@ -11,7 +11,8 @@ justifies — see docs/DATABASE.md §10 for the fuller note.
 
 `RequirementType`/`ApplicationChannelType` moved to
 `app.requirements.enums` in Phase 8, once Schemes needed the same
-vocabulary — see that module's docstring.
+vocabulary — see that module's docstring. `DeliveryMode` moved there
+too in Phase 10, once the Documents & Certificates domain needed it.
 """
 
 import enum
@@ -38,12 +39,6 @@ class ServiceCategory(enum.StrEnum):
     IDENTITY = "IDENTITY"
     UTILITIES = "UTILITIES"
     OTHER = "OTHER"
-
-
-class DeliveryMode(enum.StrEnum):
-    ONLINE = "ONLINE"
-    OFFLINE = "OFFLINE"
-    BOTH = "BOTH"
 
 
 class ServicePublicationStatus(enum.StrEnum):

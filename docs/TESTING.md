@@ -113,8 +113,9 @@ from coverage.
 - Fixtures are clearly fictional (§fixtures), e.g. a
   "Test Scheme — Not Real" rule set.
 - Target: 100% branch coverage on the evaluation function specifically,
-  as an explicit CI gate — matching [ROADMAP.md](ROADMAP.md) Phase 10's
-  acceptance criterion.
+  as an explicit CI gate — matching the Eligibility Engine's acceptance
+  criterion in [ROADMAP.md](ROADMAP.md) (rescheduled from its original
+  Phase 10 slot; see that document's Phase 9/10 rescheduling notes).
 
 This is the **§eligibility** anchor referenced from
 [ROADMAP.md](ROADMAP.md) and [ELIGIBILITY_ENGINE.md](ELIGIBILITY_ENGINE.md).

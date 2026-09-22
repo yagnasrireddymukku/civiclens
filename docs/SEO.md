@@ -199,13 +199,13 @@ stating "closed" is genuine user value, not thin content.
 - Any `sitemap.ts`/`robots.ts` — the full sitemap-generation
   infrastructure (§4) remains Phase 14 scope.
 - JSON-LD/metadata for any domain besides Jobs (§12), Services (§13),
-  and Schemes (§14, including Scholarships as a Scheme specialization —
-  §15) — Phase 6/7/8 implemented the `/jobs`, `/services`, `/schemes`,
-  and their `{slug}` metadata/canonical/breadcrumb/structured-data
-  patterns this document sketches, ahead of Phase 14's full rollout,
-  specifically because they're the first phases with real page content
-  to attach it to; exams/representatives get the equivalent treatment
-  as each lands.
+  Schemes (§14, including Scholarships as a Scheme specialization —
+  §15), and Documents (§16) — Phase 6/7/8/10 implemented the `/jobs`,
+  `/services`, `/schemes`, `/documents`, and their `{slug}` metadata/
+  canonical/breadcrumb/structured-data patterns this document sketches,
+  ahead of Phase 14's full rollout, specifically because they're the
+  first phases with real page content to attach it to; exams/
+  representatives get the equivalent treatment as each lands.
 - Analytics/Search Console integration and reporting
   ([OBSERVABILITY.md](OBSERVABILITY.md) territory, not this document).
 - Any paid search/SEM strategy — out of scope; this document covers
@@ -336,7 +336,52 @@ the scholarship-specific fields.**
   unchanged from §14 — a scholarship scheme is a scheme, and gets
   exactly the same treatment every other scheme does.
 
+## 16. Phase 10 Implementation Note: Documents & Certificates
+
+`apps/web/app/[locale]/documents/page.tsx` and
+`.../documents/[slug]/page.tsx` realize the same §1–§3, §6, and §8
+pattern §12–§14 document for Jobs/Services/Schemes:
+
+- Canonical + hreflang alternates via the same `buildLocaleAwareMetadata`
+  helper — no new metadata-building code, matching §12–§14's precedent.
+- `GovernmentService` JSON-LD on the detail page — reused for
+  Documents, not a new type invented for this domain: schema.org's own
+  documentation of `GovernmentService` lists examples ("food stamps,
+  veterans benefits, license plates, etc.") that explicitly include
+  obtaining an official document/identity record, so this is a genuine
+  fit judged the same type-by-type way §6/§13/§14 require. Fields used:
+  `provider` (the organization), `serviceType` (the document's
+  `document_type`), `areaServed` (only when the document has a
+  `state`), `availableChannel` (one `ServiceChannel` per application
+  method that has a real URL). No `audience` property — `CivicDocument`
+  has no `target_audience`-equivalent field, so nothing is guessed to
+  fill it.
+- `GovernmentPermit` (schema.org's more specific type for
+  government-issued permits) was considered for `document_type` values
+  of `PERMIT`/`LICENSE`/`REGISTRATION` specifically, and rejected:
+  branching the structured-data type by `document_type` for a marginal
+  SEO gain would add complexity this phase's data model doesn't
+  otherwise need, when `GovernmentService` already covers every
+  document type honestly. If a later phase finds real evidence this
+  branching matters, it belongs here, not assumed now.
+- `BreadcrumbList` JSON-LD plus the visible `Breadcrumb` component —
+  CivicLens → Documents & Certificates → document name, matching §8's
+  hierarchy exactly.
+- **Same known, disclosed `notFound()`/404-status limitation §12–§14
+  document** (traced to [ROADMAP.md](ROADMAP.md) Phase 4's
+  `[locale]`-routing finding) — mitigated identically, with a
+  `noindex, nofollow` robots meta tag on the not-found response, rather
+  than a new inconsistent workaround.
+- No `Service`/`GovernmentService` schema.org rating/review fields are
+  used anywhere, matching §13's identical rule.
+- The "required by" reverse relationship (§14's detail-page section)
+  and the recursive supporting-document link (linking to another
+  `CivicDocument` when one exists) are visible page content only, not
+  structured data — no schema.org property cleanly represents either
+  relationship without stretching semantics, the same reasoning §15
+  gives for leaving the scholarship-specific fields out of JSON-LD.
+
 This document defines the target SEO architecture for Phase 14; it is
 finalized against real, live URL patterns once indexable content exists
-from all of Phases 6–9, per Phase 6, 7, 8, and 9's domain-specific head
-starts above.
+from all of Phases 6–10, per Phase 6, 7, 8, 9, and 10's domain-specific
+head starts above.

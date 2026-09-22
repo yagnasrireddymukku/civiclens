@@ -38,7 +38,7 @@ from app.geography.enums import StateStatus
 from app.geography.models import District, State
 from app.institutions.enums import OrganizationType
 from app.institutions.models import Department, Organization
-from app.requirements.enums import ApplicationChannelType, RequirementType
+from app.requirements.enums import ApplicationChannelType, DeliveryMode, RequirementType
 from app.schemes.enums import (
     BenefitType,
     EducationLevel,
@@ -56,7 +56,7 @@ from app.schemes.models import (
     ScholarshipDetail,
 )
 from app.schemes.service import sync_scheme_search_index
-from app.services.enums import DeliveryMode, ServiceCategory, ServicePublicationStatus
+from app.services.enums import ServiceCategory, ServicePublicationStatus
 from app.services.models import Service
 from app.services.service import sync_service_search_index
 from app.sources.enums import VerificationStatus

@@ -40,14 +40,17 @@ def test_search_documents_migration_applies_and_reverses_cleanly(
             engine.dispose()
 
         # Downgrade past whatever now sits on top of this migration in
-        # the chain (Phase 6's jobs domain, as of this writing) one
+        # the chain (Phase 10's documents domain, as of this writing) one
         # revision at a time, until search_documents itself is gone —
         # "-1" alone no longer isolates this migration once a later
         # phase adds its own migration on top, so this walks down
         # instead of assuming a fixed distance from head. Bounded so a
         # real bug (the table never disappearing) fails loudly instead
-        # of downgrading all the way to base.
-        for _ in range(5):
+        # of downgrading all the way to base. The bound has grown by one
+        # each phase that added a migration on top (5 -> 6 in Phase 10);
+        # it is a distance-from-head count, not a fundamental limit, and
+        # is expected to keep growing.
+        for _ in range(6):
             command.downgrade(config, "-1")
             engine = sa.create_engine(db_url, future=True)
             try:
@@ -57,7 +60,7 @@ def test_search_documents_migration_applies_and_reverses_cleanly(
             if "search_documents" not in tables:
                 break
         else:
-            raise AssertionError("search_documents was still present after 5 downgrades")
+            raise AssertionError("search_documents was still present after 6 downgrades")
 
         assert "states" in tables  # Phase 3 tables untouched
 

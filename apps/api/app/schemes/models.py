@@ -94,6 +94,7 @@ from app.schemes.enums import (
 from app.sources.enums import VerificationStatus
 
 if TYPE_CHECKING:
+    from app.documents.models import CivicDocument
     from app.services.models import Service
 
 
@@ -234,7 +235,10 @@ class SchemeRequirement(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 class SchemeRequiredDocument(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     """One document a citizen typically needs to provide — mirrors
     `app.services.models.RequiredDocument`'s exact shape (see module
-    docstring's §26 note on why this stays its own table)."""
+    docstring's §26 note on why this stays its own table), including
+    Phase 10's additive, nullable `civic_document_id` column — see
+    `app/documents/models.py`'s module docstring for the full
+    reasoning."""
 
     __tablename__ = "scheme_required_documents"
 
@@ -244,8 +248,12 @@ class SchemeRequiredDocument(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_mandatory: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    civic_document_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("civic_documents.id", ondelete="SET NULL"), nullable=True, index=True
+    )
 
     scheme: Mapped[Scheme] = relationship(back_populates="required_documents")
+    civic_document: Mapped[CivicDocument | None] = relationship()
 
 
 class SchemeApplicationMethod(UUIDPrimaryKeyMixin, TimestampMixin, Base):

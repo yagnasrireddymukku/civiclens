@@ -1,0 +1,35 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding-block: var(--space-10) var(--space-16);
+}
+
+.title {
+  font: var(--text-h2);
+  color: var(--color-text-primary);
+}
+
+.searchCta {
+  font: var(--text-label);
+  color: var(--color-text-secondary);
+}
+
+.prompt {
+  font: var(--text-body);
+  color: var(--color-text-secondary);
+}
+
+.resultsHeading {
+  font: var(--text-label);
+  color: var(--color-text-secondary);
+}
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}

@@ -14,8 +14,11 @@ real government data exists yet). Phase 8 made Schemes the third
 appear together in one cross-domain result set. **Phase 9 deliberately
 added no fourth `entity_type`** — Scholarships are a `Scheme`
 specialization, already indexed as `entity_type="scheme"` since §16
-(see §17). Exams, representatives, elections, and documents remain
-unindexed; §3 and §12–17 describe what's actually built and are
+(see §17). **Phase 10 made Documents the actual fourth**
+(`entity_type="document"`, §18), with an explicit test that Jobs,
+Services, Schemes, and Documents all appear together in one
+cross-domain result set. Exams, representatives, and elections remain
+unindexed; §3 and §12–18 describe what's actually built and are
 updated again as each of those lands.
 
 ## 1. Core Principle: Search Is a Projection, Not a System of Record
@@ -226,11 +229,11 @@ anything but the disposable index itself.
   (`TEST_JOB`/`TEST_SERVICE`/`TEST_SCHEME`), `app/jobs/fixtures.py`'s one
   synthetic job (§14), and `app/services/fixtures.py`'s one synthetic
   service (§15).
-- Exams, representatives, elections, and documents indexing anything —
-  Jobs (Phase 6), Services (Phase 7), and Schemes (Phase 8) are the only
-  real domain modules calling `upsert_search_document` so far.
-  Scholarships (Phase 9) are already covered — they're `Scheme` rows,
-  not a fourth module (§17).
+- Exams, representatives, and elections indexing anything — Jobs
+  (Phase 6), Services (Phase 7), Schemes (Phase 8), and Documents
+  (Phase 10) are the only real domain modules calling
+  `upsert_search_document` so far. Scholarships (Phase 9) are already
+  covered — they're `Scheme` rows, not a fourth module (§17).
 - Autocomplete (§4) and any dedicated as-you-type endpoint.
 - Any Meilisearch (or other dedicated search engine) infrastructure — not
   provisioned until a §10 trigger is met and documented.
@@ -413,6 +416,40 @@ before creating one; the decision here is **not to**:
   a scholarship-category scheme is findable via `/search` exactly like
   any other scheme, with `entity_type: "scheme"` in the result, not a
   fourth type.
+
+## 18. Documents Domain Integration (Phase 10)
+
+Documents is the fourth real domain module to index into
+`search_documents` — and, unlike Scholarships (§17), a genuine fourth
+`entity_type`, since `CivicDocument` is a first-class domain entity
+(see [DATABASE.md](DATABASE.md) §14 for the full architectural
+distinction from `RequiredDocument`/`SchemeRequiredDocument`):
+
+- `entity_type="document"`, `entity_id=<civic_documents.id>` — same
+  domain-agnostic shape as Jobs/Services/Schemes, no special-casing.
+- `sync_document_search_index()` (`app/documents/service.py`) mirrors
+  `sync_scheme_search_index()` exactly: indexes when
+  `publication_status="PUBLISHED"` and `verification_status` is
+  `VERIFIED`/`NEEDS_REVIEW` (the identical rule
+  `app/documents/service.py`'s own read path enforces), removes
+  otherwise.
+- `route="/documents/{slug}"`, `locale=document.locale`,
+  `searchable_text` is `document.purpose` (the one prose field not
+  otherwise weighted into `title`/`summary`), `category` is the enum's
+  string value (`document.category.value`) — `document_type` is
+  deliberately not also folded into `searchable_text` or `category`;
+  it's a separate filter dimension (§6 of this document, [API.md](API.md)
+  §17), not additional search text.
+- Verified directly: a document indexed this way is findable via
+  `GET /api/v1/search?q=...` with `entity_type: "document"` and the
+  document's own `route` in the result
+  (`tests/test_documents/test_service.py::
+  test_sync_document_search_index_indexes_a_publicly_visible_document`),
+  and a single query can return a job, a service, a scheme, and a
+  document result together — the literal Phase 10 acceptance criterion
+  (`tests/test_documents/test_api.py::
+  test_cross_domain_search_returns_jobs_services_schemes_and_documents`)
+  — verified live end-to-end as well as via automated tests.
 
 This document is updated again with real query patterns as each further
 domain module starts calling `upsert_search_document`, per

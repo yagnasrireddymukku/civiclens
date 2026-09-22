@@ -16,8 +16,8 @@ from app.geography.enums import StateStatus
 from app.geography.models import District, State
 from app.institutions.enums import OrganizationType
 from app.institutions.models import Department, Organization
-from app.requirements.enums import ApplicationChannelType, RequirementType
-from app.services.enums import DeliveryMode, ServiceCategory, ServicePublicationStatus
+from app.requirements.enums import ApplicationChannelType, DeliveryMode, RequirementType
+from app.services.enums import ServiceCategory, ServicePublicationStatus
 from app.services.models import ApplicationMethod, RequiredDocument, Service, ServiceRequirement
 from app.sources.enums import VerificationStatus
 from app.sources.models import Source

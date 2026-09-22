@@ -1,6 +1,6 @@
-"""Shared fixture-building helpers for Schemes domain tests — plain
+"""Shared fixture-building helpers for Documents domain tests — plain
 functions, not pytest fixtures, mirroring
-tests/test_services/_helpers.py's identical pattern. Fixture data is
+tests/test_schemes/_helpers.py's identical pattern. Fixture data is
 unambiguously fictional (docs/DATA_GOVERNANCE.md §7, docs/TESTING.md §15).
 """
 
@@ -8,34 +8,26 @@ from __future__ import annotations
 
 import datetime
 import uuid
-from decimal import Decimal
 from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.documents.enums import DocumentCategory, DocumentPublicationStatus, DocumentType
+from app.documents.models import (
+    CivicDocument,
+    DocumentApplicationMethod,
+    DocumentRequirement,
+    DocumentSupportingDocument,
+)
 from app.geography.enums import StateStatus
 from app.geography.models import District, State
 from app.institutions.enums import OrganizationType
 from app.institutions.models import Department, Organization
 from app.requirements.enums import ApplicationChannelType, DeliveryMode, RequirementType
-from app.schemes.enums import (
-    BenefitType,
-    EducationLevel,
-    SchemeCategory,
-    SchemePublicationStatus,
-    StudyMode,
-)
-from app.schemes.models import (
-    Scheme,
-    SchemeApplicationMethod,
-    SchemeBenefit,
-    SchemeRelatedService,
-    SchemeRequiredDocument,
-    SchemeRequirement,
-    ScholarshipDetail,
-)
+from app.schemes.enums import SchemeCategory, SchemePublicationStatus
+from app.schemes.models import Scheme, SchemeRequiredDocument
 from app.services.enums import ServiceCategory, ServicePublicationStatus
-from app.services.models import Service
+from app.services.models import RequiredDocument, Service
 from app.sources.enums import VerificationStatus
 from app.sources.models import Source
 
@@ -64,7 +56,7 @@ def make_district(session: Session, state: State, **overrides: Any) -> District:
 
 def make_source(session: Session, **overrides: Any) -> Source:
     defaults: dict[str, Any] = dict(
-        url="https://example-test.invalid/notice/schemes",
+        url="https://example-test.invalid/notice/documents",
         title="Test Notice — Not Real",
         organization="Test Recruitment Board — Not Real",
         source_type="test-fixture",
@@ -115,15 +107,13 @@ def make_service(
     district: District | None = None,
     **overrides: Any,
 ) -> Service:
-    """A minimal Service, for exercising `SchemeRelatedService` without
-    depending on `tests/test_services/_helpers.py` — kept deliberately
-    small since Schemes tests only ever need a service to link to, never
-    to exercise Service's own fields."""
+    """A minimal Service, for exercising `CivicDocument.service_id`
+    without depending on `tests/test_services/_helpers.py`."""
     defaults: dict[str, Any] = dict(
         slug=f"test-service-{uuid.uuid4().hex[:8]}",
         locale="en",
         name="Test Income Certificate Issuance (Fixture)",
-        short_description="A fictional service used only to exercise the Scheme<->Service link.",
+        short_description="A fictional service used only to exercise the Document<->Service link.",
         organization_id=organization.id,
         department_id=department.id if department else None,
         category=ServiceCategory.CERTIFICATES,
@@ -153,20 +143,18 @@ def make_scheme(
     district: District | None = None,
     **overrides: Any,
 ) -> Scheme:
+    """A minimal Scheme, for exercising the "required by" reverse
+    relationship without depending on `tests/test_schemes/_helpers.py`."""
     defaults: dict[str, Any] = dict(
         slug=f"test-scheme-{uuid.uuid4().hex[:8]}",
         locale="en",
-        name="Test Old-Age Pension Scheme (Fixture)",
-        short_description="A fictional scheme used only to exercise the schemes domain.",
-        description=None,
+        name="Test Family Welfare Assistance Scheme (Fixture)",
+        short_description="A fictional scheme used only to exercise the Document<->Scheme link.",
         organization_id=organization.id,
         department_id=department.id if department else None,
-        category=SchemeCategory.PENSION,
-        target_audience=None,
+        category=SchemeCategory.SOCIAL_WELFARE,
         state_id=state.id if state else None,
         district_id=district.id if district else None,
-        official_scheme_url=None,
-        application_url=None,
         status="active",
         publication_status=SchemePublicationStatus.PUBLISHED,
         source_id=source.id,
@@ -180,105 +168,129 @@ def make_scheme(
     return scheme
 
 
-def make_benefit(session: Session, scheme: Scheme, **overrides: Any) -> SchemeBenefit:
-    defaults: dict[str, Any] = dict(
-        scheme_id=scheme.id,
-        benefit_type=BenefitType.CASH_TRANSFER,
-        description="Monthly pension amount (fictional fixture — no real figure implied).",
-        amount_summary=None,
-        frequency_summary="Monthly",
-    )
-    defaults.update(overrides)
-    benefit = SchemeBenefit(**defaults)
-    session.add(benefit)
-    session.flush()
-    return benefit
-
-
-def make_requirement(session: Session, scheme: Scheme, **overrides: Any) -> SchemeRequirement:
-    defaults: dict[str, Any] = dict(
-        scheme_id=scheme.id,
-        requirement_type=RequirementType.AGE,
-        description="Applicant must be at least 60 years old (fictional fixture).",
-        min_value=60,
-        max_value=None,
-    )
-    defaults.update(overrides)
-    requirement = SchemeRequirement(**defaults)
-    session.add(requirement)
-    session.flush()
-    return requirement
-
-
-def make_required_document(
+def make_scheme_required_document(
     session: Session, scheme: Scheme, **overrides: Any
 ) -> SchemeRequiredDocument:
     defaults: dict[str, Any] = dict(
         scheme_id=scheme.id,
-        name="Aadhaar Card (Fixture)",
+        name="Income Certificate (Fixture)",
         description=None,
         is_mandatory=True,
+        civic_document_id=None,
     )
     defaults.update(overrides)
-    document = SchemeRequiredDocument(**defaults)
+    required = SchemeRequiredDocument(**defaults)
+    session.add(required)
+    session.flush()
+    return required
+
+
+def make_service_required_document(
+    session: Session, service: Service, **overrides: Any
+) -> RequiredDocument:
+    defaults: dict[str, Any] = dict(
+        service_id=service.id,
+        name="Income Certificate (Fixture)",
+        description=None,
+        is_mandatory=True,
+        civic_document_id=None,
+    )
+    defaults.update(overrides)
+    required = RequiredDocument(**defaults)
+    session.add(required)
+    session.flush()
+    return required
+
+
+def make_document(
+    session: Session,
+    *,
+    organization: Organization,
+    source: Source,
+    state: State | None = None,
+    department: Department | None = None,
+    district: District | None = None,
+    **overrides: Any,
+) -> CivicDocument:
+    defaults: dict[str, Any] = dict(
+        slug=f"test-document-{uuid.uuid4().hex[:8]}",
+        locale="en",
+        name="Test Income Certificate (Fixture)",
+        short_description="A fictional document used only to exercise the documents domain.",
+        description=None,
+        document_type=DocumentType.CERTIFICATE,
+        category=DocumentCategory.INCOME,
+        purpose=None,
+        organization_id=organization.id,
+        department_id=department.id if department else None,
+        delivery_mode=DeliveryMode.BOTH,
+        state_id=state.id if state else None,
+        district_id=district.id if district else None,
+        official_document_url=None,
+        application_url=None,
+        fee_summary=None,
+        processing_time_summary=None,
+        validity_summary=None,
+        renewal_summary=None,
+        service_id=None,
+        status="available",
+        publication_status=DocumentPublicationStatus.PUBLISHED,
+        source_id=source.id,
+        verification_status=VerificationStatus.VERIFIED,
+        last_verified_at=datetime.datetime(2026, 8, 1, tzinfo=datetime.UTC),
+    )
+    defaults.update(overrides)
+    document = CivicDocument(**defaults)
     session.add(document)
     session.flush()
     return document
 
 
-def make_application_method(
-    session: Session, scheme: Scheme, **overrides: Any
-) -> SchemeApplicationMethod:
+def make_requirement(
+    session: Session, document: CivicDocument, **overrides: Any
+) -> DocumentRequirement:
     defaults: dict[str, Any] = dict(
-        scheme_id=scheme.id,
+        document_id=document.id,
+        requirement_type=RequirementType.RESIDENCY,
+        description="Applicant must be a resident of Testland (fictional fixture).",
+        min_value=None,
+        max_value=None,
+    )
+    defaults.update(overrides)
+    requirement = DocumentRequirement(**defaults)
+    session.add(requirement)
+    session.flush()
+    return requirement
+
+
+def make_supporting_document(
+    session: Session, document: CivicDocument, **overrides: Any
+) -> DocumentSupportingDocument:
+    defaults: dict[str, Any] = dict(
+        document_id=document.id,
+        name="Aadhaar Card (Fixture)",
+        description=None,
+        is_mandatory=True,
+        civic_document_id=None,
+    )
+    defaults.update(overrides)
+    supporting = DocumentSupportingDocument(**defaults)
+    session.add(supporting)
+    session.flush()
+    return supporting
+
+
+def make_application_method(
+    session: Session, document: CivicDocument, **overrides: Any
+) -> DocumentApplicationMethod:
+    defaults: dict[str, Any] = dict(
+        document_id=document.id,
         channel_type=ApplicationChannelType.ONLINE,
-        url="https://example-test.invalid/apply/test-scheme",
+        url="https://example-test.invalid/apply/test-document",
         instructions=None,
     )
     defaults.update(overrides)
-    method = SchemeApplicationMethod(**defaults)
+    method = DocumentApplicationMethod(**defaults)
     session.add(method)
     session.flush()
     return method
-
-
-def make_related_service(
-    session: Session, scheme: Scheme, service: Service, **overrides: Any
-) -> SchemeRelatedService:
-    defaults: dict[str, Any] = dict(
-        scheme_id=scheme.id,
-        service_id=service.id,
-        note=None,
-    )
-    defaults.update(overrides)
-    related = SchemeRelatedService(**defaults)
-    session.add(related)
-    session.flush()
-    return related
-
-
-def make_scholarship_detail(
-    session: Session, scheme: Scheme, **overrides: Any
-) -> ScholarshipDetail:
-    defaults: dict[str, Any] = dict(
-        scheme_id=scheme.id,
-        education_level=EducationLevel.UNDERGRADUATE,
-        course_discipline=None,
-        institution_type=None,
-        study_mode=StudyMode.FULL_TIME,
-        year_of_study=None,
-        minimum_percentage=Decimal("60.00"),
-        minimum_cgpa=None,
-        academic_requirement_notes=None,
-        application_opens=datetime.date(2026, 6, 1),
-        application_closes=datetime.date(2026, 7, 31),
-        correction_window_end=None,
-        academic_year="2026-27",
-        renewable=False,
-        renewal_notes=None,
-    )
-    defaults.update(overrides)
-    detail = ScholarshipDetail(**defaults)
-    session.add(detail)
-    session.flush()
-    return detail

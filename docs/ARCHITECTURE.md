@@ -104,14 +104,17 @@ civiclens/
 │           ├── institutions/ # organizations/departments (Phase 6+) —
 │           │                 # shared by jobs/services/schemes/future
 │           │                 # domains, the same role geography/ plays
-│           ├── requirements/ # RequirementType/ApplicationChannelType
-│           │                 # vocabulary (Phase 8+) — extracted from
-│           │                 # services/ once schemes/ needed it too;
-│           │                 # enums only, no models/tables
-│           ├── jobs/ (Phase 6+) services/ (Phase 7+) schemes/ (Phase 8+)
-│           │   exams/ scholarships/
-│           ├── representatives/ elections/
-│           ├── eligibility/ documents/
+│           ├── requirements/ # RequirementType/ApplicationChannelType/
+│           │                 # DeliveryMode vocabulary (Phase 8+, 10+) —
+│           │                 # extracted from services/ once schemes/
+│           │                 # (then documents/) needed it too; enums
+│           │                 # only, no models/tables
+│           ├── jobs/ (Phase 6+) services/ (Phase 7+) schemes/ (Phase 8+,
+│           │   includes scholarships as a Scheme specialization, Phase 9+)
+│           │   documents/ (Phase 10+) exams/
+│           ├── representatives/ elections/ # rescheduled from Phase 9 —
+│           │                 # see ROADMAP.md's Phase 9/10 rescheduling note
+│           ├── eligibility/   # rescheduled from Phase 10 — see above
 │           ├── search/ (Phase 5+) ai/ tracking/ notifications/
 │           ├── sources/            # source & verification records (Phase 3+)
 │           ├── users/ auth/          # identity Phase 3+, auth flows later

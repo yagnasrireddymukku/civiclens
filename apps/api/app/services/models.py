@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects import postgresql
@@ -27,9 +28,17 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 from app.institutions.models import Department, Organization
-from app.requirements.enums import ApplicationChannelType, RequirementType
-from app.services.enums import DeliveryMode, ServiceCategory, ServicePublicationStatus
+from app.requirements.enums import ApplicationChannelType, DeliveryMode, RequirementType
+from app.services.enums import ServiceCategory, ServicePublicationStatus
 from app.sources.enums import VerificationStatus
+
+if TYPE_CHECKING:
+    # Only for static type-checking — a real top-level import here would
+    # be circular (app.documents imports Service for its own `service_id`
+    # relationship). SQLAlchemy resolves `Mapped["CivicDocument"]` below
+    # at runtime by name against the shared declarative registry instead,
+    # once `app.core.db.model_registry` has imported every model module.
+    from app.documents.models import CivicDocument
 
 
 class Service(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -148,7 +157,16 @@ class RequiredDocument(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     """One document a citizen typically needs to provide — deliberately
     minimal (name + optional note), extensible toward a future Document
     Intelligence capability (this phase's §24) without committing to its
-    shape now."""
+    shape now.
+
+    `civic_document_id` (Phase 10) is a purely additive, nullable
+    `ON DELETE SET NULL` FK to `civic_documents.id` — `NULL` when no
+    modeled `CivicDocument` record exists for this requirement yet (free
+    text only, today's original behavior, unchanged), set when one does,
+    enabling a document's detail page to answer "where is this
+    required" without inferring anything from matching names. See
+    `app/documents/models.py`'s module docstring for the full
+    reasoning."""
 
     __tablename__ = "service_required_documents"
 
@@ -158,8 +176,12 @@ class RequiredDocument(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_mandatory: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    civic_document_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("civic_documents.id", ondelete="SET NULL"), nullable=True, index=True
+    )
 
     service: Mapped[Service] = relationship(back_populates="required_documents")
+    civic_document: Mapped[CivicDocument | None] = relationship()
 
 
 class ApplicationMethod(UUIDPrimaryKeyMixin, TimestampMixin, Base):

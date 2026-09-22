@@ -28,8 +28,9 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.geography.models import District, State
 from app.institutions.models import Department, Organization
+from app.requirements.enums import DeliveryMode
 from app.search import service as search_service
-from app.services.enums import DeliveryMode, ServiceCategory, ServicePublicationStatus
+from app.services.enums import ServiceCategory, ServicePublicationStatus
 from app.services.models import Service
 from app.sources.enums import VerificationStatus
 from app.sources.models import Source

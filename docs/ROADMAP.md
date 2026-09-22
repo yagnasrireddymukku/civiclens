@@ -600,7 +600,144 @@ rule 22 applies to code applies here to roadmap ordering):
   explicit neutrality review step in this phase's PR checklist.
 - **Rollback**: Additive; feature-flaggable.
 
-## Phase 10 — Eligibility Engine
+## Phase 10 — Documents & Certificates
+- **Objective**: Establish a first-class CivicLens information domain
+  for government certificates, identity-related public documents, and
+  other citizen-facing official documents. This document's original
+  Phase 10 line named the Eligibility Engine; the actual kickoff for
+  this phase explicitly redirected work to Documents & Certificates
+  instead, the same kind of redirection Phase 9 already applied once —
+  see the note appended at the end of this entry for where the
+  Eligibility Engine's original scope now lives.
+- **The central architectural question (this phase's §3/§32)**: is a
+  document/certificate record (1) an existing document-reference
+  abstraction reused, (2) a first-class `CivicDocument` entity, or (3)
+  an extension of an existing model? **Decision: (2), a first-class
+  `CivicDocument` entity — but explicitly *not* merged with
+  `RequiredDocument`/`SchemeRequiredDocument` into one polymorphic
+  system**, the specific mistake this phase's §32 warns against by
+  name. The distinction the kickoff drew is real and predates this
+  phase: `RequiredDocument`/`SchemeRequiredDocument` (Phase 7/8) are
+  *requirements that a document be provided* — a name, a description, a
+  mandatory flag, itemized under whatever parent needs one.
+  `CivicDocument` is *the official document/certificate itself* — what
+  an Income Certificate *is*: who issues it, what it's for, how to
+  obtain one, what it costs, how long it's valid. Options considered
+  and rejected: (1) reusing `Service` for this (an "Income Certificate
+  Issuance" service already exists, but conflates the *act of issuing*
+  with the *thing issued* — no field for purpose/validity/renewal) and
+  (3) a single generic polymorphic table linking documents to
+  jobs/services/schemes (exactly this phase's §32 prohibition, and
+  literally the shape this document's own original §2.4 sketch — see
+  [DATABASE.md](DATABASE.md) §2.4 — had proposed before a real
+  implementation had to choose).
+- **Dependencies**: Phase 6–9 patterns (Jobs/Services/Schemes/
+  Scholarships); Institutions (§2.2); Requirements vocabulary (§11).
+- **Files/modules**: `apps/api/app/documents/` (models, enums, schemas,
+  service, fixtures) — a genuine new top-level domain module, unlike
+  Scholarships (Phase 9), which stayed inside `app.schemes`.
+  `apps/api/app/api/v1/documents.py`,
+  `apps/api/scripts/seed_document_fixtures.py`,
+  `apps/web/app/[locale]/documents/` (list + `[slug]` detail),
+  `apps/web/lib/documents.ts`. `app.requirements.enums` gained
+  `DeliveryMode` (moved from `app.services.enums`, a second consumer).
+  `app.services.models.RequiredDocument` and
+  `app.schemes.models.SchemeRequiredDocument` each gained one additive,
+  nullable `civic_document_id` column — the "smallest relational
+  design" (§14 of the kickoff) supporting the reverse "required by"
+  lookup, not a new join table.
+- **Technical work**: `civic_documents` carries the same denormalized
+  provenance/visibility pattern as every other domain (independent
+  `source_id` + `verification_status`/`last_verified_at`,
+  `publication_status` as the one hard gate, its own
+  `document_publication_status` enum type). `document_type` (7-value
+  enum) and `document_category` (13-value enum) are two separate
+  controlled taxonomies — the *kind of record* and the *subject
+  matter* as distinct axes (this phase's §6/§7). `document_requirements`/
+  `document_application_methods` reuse the shared `RequirementType`/
+  `ApplicationChannelType` vocabulary as their own tables, mirroring
+  `ServiceRequirement`/`ApplicationMethod` exactly.
+  `document_supporting_documents` mirrors `RequiredDocument`'s shape
+  plus one addition: a nullable, self-referential `civic_document_id`
+  FK, for when a supporting document is itself a modeled
+  `CivicDocument` (this phase's §11's recursive case). The "obtained
+  through" relationship (§13) is a single nullable `service_id` FK
+  directly on `civic_documents` — no join table, since (unlike
+  Scheme↔Service in Phase 8) this phase named no per-relationship
+  metadata to justify one. `GET /api/v1/documents` (filtered, paged)
+  and `GET /api/v1/documents/{slug}` (requirements/supporting-documents/
+  application-methods nested inline, plus `service` and `required_by`)
+  per [API.md](API.md) §17. Documents is the *fourth* real domain to
+  integrate with `search_documents` (`entity_type="document"`,
+  [SEARCH.md](SEARCH.md) §18) — a genuine fourth `entity_type`, unlike
+  Scholarships' deliberate non-addition — verified with a live query
+  returning a job, a service, a scheme, and a document together.
+  Frontend list/detail pages reuse the same Phase 4 components every
+  prior domain does, plus `GovernmentService` + `BreadcrumbList`
+  JSON-LD (schema.org fit checked against real documented properties,
+  not guessed — [SEO.md](SEO.md) §16; `GovernmentPermit` was
+  considered for permit/license/registration document types
+  specifically and rejected as unnecessary branching).
+- **Tests**: 46 new backend tests (model constraints including the
+  recursive supporting-document self-reference and both directions of
+  the additive `civic_document_id` columns' cascade behavior,
+  service-layer visibility and search-index sync, the `required_by`
+  reverse lookup including its explicit "never infers from matching
+  names" test, API contract including the Job+Service+Scheme+Document
+  cross-domain search test, the new migration's own upgrade/downgrade/
+  upgrade cycle, fixture loading) plus 19 new frontend tests
+  (document-type/category filter controls, list-page filter
+  pass-through, detail-page rendering including the recursive
+  supporting-document link, the related-service section, and the
+  required-by section) — 216 backend / 94 frontend tests passing in
+  total, including full Phase 0–9 regression.
+- **Documentation**: [DATABASE.md](DATABASE.md) §14 (plus corrections to
+  §2.3/§2.4/§2.6's stale phase-number references this rescheduling
+  exposed), [API.md](API.md) §17, [SEARCH.md](SEARCH.md) §18,
+  [SEO.md](SEO.md) §16, [FRONTEND.md](FRONTEND.md) §12,
+  [ARCHITECTURE.md](ARCHITECTURE.md) §6 (module tree — `app.documents`
+  added, `app.eligibility`/`app.representatives`/`app.elections`
+  annotated as rescheduled rather than simply absent), and this
+  document.
+- **Acceptance criteria**: Two clearly-marked synthetic test documents
+  (`test-civiclens-document-001`, a Residence Certificate; and
+  `test-civiclens-document-002`, an Income Certificate linked to a
+  fixture `Service`, with a supporting-document link back to the
+  Residence Certificate, and a fixture `Scheme` whose
+  `SchemeRequiredDocument` row points back at it) render end-to-end —
+  list page, detail page with requirements/supporting documents/
+  application methods/related service/required-by, source/verification
+  status visible, findable via `/search` alongside the Phase 6 test
+  job, Phase 7 test service, and Phase 8 test scheme in the same query
+  — verified directly against a live backend and frontend (a
+  self-contained smoke test: scratch Postgres migrated to head, all
+  four domains' fixtures loaded, every feature exercised via
+  `TestClient`, scratch database torn down in the same process). No
+  real government data entered; no OCR/upload/verification/eligibility
+  capability built.
+- **Risks**: The exact "everything is a document" polymorphism this
+  phase's §32 warns against — mitigated by keeping `RequiredDocument`/
+  `SchemeRequiredDocument`/`CivicDocument` three distinct tables
+  connected only by two small additive nullable FKs, never merged.
+  Requirement-vocabulary sprawl — mitigated the same way Phase 8/9
+  were: no `RequirementType` enum expansion for this phase's
+  document-specific dimensions; `DeliveryMode`'s extraction to
+  `app.requirements` was the one vocabulary change, verified via
+  `alembic check` showing zero schema diff. Migration-test walk-down
+  bounds needed re-tuning again (`tests/test_search/test_migrations.py`
+  from 5→6 downgrades; `tests/test_schemes/test_scholarship_migration.py`
+  converted from a bare `-1` to the walk-down pattern) — an expected,
+  recurring maintenance cost of this codebase's "isolate the migration
+  under test" strategy as the chain grows, not a new kind of bug.
+- **Rollback**: Additive; feature-flaggable.
+
+---
+
+**Eligibility Engine — rescheduled from Phase 10.** Original scope,
+unchanged from this document's earlier plan, kept here rather than
+assigned a new number for the same reason Phase 9's rescheduling note
+gives — this document does not guess at a sequencing decision that
+belongs to explicit product-owner approval:
 - **Objective**: Implement the deterministic eligibility engine per
   [ELIGIBILITY_ENGINE.md](ELIGIBILITY_ENGINE.md) / [ADR-007](ADR/ADR-007-eligibility-engine.md).
 - **Dependencies**: Phases 6–8 (entities to attach rules to).

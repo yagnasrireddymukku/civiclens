@@ -8,8 +8,9 @@ import datetime
 
 from sqlalchemy.orm import Session
 
+from app.requirements.enums import DeliveryMode
 from app.search.service import search_documents
-from app.services.enums import DeliveryMode, ServiceCategory, ServicePublicationStatus
+from app.services.enums import ServiceCategory, ServicePublicationStatus
 from app.services.service import (
     SEARCH_ENTITY_TYPE,
     get_service_by_slug,

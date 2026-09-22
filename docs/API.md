@@ -228,14 +228,14 @@ request → get_db dependency (opens a Session) → route/service function
 
 ## 12. Explicitly Not Built Yet
 
-- Any domain-content business route beyond Jobs, Services, and Schemes
-  (exams, representatives, elections, eligibility, tracking, AI) or its
-  request/response models — `health`/`health/ready` (§11), `/search`
-  (Phase 5, [SEARCH.md](SEARCH.md) §12), `/jobs` (Phase 6, §13),
-  `/services` (Phase 7, §14), and `/schemes` (Phase 8, §15) exist so
-  far. Scholarships (Phase 9, §16) are not a separate route —
-  `category=SCHOLARSHIP` schemes returned by the same `/schemes`
-  endpoints.
+- Any domain-content business route beyond Jobs, Services, Schemes, and
+  Documents (exams, representatives, elections, eligibility, tracking,
+  AI) or its request/response models — `health`/`health/ready` (§11),
+  `/search` (Phase 5, [SEARCH.md](SEARCH.md) §12), `/jobs` (Phase 6,
+  §13), `/services` (Phase 7, §14), `/schemes` (Phase 8, §15), and
+  `/documents` (Phase 10, §17) exist so far. Scholarships (Phase 9,
+  §16) are not a separate route — `category=SCHOLARSHIP` schemes
+  returned by the same `/schemes` endpoints.
 - Concrete rate-limit thresholds, cache headers, or CDN interaction rules
   (deferred to [SECURITY.md](SECURITY.md) / [ARCHITECTURE.md](ARCHITECTURE.md)
   performance work in later phases).
@@ -369,8 +369,61 @@ scholarships exactly as they serve any other scheme, with two additions:
   `VERIFIED`/`NEEDS_REVIEW` — there is no separate scholarship
   visibility rule to keep in sync, since it is the same row.
 - No eligibility endpoint, no `ELIGIBLE`/`NOT_ELIGIBLE`/`INCOMPLETE`
-  field anywhere in either response — Phase 10's Eligibility Engine
-  domain, entirely.
+  field anywhere in either response — the Eligibility Engine's domain,
+  entirely (rescheduled from its original Phase 10 slot — see
+  [ROADMAP.md](ROADMAP.md)).
+
+## 17. Documents & Certificates Domain (Phase 10)
+
+The fourth real domain module, and a genuinely first-class one this
+time (unlike Scholarships, §16) — see [DATABASE.md](DATABASE.md) §14
+for the full architectural decision distinguishing a `CivicDocument`
+(the official document/certificate itself) from a `RequiredDocument`/
+`SchemeRequiredDocument` row (a requirement that a document be
+provided):
+
+- `GET /api/v1/documents` — filters: `state_id`, `district_id`,
+  `organization_id`, `department_id`, `document_type` (enum —
+  `DocumentType`, 7 values), `category` (enum — `DocumentCategory`, 13
+  values, a distinct axis from `document_type`), `delivery_mode` (enum,
+  reusing the shared `DeliveryMode` — a second consumer, joining
+  Services), `status` (free text, exact match), `date_from`/`date_to`
+  (against `last_verified_at`); `page`/`page_size` (§6); `sort` (a
+  `Literal` with one value, `"recent"`, matching §13–§15's identical
+  no-popularity-ranking rationale). Deliberately has **no free-text `q`
+  parameter**, for the same reason as every other domain — full-text
+  search already exists at `/search` with `entity_type=document`.
+- `GET /api/v1/documents/{slug}` — `slug` is the public identifier.
+  Returns `requirements`/`supporting_documents`/`application_methods`
+  nested inline (each a small child list — see
+  [DATABASE.md](DATABASE.md) §14) rather than separate sub-resource
+  endpoints, for the same "one response, no extra round trips"
+  reasoning as `/jobs/{slug}`'s nested notifications. Two additional
+  fields beyond every other domain's shape:
+  - `service` — the "obtained through" relationship (§13 of the
+    kickoff): `null` when no modeled `Service` exists, or when it
+    exists but isn't itself publicly visible (the same trust-boundary
+    rule §15's `related_services` already established).
+  - `required_by` — "where this document may be required" (§14/§22 of
+    the kickoff): a list of `{entity_type: "service" | "scheme", slug,
+    name}` entries, built only from an explicit `civic_document_id`
+    link on `RequiredDocument`/`SchemeRequiredDocument`, never inferred
+    from matching names, and filtered to only publicly-visible parent
+    records. Jobs never appear here — `app.jobs` has no document-
+    requirement table at all, an accurate absence rather than a gap.
+  Each `supporting_documents` entry also carries a nullable
+  `civic_document` reference (`{slug, name}`) — present when that
+  supporting document is itself a modeled `CivicDocument`, letting the
+  frontend link to it directly.
+- Same visibility rule as every other domain (§13–§15):
+  `publication_status="PUBLISHED"` and `verification_status`
+  `VERIFIED`/`NEEDS_REVIEW`, or an identical 404 — never distinguishing
+  "doesn't exist" from "not yet published."
+- See [DATABASE.md](DATABASE.md) §14 for the schema and
+  [SEARCH.md](SEARCH.md) §18 for how a published document also becomes
+  a search result (`entity_type="document"`), the fourth real domain to
+  do so — with an explicit test that Jobs, Services, Schemes, and
+  Documents all appear together in one cross-domain search result set.
 
 This document defines the target API conventions for Phase 2 onward; each
 domain phase (6–9, 10–12) implements against it and updates this document

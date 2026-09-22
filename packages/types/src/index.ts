@@ -403,3 +403,113 @@ export interface SchemeListResponse {
   results: SchemeListItem[];
   pagination: PaginationMeta;
 }
+
+/**
+ * Mirrors `apps/api/app/documents/schemas.py` and
+ * `apps/api/app/documents/enums.py` exactly (Phase 10, the fourth real
+ * domain module). `OrganizationSummary`/`DepartmentSummary`/
+ * `SourceSummary`/`PaginationMeta`/`RequirementType`/
+ * `ApplicationChannelType`/`DeliveryMode`/`RequirementSummary`/
+ * `ApplicationMethodSummary` above are reused as-is — the shared
+ * vocabulary Services/Schemes already established, now confirmed by a
+ * fourth consumer.
+ */
+export type DocumentType =
+  "CERTIFICATE" | "IDENTITY_DOCUMENT" | "RECORD" | "PERMIT" | "LICENSE" | "REGISTRATION" | "OTHER";
+
+export type DocumentCategory =
+  | "PERSONAL"
+  | "IDENTITY"
+  | "RESIDENCE"
+  | "INCOME"
+  | "SOCIAL_CATEGORY"
+  | "EDUCATION"
+  | "BIRTH_DEATH"
+  | "DISABILITY"
+  | "LAND_REVENUE"
+  | "EMPLOYMENT"
+  | "BUSINESS"
+  | "FAMILY"
+  | "OTHER";
+
+export interface DocumentListItem {
+  slug: string;
+  name: string;
+  organization: OrganizationSummary;
+  department: DepartmentSummary | null;
+  short_description: string | null;
+  document_type: DocumentType;
+  category: DocumentCategory;
+  delivery_mode: DeliveryMode;
+  state: string | null;
+  district: string | null;
+  status: string | null;
+  verification_status: VerificationStatus;
+  last_verified: string | null;
+  source: SourceSummary;
+}
+
+export interface CivicDocumentRefSummary {
+  slug: string;
+  name: string;
+}
+
+export interface SupportingDocumentSummary {
+  name: string;
+  description: string | null;
+  is_mandatory: boolean;
+  // Present only when this supporting document is itself a modeled
+  // `CivicDocument` (this phase's §11) — `null` when it's free text
+  // only.
+  civic_document: CivicDocumentRefSummary | null;
+}
+
+export interface ServiceRefSummary {
+  slug: string;
+  name: string;
+}
+
+export interface RequiredBySummary {
+  entity_type: "service" | "scheme";
+  slug: string;
+  name: string;
+}
+
+export interface DocumentDetail {
+  slug: string;
+  name: string;
+  organization: OrganizationSummary;
+  department: DepartmentSummary | null;
+  short_description: string | null;
+  description: string | null;
+  document_type: DocumentType;
+  category: DocumentCategory;
+  purpose: string | null;
+  delivery_mode: DeliveryMode;
+  state: string | null;
+  district: string | null;
+  official_document_url: string | null;
+  application_url: string | null;
+  fee_summary: string | null;
+  processing_time_summary: string | null;
+  validity_summary: string | null;
+  renewal_summary: string | null;
+  status: string | null;
+  verification_status: VerificationStatus;
+  last_verified: string | null;
+  source: SourceSummary;
+  requirements: RequirementSummary[];
+  supporting_documents: SupportingDocumentSummary[];
+  application_methods: ApplicationMethodSummary[];
+  // The "obtained through" relationship (this phase's §13) — `null`
+  // when no modeled `Service` exists, or it isn't itself publicly
+  // visible.
+  service: ServiceRefSummary | null;
+  // "Where this document may be required" (this phase's §21/§22).
+  required_by: RequiredBySummary[];
+}
+
+export interface DocumentListResponse {
+  results: DocumentListItem[];
+  pagination: PaginationMeta;
+}

@@ -6,22 +6,26 @@ enforcement summary. When in doubt, the linked document is authoritative.
 
 ## Current Phase
 
-Phases 0–9 are complete and approved (architecture/governance, monorepo
-foundation, database + core data model, frontend design system, search
-infrastructure, government jobs, government services, government
-schemes, scholarships & education opportunities). Scholarships (Phase
-9) are a `Scheme` specialization, not a new domain module — see
-[docs/ROADMAP.md](docs/ROADMAP.md)'s Phase 9 entry and
-[docs/DATABASE.md](docs/DATABASE.md) §13 for the architectural decision.
-Public Representatives + Elections, originally planned as Phase 9, is
-rescheduled — its scope is unchanged but it does not yet have a new
-phase number; see the note in [docs/ROADMAP.md](docs/ROADMAP.md)
-between Phase 9 and Phase 10. The project is now awaiting approval to
-begin its next phase. Real government data still does not exist and
-must not be added until the project explicitly enters a real-data phase
-(Phase 13, per [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md)) — every
-domain module built so far uses clearly-synthetic fixtures only, gated
-to `local`/`test` environments (see
+Phases 0–10 are complete and approved (architecture/governance,
+monorepo foundation, database + core data model, frontend design
+system, search infrastructure, government jobs, government services,
+government schemes, scholarships & education opportunities, documents
+& certificates). Scholarships (Phase 9) are a `Scheme` specialization,
+not a new domain module; Documents (Phase 10) *is* a new domain module
+(`app.documents`, `CivicDocument`) — see
+[docs/ROADMAP.md](docs/ROADMAP.md)'s Phase 9/10 entries and
+[docs/DATABASE.md](docs/DATABASE.md) §13/§14 for both architectural
+decisions. Two features, originally planned as Phase 9 (Public
+Representatives + Elections) and Phase 10 (the Eligibility Engine), are
+rescheduled — their scope is unchanged but neither yet has a new phase
+number; see the rescheduling notes in
+[docs/ROADMAP.md](docs/ROADMAP.md) after the Phase 9 and Phase 10
+entries respectively. The project is now awaiting approval to begin its
+next phase. Real government data still does not exist and must not be
+added until the project explicitly enters a real-data phase (Phase 13,
+per [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md)) — every domain module
+built so far uses clearly-synthetic fixtures only, gated to `local`/
+`test` environments (see
 [docs/DATA_GOVERNANCE.md](docs/DATA_GOVERNANCE.md) §7).
 
 ## Non-Negotiable Rules

@@ -14,6 +14,16 @@ etc.); only the *vocabulary* is shared, matching the same
 "extract when a second consumer appears" precedent
 `app.institutions` followed in Phase 7 (verified via `alembic check`
 showing zero schema diff after the move).
+
+`DeliveryMode` moved here in Phase 10, for the identical reason: the
+Documents & Certificates domain (`app.documents`) needs the same
+online/offline/both vocabulary `app.services.enums` already defined —
+"available online," "available offline," or "both" means the same
+thing whether the citizen-facing record is a service or a civic
+document. Also a pure Python/enum-level move (verified via
+`alembic check` showing zero schema diff after the move); `services`
+still owns `delivery_mode` as its own column, reusing this enum by
+`create_type=False`.
 """
 
 import enum
@@ -48,3 +58,9 @@ class ApplicationChannelType(enum.StrEnum):
     SERVICE_CENTER = "SERVICE_CENTER"
     IN_PERSON = "IN_PERSON"
     OTHER = "OTHER"
+
+
+class DeliveryMode(enum.StrEnum):
+    ONLINE = "ONLINE"
+    OFFLINE = "OFFLINE"
+    BOTH = "BOTH"
