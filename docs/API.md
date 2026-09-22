@@ -228,11 +228,12 @@ request → get_db dependency (opens a Session) → route/service function
 
 ## 12. Explicitly Not Built Yet
 
-- Any domain-content business route beyond Jobs and Services (exams,
-  schemes, scholarships, representatives, elections, eligibility,
+- Any domain-content business route beyond Jobs, Services, and Schemes
+  (exams, scholarships, representatives, elections, eligibility,
   tracking, AI) or its request/response models — `health`/`health/ready`
   (§11), `/search` (Phase 5, [SEARCH.md](SEARCH.md) §12), `/jobs`
-  (Phase 6, §13), and `/services` (Phase 7, §14) exist so far.
+  (Phase 6, §13), `/services` (Phase 7, §14), and `/schemes`
+  (Phase 8, §15) exist so far.
 - Concrete rate-limit thresholds, cache headers, or CDN interaction rules
   (deferred to [SECURITY.md](SECURITY.md) / [ARCHITECTURE.md](ARCHITECTURE.md)
   performance work in later phases).
@@ -296,6 +297,39 @@ The second real domain module, mirroring §13's Jobs conventions exactly:
   search result (`entity_type="service"`), the second real domain to do
   so (proving the Phase 5 search abstraction generalizes across domains,
   not just for Jobs).
+
+## 15. Schemes Domain (Phase 8)
+
+The third real domain module, mirroring §13/§14's conventions exactly:
+
+- `GET /api/v1/schemes` — filters: `state_id`, `district_id`,
+  `organization_id`, `department_id`, `category` (enum — `SchemeCategory`,
+  a 16-value taxonomy distinct from `ServiceCategory`), `status` (free
+  text, exact match), `date_from`/`date_to` (against `last_verified_at`);
+  `page`/`page_size` (§6); `sort` (a `Literal` with one value, `"recent"`,
+  matching §13/§14's identical no-popularity-ranking rationale). No
+  `delivery_mode` filter — a scheme has no equivalent field. Deliberately
+  has **no free-text `q` parameter**, for the same reason as `/jobs`/
+  `/services` — full-text search already exists at `/search` with
+  `entity_type=scheme`.
+- `GET /api/v1/schemes/{slug}` — `slug` is the public identifier.
+  Returns `benefits`/`requirements`/`required_documents`/
+  `application_methods`/`related_services` nested inline (each a small
+  child list — see [DATABASE.md](DATABASE.md) §12) rather than separate
+  sub-resource endpoints, for the same "one response, no extra round
+  trips" reasoning as `/jobs/{slug}`'s nested notifications.
+  `related_services` additionally filters out any linked `Service` that
+  isn't itself publicly visible — a scheme's trust boundary doesn't
+  extend to the services it links to.
+- Same visibility rule as Jobs/Services (§13/§14):
+  `publication_status="PUBLISHED"` and `verification_status`
+  `VERIFIED`/`NEEDS_REVIEW`, or an identical 404 — never distinguishing
+  "doesn't exist" from "not yet published."
+- See [DATABASE.md](DATABASE.md) §12 for the schema and
+  [SEARCH.md](SEARCH.md) §16 for how a published scheme also becomes a
+  search result (`entity_type="scheme"`), the third real domain to do
+  so — with an explicit test that Jobs, Services, and Schemes all appear
+  together in one cross-domain search result set.
 
 This document defines the target API conventions for Phase 2 onward; each
 domain phase (6–9, 10–12) implements against it and updates this document

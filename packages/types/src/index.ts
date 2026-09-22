@@ -262,3 +262,98 @@ export interface ServiceListResponse {
   results: ServiceListItem[];
   pagination: PaginationMeta;
 }
+
+/**
+ * Mirrors `apps/api/app/schemes/schemas.py` and
+ * `apps/api/app/schemes/enums.py` exactly (Phase 8, the third real
+ * domain module). `OrganizationSummary`/`DepartmentSummary`/
+ * `SourceSummary`/`PaginationMeta` above are reused as-is, as are
+ * `RequirementType`/`ApplicationChannelType`/`RequirementSummary`/
+ * `RequiredDocumentSummary`/`ApplicationMethodSummary` — the shared
+ * vocabulary Services already established, now confirmed by a second
+ * consumer (backend `app.requirements.enums`).
+ */
+export type SchemeCategory =
+  | "SCHOLARSHIP"
+  | "PENSION"
+  | "SUBSIDY"
+  | "FINANCIAL_ASSISTANCE"
+  | "INSURANCE"
+  | "HOUSING"
+  | "HEALTHCARE"
+  | "EDUCATION"
+  | "AGRICULTURE"
+  | "EMPLOYMENT"
+  | "SKILL_DEVELOPMENT"
+  | "WOMEN_CHILD_WELFARE"
+  | "SOCIAL_WELFARE"
+  | "BUSINESS_ENTREPRENEURSHIP"
+  | "DISABILITY_SUPPORT"
+  | "OTHER";
+
+export type BenefitType =
+  | "CASH_TRANSFER"
+  | "SUBSIDY"
+  | "SCHOLARSHIP_AMOUNT"
+  | "PENSION"
+  | "INSURANCE_COVERAGE"
+  | "LOAN_SUBSIDY"
+  | "IN_KIND_SUPPORT"
+  | "OTHER";
+
+export interface SchemeListItem {
+  slug: string;
+  name: string;
+  organization: OrganizationSummary;
+  department: DepartmentSummary | null;
+  short_description: string | null;
+  category: SchemeCategory;
+  state: string | null;
+  district: string | null;
+  status: string | null;
+  verification_status: VerificationStatus;
+  last_verified: string | null;
+  source: SourceSummary;
+}
+
+export interface BenefitSummary {
+  benefit_type: BenefitType;
+  description: string;
+  amount_summary: string | null;
+  frequency_summary: string | null;
+}
+
+export interface RelatedServiceSummary {
+  slug: string;
+  name: string;
+  note: string | null;
+}
+
+export interface SchemeDetail {
+  slug: string;
+  name: string;
+  organization: OrganizationSummary;
+  department: DepartmentSummary | null;
+  short_description: string | null;
+  description: string | null;
+  category: SchemeCategory;
+  target_audience: string | null;
+  state: string | null;
+  district: string | null;
+  official_scheme_url: string | null;
+  application_url: string | null;
+  status: string | null;
+  verification_status: VerificationStatus;
+  last_verified: string | null;
+  source: SourceSummary;
+  benefits: BenefitSummary[];
+  requirements: RequirementSummary[];
+  required_documents: RequiredDocumentSummary[];
+  application_methods: ApplicationMethodSummary[];
+  related_services: RelatedServiceSummary[];
+}
+
+export interface SchemeListResponse {
+  results: SchemeListItem[];
+  pagination: PaginationMeta;
+}

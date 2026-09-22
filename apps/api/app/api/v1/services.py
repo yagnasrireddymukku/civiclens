@@ -1,5 +1,5 @@
 """GET /api/v1/services, GET /api/v1/services/{slug} — see docs/API.md
-§14 for the pagination/filtering conventions and docs/DATABASE.md §11
+§14 for the pagination/filtering conventions and docs/DATABASE.md §10
 for the underlying schema. Route handlers here only translate between
 HTTP and `app.services.service` plus map ORM rows to response schemas —
 no query logic lives in this file. Mirrors `app/api/v1/jobs.py` exactly.

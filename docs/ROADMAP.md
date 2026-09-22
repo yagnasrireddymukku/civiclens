@@ -346,19 +346,109 @@ until the prior phase's acceptance criteria are met and, per
   the same class of bug Phase 6 already found and fixed for state.
 - **Rollback**: Additive; feature-flaggable.
 
-## Phase 8 — Schemes + Scholarships
-- **Objective**: Schemes and scholarships domains.
-- **Dependencies**: Phase 6–7 patterns.
-- **Files/modules**: `apps/api/app/schemes/`, `apps/api/app/scholarships/`,
-  corresponding frontend routes.
-- **Technical work**: Schema, API, pages, eligibility linkage stub (full
-  engine arrives Phase 10 — for now, schemes just reference
-  `eligibility_rules` rows without an evaluation UI).
-- **Tests**: As prior domain phases.
-- **Documentation**: Updates to [DATABASE.md](DATABASE.md), [API.md](API.md).
-- **Acceptance criteria**: Fictional test scheme/scholarship renders with
-  full provenance.
-- **Risks**: None beyond prior domain phases.
+## Phase 8 — Government Schemes
+- **Objective**: Schemes domain (third real domain module, following
+  Jobs'/Services' Phase 6/7 pattern exactly) — a benefit/support program a
+  citizen may be eligible for, conceptually distinct from a Service
+  (something a citizen requests/accesses). Scholarships were **deferred**
+  from this document's original combined "Schemes + Scholarships" scope
+  line, per the actual Phase 8 kickoff's narrower instruction — a
+  scholarship is close enough to a scheme's shape that folding it in
+  without a real example to derive requirements from risked guessing at a
+  distinction that doesn't hold up; it remains future scope.
+- **Dependencies**: Phase 6–7 pattern established.
+- **Files/modules**: `apps/api/app/requirements/` (extracted from
+  `app.services.enums` — `RequirementType`/`ApplicationChannelType`
+  vocabulary only, no tables), `apps/api/app/schemes/` (models, enums,
+  schemas, service, fixtures), `apps/api/app/api/v1/schemes.py`,
+  `apps/api/scripts/seed_scheme_fixtures.py`,
+  `apps/web/app/[locale]/schemes/` (list + `[slug]` detail),
+  `apps/web/lib/schemes.ts`. No `eligibility_rules` table or evaluation
+  stub was built — this document's original Phase 8 scope line named one,
+  but the actual kickoff explicitly prohibited it: the full Eligibility
+  Engine (predicate model, evaluation logic, ELIGIBLE/NOT_ELIGIBLE/
+  INCOMPLETE verdicts) remains entirely Phase 10 scope. What Phase 8
+  builds instead is the *structured ground* that engine will read from
+  later — `scheme_requirements` (type + optional numeric range + prose,
+  reusing the same shape `service_requirements` already established).
+- **Technical work**: `schemes` carries the same denormalized provenance/
+  visibility pattern as `jobs`/`services` (independent `source_id` +
+  `verification_status`/`last_verified_at`, `publication_status` as the
+  one hard visibility gate, its own `scheme_publication_status` enum
+  type — not shared with Jobs'/Services', for the same domain-scoping
+  reason those two aren't shared with each other); `scheme_category` is a
+  16-value controlled enum (this phase's explicit taxonomy requirement).
+  `SchemeBenefit` is new to this domain — structured benefit information
+  (a `benefit_type` enum plus prose plus an optional `amount_summary`
+  string, never a fabricated figure). `RequirementType`/
+  `ApplicationChannelType` were extracted from `app.services.enums` into
+  a new, neutral `app.requirements.enums` module once Schemes needed the
+  same two vocabularies — a pure Python/enum-level move (`alembic check`
+  showed zero schema diff), deliberately **not** extending to a shared
+  table: `SchemeRequirement`/`SchemeRequiredDocument`/
+  `SchemeApplicationMethod` remain their own tables, mirroring
+  `ServiceRequirement`/`RequiredDocument`/`ApplicationMethod`'s exact
+  shape, to avoid migrating Phase 7's already-shipped tables for a
+  theoretical future benefit. `SchemeRelatedService` models the
+  Scheme↔Service relationship (this phase's explicit requirement) as the
+  smallest structure that supports it — one small mapped class with a
+  `note` column and a unique constraint on the pair, not a full
+  many-to-many association table. `GET /api/v1/schemes` (filtered, paged)
+  and `GET /api/v1/schemes/{slug}` (benefits/requirements/documents/
+  methods/related-services nested inline, the last filtered to only
+  publicly-visible linked services) per [API.md](API.md) §15. Schemes is
+  the *third* real domain to integrate with `search_documents`
+  (`entity_type="scheme"`, [SEARCH.md](SEARCH.md) §16) — the explicit
+  architectural test that the Phase 5 search abstraction generalizes to a
+  third independent caller, verified with a live query returning a job, a
+  service, and a scheme together. Frontend list/detail pages reuse the
+  same Phase 4 components Jobs'/Services' pages do, plus `GovernmentService`
+  + `BreadcrumbList` JSON-LD — `GovernmentService` reused rather than a
+  new type invented, since schema.org's own documentation lists benefit
+  programs as a direct example of that type ([SEO.md](SEO.md) §14).
+- **Tests**: 37 new backend tests (models/constraints including the
+  `SchemeRelatedService` unique-pair constraint and its bidirectional
+  cascade behavior, service-layer visibility and search-index sync,
+  API contract including the explicit Job+Service+Scheme cross-domain
+  search test, migration up/down/up-again, fixture loading) plus 14 new
+  frontend tests (list, detail, and category-filter/pagination controls)
+  — 159 backend / 69 frontend tests passing in total, including full
+  Phase 0–7 regression.
+- **Documentation**: [DATABASE.md](DATABASE.md) §11–§12, [API.md](API.md)
+  §15, [SEARCH.md](SEARCH.md) §16, [SEO.md](SEO.md) §14,
+  [ARCHITECTURE.md](ARCHITECTURE.md), and this document updated with the
+  realized schema, endpoints, search integration, SEO implementation, and
+  the requirements-vocabulary extraction. In the course of this work,
+  three pre-existing `docs/DATABASE.md §11` cross-references in
+  `app/services/*.py` (written when Services' implementation-notes
+  section was expected to land at §11) were corrected to the section's
+  actual, current number, §10 — a one-line comment fix, not a schema or
+  behavior change, made so the new §11/§12 sections this phase adds
+  don't collide with a stale reference.
+- **Acceptance criteria**: Three clearly-marked synthetic test schemes
+  (`test-civiclens-scheme-001` pension/cash-benefit,
+  `test-civiclens-scheme-002` scholarship-like,
+  `test-civiclens-scheme-003` linked to a fixture Service) render
+  end-to-end — list page, detail page with benefits/requirements/
+  documents/application methods/related services, source/verification
+  status visible, findable via `/search` alongside the Phase 6 test job
+  and Phase 7 test service in the same query — verified directly against
+  a live backend and frontend (a self-contained smoke test: scratch
+  Postgres migrated to head, all three domains' fixtures loaded, API
+  exercised via `TestClient`, scratch database torn down in the same
+  process). No real government data entered.
+- **Risks**: Requirement-vocabulary sprawl — mitigated by representing
+  Schemes' additional beneficiary dimensions (student/employment status,
+  social category, gender, disability, landholding) as `RequirementType.
+  OTHER` plus descriptive prose rather than expanding the enum, avoiding
+  a native-Postgres-enum `ALTER TYPE ... ADD VALUE` migration (and the
+  harder-to-reverse downgrade it would need) for dimensions nothing in
+  this phase filters or queries by. No new problems needed a hand-fix
+  this phase — the `model_registry`-import and shared-fixture-geography
+  fixes Phase 6/7 already found were reapplied proactively (get-or-create
+  for the shared "Testland" state/"Test Recruitment Board — Not Real"
+  organization, `model_registry` imported first in the new seed script)
+  rather than being rediscovered by a fresh failure.
 - **Rollback**: Additive; feature-flaggable.
 
 ## Phase 9 — Public Representatives + Elections

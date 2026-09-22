@@ -6,16 +6,17 @@ enforcement summary. When in doubt, the linked document is authoritative.
 
 ## Current Phase
 
-Phases 0–6 are complete and approved (architecture/governance, monorepo
+Phases 0–8 are complete and approved (architecture/governance, monorepo
 foundation, database + core data model, frontend design system, search
-infrastructure, government jobs). The project is now in
-**Phase 7 — Government Services** (see [docs/ROADMAP.md](docs/ROADMAP.md)),
-the second real domain module. Real government data still does not
-exist and must not be added until the project explicitly enters a
-real-data phase (Phase 13, per
-[docs/DATA_SOURCES.md](docs/DATA_SOURCES.md)) — Phase 7 uses a single,
-clearly-synthetic fixture service only
-(see [docs/DATA_GOVERNANCE.md](docs/DATA_GOVERNANCE.md) §7).
+infrastructure, government jobs, government services, government
+schemes). The project is now awaiting approval to begin
+**Phase 9 — Public Representatives + Elections**
+(see [docs/ROADMAP.md](docs/ROADMAP.md)). Real government data still
+does not exist and must not be added until the project explicitly
+enters a real-data phase (Phase 13, per
+[docs/DATA_SOURCES.md](docs/DATA_SOURCES.md)) — every domain module
+built so far uses clearly-synthetic fixtures only, gated to `local`/
+`test` environments (see [docs/DATA_GOVERNANCE.md](docs/DATA_GOVERNANCE.md) §7).
 
 ## Non-Negotiable Rules
 

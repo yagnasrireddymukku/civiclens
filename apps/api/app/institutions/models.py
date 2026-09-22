@@ -33,19 +33,20 @@ from app.institutions.enums import OrganizationType
 
 if TYPE_CHECKING:
     # Only for static type-checking — a real top-level import here would
-    # be circular (app.jobs/app.services import Organization/Department
-    # from this module). SQLAlchemy resolves the `Mapped[list["Job"]]`/
-    # `Mapped[list["Service"]]` relationship targets below at runtime by
+    # be circular (app.jobs/app.services/app.schemes import
+    # Organization/Department from this module). SQLAlchemy resolves the
+    # `Mapped[list["Job"]]`/`Mapped[list["Service"]]`/
+    # `Mapped[list["Scheme"]]` relationship targets below at runtime by
     # name against the shared declarative registry instead, once
     # `app.core.db.model_registry` has imported every model module.
     from app.jobs.models import Job
+    from app.schemes.models import Scheme
     from app.services.models import Service
 
 
 class Organization(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     """A recruiting board, university, corporation, or other institution
-    (e.g. APPSC, TSPSC) that issues jobs, services, or (in future
-    phases) schemes/scholarships."""
+    (e.g. APPSC, TSPSC) that issues jobs, services, or schemes."""
 
     __tablename__ = "organizations"
 
@@ -61,13 +62,13 @@ class Organization(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     jobs: Mapped[list[Job]] = relationship(back_populates="organization")
     services: Mapped[list[Service]] = relationship(back_populates="organization")
+    schemes: Mapped[list[Scheme]] = relationship(back_populates="organization")
 
 
 class Department(UUIDPrimaryKeyMixin, TimestampMixin, Base):
-    """A government department issuing recruitment, services, or (in
-    future phases) schemes — may or may not sit under a parent
-    `Organization` (e.g. a state's "Home Department" often issues its
-    own notices directly)."""
+    """A government department issuing recruitment, services, or
+    schemes — may or may not sit under a parent `Organization` (e.g. a
+    state's "Home Department" often issues its own notices directly)."""
 
     __tablename__ = "departments"
     __table_args__ = (
@@ -84,3 +85,4 @@ class Department(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     jobs: Mapped[list[Job]] = relationship(back_populates="department")
     services: Mapped[list[Service]] = relationship(back_populates="department")
+    schemes: Mapped[list[Scheme]] = relationship(back_populates="department")

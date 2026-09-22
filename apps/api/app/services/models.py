@@ -1,4 +1,4 @@
-"""Government Services domain — see docs/DATABASE.md §11, docs/ROADMAP.md
+"""Government Services domain — see docs/DATABASE.md §10, docs/ROADMAP.md
 Phase 7. The second real domain module, following Jobs' (Phase 6) exact
 provenance/visibility pattern: `Service` carries its own `source_id`
 (`NOT NULL`, `RESTRICT`) and a denormalized `verification_status`/
@@ -27,19 +27,14 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 from app.institutions.models import Department, Organization
-from app.services.enums import (
-    ApplicationChannelType,
-    DeliveryMode,
-    RequirementType,
-    ServiceCategory,
-    ServicePublicationStatus,
-)
+from app.requirements.enums import ApplicationChannelType, RequirementType
+from app.services.enums import DeliveryMode, ServiceCategory, ServicePublicationStatus
 from app.sources.enums import VerificationStatus
 
 
 class Service(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     """A citizen-facing government service (e.g. "Income Certificate
-    Issuance") — docs/DATABASE.md §11."""
+    Issuance") — docs/DATABASE.md §10."""
 
     __tablename__ = "services"
 

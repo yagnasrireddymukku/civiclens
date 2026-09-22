@@ -9,9 +9,11 @@ made Jobs the first real domain module to call `upsert_search_document`
 (§14), and Phase 7 made Services the second (§15)** — proving the
 abstraction generalizes across domains, not something built once and
 never exercised again. Every result is still a synthetic fixture (no
-real government data exists yet). Exams, schemes, scholarships,
+real government data exists yet). Phase 8 made Schemes the third
+(§16), with an explicit test that Jobs, Services, and Schemes all
+appear together in one cross-domain result set. Exams, scholarships,
 representatives, elections, and documents remain unindexed; §3 and
-§12–15 describe what's actually built and are updated again as each of
+§12–16 describe what's actually built and are updated again as each of
 those lands.
 
 ## 1. Core Principle: Search Is a Projection, Not a System of Record
@@ -222,10 +224,10 @@ anything but the disposable index itself.
   (`TEST_JOB`/`TEST_SERVICE`/`TEST_SCHEME`), `app/jobs/fixtures.py`'s one
   synthetic job (§14), and `app/services/fixtures.py`'s one synthetic
   service (§15).
-- Exams, schemes, scholarships, representatives, elections, and
-  documents indexing anything — Jobs (Phase 6) and Services (Phase 7)
-  are the only real domain modules calling `upsert_search_document` so
-  far.
+- Exams, scholarships, representatives, elections, and documents
+  indexing anything — Jobs (Phase 6), Services (Phase 7), and Schemes
+  (Phase 8) are the only real domain modules calling
+  `upsert_search_document` so far.
 - Autocomplete (§4) and any dedicated as-you-type endpoint.
 - Any Meilisearch (or other dedicated search engine) infrastructure — not
   provisioned until a §10 trigger is met and documented.
@@ -294,8 +296,8 @@ anything but the disposable index itself.
 ## 14. Jobs Domain Integration (Phase 6)
 
 Jobs is the first real domain module to index into `search_documents` —
-the pattern Services (§15) and every future domain module (schemes,
-scholarships) follows:
+the pattern Services (§15), Schemes (§16), and every future domain
+module (exams, scholarships) follows:
 
 - `entity_type="job"`, `entity_id=<jobs.id>` (not the raw slug — the
   search abstraction stays domain-agnostic and never assumes a domain
@@ -350,6 +352,36 @@ generalizes rather than being Jobs-specific:
   and a single query can return both a job and a service result
   together (`test_cross_domain_search_returns_both_jobs_and_services`)
   — verified live end-to-end as well as via automated tests.
+
+## 16. Schemes Domain Integration (Phase 8)
+
+Schemes is the third real domain module to index into
+`search_documents`, and the explicit architectural test that the
+abstraction generalizes to a *third* independent caller, not just two:
+
+- `entity_type="scheme"`, `entity_id=<schemes.id>` — same
+  domain-agnostic shape as Jobs/Services, no special-casing.
+- `sync_scheme_search_index()` (`app/schemes/service.py`) mirrors
+  `sync_service_search_index()` exactly: indexes when
+  `publication_status="PUBLISHED"` and `verification_status` is
+  `VERIFIED`/`NEEDS_REVIEW` (the identical rule
+  `app/schemes/service.py`'s own read path enforces), removes
+  otherwise.
+- `route="/schemes/{slug}"`, `locale=scheme.locale`,
+  `searchable_text` is `scheme.target_audience` (the one prose field not
+  otherwise weighted into `title`/`summary` — unlike Services, a scheme
+  has no second free-text field like `service_type` to also combine in),
+  `category` is the enum's string value (`scheme.category.value`).
+- Verified directly: a scheme indexed this way is findable via
+  `GET /api/v1/search?q=...` with `entity_type: "scheme"` and the
+  scheme's own `route` in the result
+  (`tests/test_schemes/test_service.py::
+  test_sync_scheme_search_index_indexes_a_publicly_visible_scheme`), and
+  a single query can return a job, a service, and a scheme result
+  together — the literal Phase 8 acceptance criterion
+  (`tests/test_schemes/test_api.py::
+  test_cross_domain_search_returns_jobs_services_and_schemes`) — verified
+  live end-to-end as well as via automated tests.
 
 This document is updated again with real query patterns as each further
 domain module starts calling `upsert_search_document`, per

@@ -77,7 +77,7 @@ per-row provenance (contrast with §2.3's `source_id` columns).
   — not every department sits under a recruiting board), state_id
   (nullable). Same reference-data treatment as organizations.
 
-### 2.3 Opportunities — Jobs (Phase 6) and Services (Phase 7) slices **implemented** (see §9, §10); exams/schemes/scholarships deferred to Phase 8 onward
+### 2.3 Opportunities — Jobs (Phase 6), Services (Phase 7), and Schemes (Phase 8) slices **implemented** (see §9, §10, §12); exams/scholarships deferred beyond Phase 8
 - **jobs** — id, slug (public identifier), locale, title, organization_id,
   department_id (nullable), summary, description, employment_type
   (`PERMANENT`/`CONTRACT`/`TEMPORARY`), category (free text), state_id,
@@ -108,8 +108,6 @@ per-row provenance (contrast with §2.3's `source_id` columns).
 - **exams** — id, job_notification_id (nullable — some exams aren't
   job-linked, e.g. academic entrance exams), name, conducting_body_id,
   source_id
-- **schemes** — id, department_id, state_id, name, description, target
-  beneficiary summary, source_id
 - **scholarships** — id, department_id/organization_id, state_id, name,
   award_amount, education_level, source_id
 - **services** — id, slug (public identifier), locale, organization_id,
@@ -141,6 +139,40 @@ per-row provenance (contrast with §2.3's `source_id` columns).
 
   The three child tables carry no provenance of their own — like
   `job_vacancies`, each inherits its parent `services` row's `source_id`.
+- **schemes** — id, slug (public identifier), locale, organization_id,
+  department_id (nullable), name, short_description, description,
+  category (`SchemeCategory` — a 16-value controlled enum, distinct from
+  `ServiceCategory`), target_audience (prose — the unstructured half of
+  the beneficiary profile), state_id/district_id (both nullable, like
+  `services`), official_scheme_url, application_url, status (free
+  text), publication_status (`DRAFT`/`PUBLISHED`/`ARCHIVED` — its own
+  `scheme_publication_status` type, not shared with Services'/Jobs'),
+  source_id, verification_status, last_verified_at, deleted_at — same
+  provenance/visibility pattern as `jobs`/`services` (§9's
+  denormalized-column rationale, unchanged for Phase 8)
+  - **scheme_benefits** — id, scheme_id, benefit_type (`CASH_TRANSFER`/
+    `SUBSIDY`/`SCHOLARSHIP_AMOUNT`/`PENSION`/`INSURANCE_COVERAGE`/
+    `LOAN_SUBSIDY`/`IN_KIND_SUPPORT`/`OTHER`), description (prose),
+    amount_summary (nullable text, never a fabricated figure),
+    frequency_summary (nullable text)
+  - **scheme_requirements** — id, scheme_id, requirement_type (reuses
+    the shared `RequirementType` enum — §11), description (prose),
+    min_value/max_value (nullable numeric range) — the structured half
+    of the beneficiary-profile/eligibility-foundation requirement, not
+    the Eligibility Engine's own predicate model (Phase 10)
+  - **scheme_required_documents** — id, scheme_id, name, description
+    (nullable), is_mandatory
+  - **scheme_application_methods** — id, scheme_id, channel_type
+    (reuses the shared `ApplicationChannelType` enum — §11), url
+    (nullable, never fabricated), instructions (nullable prose)
+  - **scheme_related_services** — id, scheme_id, service_id, note
+    (nullable prose explaining the relationship), unique on
+    (scheme_id, service_id) — the smallest structure supporting the
+    Scheme↔Service relationship (§12); not a many-to-many association
+    table, since it needs the `note` column
+
+  The five child tables carry no provenance of their own — each
+  inherits its parent `schemes` row's `source_id`.
 
 ### 2.4 Requirements & Eligibility — deferred to Phase 10
 - **documents** — id, name, description, issuing_authority_id
@@ -417,3 +449,101 @@ duplicate-key collision found and fixed for the shared fictional state.
 `app/jobs/fixtures.py`'s department creation was also changed to
 get-or-create (and to link `organization_id`, previously left null) for
 the same reason.
+
+## 11. Phase 8 Implementation Note: Requirements Vocabulary Extraction
+
+**`RequirementType`/`ApplicationChannelType` moved from
+`app.services.enums` to a new, neutral `app.requirements.enums`
+module** once Schemes (§12) needed the exact same two vocabularies
+Services (§10) already used. This mirrors §10's Institutions
+extraction precedent exactly: a pure Python/enum-level move, verified
+via `alembic check` showing zero schema diff, with every existing
+`service_requirements`/`service_application_methods` column and
+constraint left byte-for-byte unchanged (`postgresql.ENUM(...,
+create_type=False)` against the same, already-created
+`requirement_type`/`application_channel_type` Postgres types).
+
+**Only the vocabulary moved — not the tables.** `ServiceRequirement`/
+`RequiredDocument`/`ApplicationMethod` remain Services-only tables;
+Schemes gets its own `scheme_requirements`/`scheme_required_documents`/
+`scheme_application_methods` tables with the identical shape, importing
+only the two enum classes from the new shared module. A single shared
+polymorphic table (e.g. one `requirements` table with a nullable
+`service_id`/`scheme_id`/`job_id`) was considered and rejected: it would
+require migrating Phase 7's already-shipped tables for a theoretical
+future benefit, which this phase's explicit "preserve backward
+compatibility" instruction and CLAUDE.md rules 9/12/22 counsel against.
+`RequiredDocument` has no equivalent vocabulary to extract in the first
+place (no `DocumentType` enum exists) — there was nothing to move there,
+only tables that stay deliberately domain-specific.
+
+**`RequirementType` was not expanded** to cover the additional
+beneficiary dimensions Schemes' beneficiary profile names (student/
+employment status, social category, gender, disability, landholding).
+Those are represented via `RequirementType.OTHER` plus descriptive prose
+in `SchemeRequirement.description`, avoiding a Postgres `ALTER TYPE ...
+ADD VALUE` migration (and the harder-to-reverse downgrade it would need)
+for dimensions nothing in this phase filters or queries by.
+
+## 12. Phase 8 Implementation Notes: Schemes Domain
+
+**Scheme vs. Service** (this phase's §3): a `Service` is something a
+citizen requests/accesses (an issuance, a certificate, a transaction); a
+`Scheme` is a benefit/support program a citizen may be eligible for
+(financial assistance, a subsidy, a scholarship, a pension, insurance,
+or livelihood/agricultural/housing/education/healthcare/employment
+support). Both reuse Jobs'/Services' exact provenance/visibility/status
+pattern (§9, §10) — denormalized `verification_status`/
+`last_verified_at`, `publication_status` as the one hard visibility
+gate (its own `scheme_publication_status` Postgres enum type,
+deliberately not shared with `service_publication_status`/
+`job_publication_status` even though all three have identical values,
+for the same domain-scoping reason §10 gives), a free-text `status` for
+browse convenience, no bilingual content model.
+
+**`scheme_category` is a 16-value controlled enum** (this phase's §5) —
+bounded and citizen-facing like `service_category`, but a distinct
+taxonomy since a benefit program's kind (Scholarship, Pension, Subsidy,
+...) doesn't map onto a service's kind (Certificates, Documents, ...).
+
+**`SchemeBenefit` is new to this domain** — Services has no equivalent.
+It stores a `benefit_type` (a small closed enum: cash transfer, subsidy,
+scholarship amount, pension, insurance coverage, loan subsidy, in-kind
+support, or other) plus prose plus an optional `amount_summary` string —
+never a fabricated figure. Like `Job.salary_summary`/
+`Service.fee_summary`, `amount_summary` is populated only when a source
+states one.
+
+**`SchemeRequirement` is the structured half of this phase's §7/§8
+beneficiary-profile/eligibility-foundation requirement** — it reuses
+`ServiceRequirement`'s exact shape and the shared `RequirementType`
+vocabulary (§11), never evaluating ELIGIBLE/NOT_ELIGIBLE/INCOMPLETE
+(Phase 10's Eligibility Engine domain, entirely).
+`SchemeRequiredDocument`/`SchemeApplicationMethod` likewise mirror
+Services' `RequiredDocument`/`ApplicationMethod` shape as their own
+tables — see §11 for why no shared table was introduced.
+
+**`SchemeRelatedService` models the Scheme↔Service relationship**
+(this phase's §11 of the kickoff, not to be confused with this
+document's §11 above) as the smallest structure that supports it: one
+small mapped class (`scheme_id`, `service_id`, an optional `note`
+explaining *why* they're related) with a unique constraint on the pair,
+rather than a full many-to-many association table with its own separate
+infrastructure. A bare `secondary=` table was considered and rejected —
+it can't carry the `note` column this phase's fixture guidance (§25)
+wants, so the small mapped class ends up no more complex while
+supporting the documented requirement.
+
+**Organization/Department gained a `schemes` relationship** (`app.
+institutions.models`) alongside their existing `jobs`/`services` ones —
+the third and, per that module's original Phase 7 docstring, expected
+consumer of the shared institutions tables.
+
+**Fixture geography/organization/department are shared across all
+three domains, not duplicated**, extending §10's fix: `app/schemes/
+fixtures.py` get-or-creates the same "Testland" state and "Test
+Recruitment Board — Not Real" organization Jobs'/Services' fixtures
+create. The service-linked scheme fixture also get-or-creates its own
+small `Service` row rather than depending on `app/services/fixtures.py`
+having run first, so `app/schemes/fixtures.py` stays independently
+runnable like every other domain's fixture loader.

@@ -198,13 +198,13 @@ stating "closed" is genuine user value, not thin content.
 
 - Any `sitemap.ts`/`robots.ts` — the full sitemap-generation
   infrastructure (§4) remains Phase 14 scope.
-- JSON-LD/metadata for any domain besides Jobs (§12) and Services
-  (§13) — Phase 6/7 implemented the `/jobs`, `/services`, and their
-  `{slug}` metadata/canonical/breadcrumb/structured-data patterns this
-  document sketches, ahead of Phase 14's full rollout, specifically
-  because they're the first phases with real page content to attach it
-  to; exams/schemes/scholarships/representatives get the equivalent
-  treatment as each lands.
+- JSON-LD/metadata for any domain besides Jobs (§12), Services (§13),
+  and Schemes (§14) — Phase 6/7/8 implemented the `/jobs`, `/services`,
+  `/schemes`, and their `{slug}` metadata/canonical/breadcrumb/
+  structured-data patterns this document sketches, ahead of Phase 14's
+  full rollout, specifically because they're the first phases with real
+  page content to attach it to; exams/scholarships/representatives get
+  the equivalent treatment as each lands.
 - Analytics/Search Console integration and reporting
   ([OBSERVABILITY.md](OBSERVABILITY.md) territory, not this document).
 - Any paid search/SEM strategy — out of scope; this document covers
@@ -265,7 +265,41 @@ realize the same §1–§3, §6, and §8 pattern §12 documents for Jobs:
   CivicLens never fabricates or aggregates ratings (this phase's
   explicit "no fake ratings or aggregate review data" rule).
 
+## 14. Phase 8 Implementation Note: Schemes
+
+`apps/web/app/[locale]/schemes/page.tsx` and `.../schemes/[slug]/page.tsx`
+realize the same §1–§3, §6, and §8 pattern §12/§13 document for Jobs/
+Services:
+
+- Canonical + hreflang alternates via the same `buildLocaleAwareMetadata`
+  helper — no new metadata-building code, matching §12/§13's precedent.
+- `GovernmentService` JSON-LD on the detail page — reused for Schemes,
+  not a new type invented for this domain: schema.org's own
+  documentation of `GovernmentService` lists benefit programs ("food
+  stamps, veterans benefits, etc.") as a direct example of the type, so
+  this is a genuine fit judged the same type-by-type way §6/§13 require,
+  not a name that merely sounds plausible. Fields used: `provider` (the
+  organization), `serviceType` (the scheme's category), `areaServed`
+  (only when the scheme has a `state`), `audience` (only when
+  `target_audience` is set), `availableChannel` (one `ServiceChannel`
+  per application method that has a real URL). `offers`/`Offer.price` is
+  deliberately **not** used for benefit amounts: this project never
+  states a real figure a source doesn't provide, and `Offer.price`
+  implies a definite price schema.org readers would expect to be exact
+  — benefit amounts stay in the page's visible prose
+  (`SchemeBenefit.amount_summary`), not in structured data.
+- `BreadcrumbList` JSON-LD plus the visible `Breadcrumb` component —
+  CivicLens → Government Schemes → scheme name, matching §8's hierarchy
+  exactly.
+- **Same known, disclosed `notFound()`/404-status limitation §12/§13
+  document for Jobs/Services** (traced to [ROADMAP.md](ROADMAP.md)
+  Phase 4's `[locale]`-routing finding) — mitigated identically, with a
+  `noindex, nofollow` robots meta tag on the not-found response, rather
+  than a new inconsistent workaround.
+- No `Service`/`GovernmentService` schema.org rating/review fields are
+  used anywhere, matching §13's identical rule.
+
 This document defines the target SEO architecture for Phase 14; it is
 finalized against real, live URL patterns once indexable content exists
-from all of Phases 6–9, per Phase 6 and 7's domain-specific head starts
-above.
+from all of Phases 6–9, per Phase 6, 7, and 8's domain-specific head
+starts above.

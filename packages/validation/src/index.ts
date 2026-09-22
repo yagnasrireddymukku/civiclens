@@ -277,3 +277,101 @@ export const serviceListResponseSchema = z.object({
 
 export type ServiceDetailInput = z.infer<typeof serviceDetailSchema>;
 export type ServiceListResponseInput = z.infer<typeof serviceListResponseSchema>;
+
+/**
+ * Mirrors `apps/api/app/schemes/schemas.py` exactly (Phase 8). Reuses
+ * `sourceSummarySchema`/`organizationSummarySchema`/
+ * `departmentSummarySchema`/`paginationMetaSchema`/
+ * `requirementTypeSchema`/`applicationChannelTypeSchema`/
+ * `requirementSummarySchema`/`requiredDocumentSummarySchema`/
+ * `applicationMethodSummarySchema` above.
+ */
+export const schemeCategorySchema = z.enum([
+  "SCHOLARSHIP",
+  "PENSION",
+  "SUBSIDY",
+  "FINANCIAL_ASSISTANCE",
+  "INSURANCE",
+  "HOUSING",
+  "HEALTHCARE",
+  "EDUCATION",
+  "AGRICULTURE",
+  "EMPLOYMENT",
+  "SKILL_DEVELOPMENT",
+  "WOMEN_CHILD_WELFARE",
+  "SOCIAL_WELFARE",
+  "BUSINESS_ENTREPRENEURSHIP",
+  "DISABILITY_SUPPORT",
+  "OTHER",
+]);
+
+export const benefitTypeSchema = z.enum([
+  "CASH_TRANSFER",
+  "SUBSIDY",
+  "SCHOLARSHIP_AMOUNT",
+  "PENSION",
+  "INSURANCE_COVERAGE",
+  "LOAN_SUBSIDY",
+  "IN_KIND_SUPPORT",
+  "OTHER",
+]);
+
+export const schemeListItemSchema = z.object({
+  slug: z.string(),
+  name: z.string(),
+  organization: organizationSummarySchema,
+  department: departmentSummarySchema.nullable(),
+  short_description: z.string().nullable(),
+  category: schemeCategorySchema,
+  state: z.string().nullable(),
+  district: z.string().nullable(),
+  status: z.string().nullable(),
+  verification_status: verificationStatusSchema,
+  last_verified: z.string().nullable(),
+  source: sourceSummarySchema,
+});
+
+export const benefitSummarySchema = z.object({
+  benefit_type: benefitTypeSchema,
+  description: z.string(),
+  amount_summary: z.string().nullable(),
+  frequency_summary: z.string().nullable(),
+});
+
+export const relatedServiceSummarySchema = z.object({
+  slug: z.string(),
+  name: z.string(),
+  note: z.string().nullable(),
+});
+
+export const schemeDetailSchema = z.object({
+  slug: z.string(),
+  name: z.string(),
+  organization: organizationSummarySchema,
+  department: departmentSummarySchema.nullable(),
+  short_description: z.string().nullable(),
+  description: z.string().nullable(),
+  category: schemeCategorySchema,
+  target_audience: z.string().nullable(),
+  state: z.string().nullable(),
+  district: z.string().nullable(),
+  official_scheme_url: z.string().nullable(),
+  application_url: z.string().nullable(),
+  status: z.string().nullable(),
+  verification_status: verificationStatusSchema,
+  last_verified: z.string().nullable(),
+  source: sourceSummarySchema,
+  benefits: z.array(benefitSummarySchema),
+  requirements: z.array(requirementSummarySchema),
+  required_documents: z.array(requiredDocumentSummarySchema),
+  application_methods: z.array(applicationMethodSummarySchema),
+  related_services: z.array(relatedServiceSummarySchema),
+});
+
+export const schemeListResponseSchema = z.object({
+  results: z.array(schemeListItemSchema),
+  pagination: paginationMetaSchema,
+});
+
+export type SchemeDetailInput = z.infer<typeof schemeDetailSchema>;
+export type SchemeListResponseInput = z.infer<typeof schemeListResponseSchema>;

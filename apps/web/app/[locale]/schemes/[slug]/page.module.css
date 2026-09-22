@@ -1,0 +1,82 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding-block: var(--space-8) var(--space-16);
+  max-width: 48rem;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.title {
+  font: var(--text-h2);
+  color: var(--color-text-primary);
+}
+
+.subtitle {
+  font: var(--text-body);
+  color: var(--color-text-secondary);
+}
+
+.badges {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--color-border);
+}
+
+.sectionHeading {
+  font: var(--text-h4);
+  color: var(--color-text-primary);
+}
+
+.factItemList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  list-style: disc;
+  padding-left: var(--space-5);
+  color: var(--color-text-secondary);
+}
+
+.mandatoryTag {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.officialLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-primary);
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.linkIcon {
+  width: 1em;
+  height: 1em;
+}
+
+.sourceOrganization {
+  font: var(--text-label);
+  color: var(--color-text-secondary);
+}
+
+.errorText {
+  font: var(--text-body);
+  color: var(--color-error);
+}

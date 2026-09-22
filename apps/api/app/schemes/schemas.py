@@ -1,14 +1,14 @@
-"""Request/response contract for /api/v1/services — see docs/API.md §14
-for the conventions every field here follows, and `app/jobs/schemas.py`
+"""Request/response contract for /api/v1/schemes — see docs/API.md §15
+for the conventions every field here follows, and `app/services/schemas.py`
 for the identical pattern this mirrors (Pydantic validation, explicit
 enums, provenance-carrying response shape, standard pagination).
 
 `SourceSummary`/`OrganizationSummary`/`DepartmentSummary`/
 `PaginationMeta` are redefined here rather than imported from
-`app.jobs.schemas`, for the same reason that module gives for not
-importing from `app.search.schemas`: a small, locally-owned
-presentational DTO per domain module, not a cross-module import for a
-few lines of shape (CLAUDE.md rule 10).
+`app.services.schemas`, for the same reason that module gives for not
+importing from `app.jobs.schemas`: a small, locally-owned presentational
+DTO per domain module, not a cross-module import for a few lines of
+shape (CLAUDE.md rule 10).
 """
 
 from __future__ import annotations
@@ -20,15 +20,15 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.requirements.enums import ApplicationChannelType, RequirementType
-from app.services.enums import DeliveryMode, ServiceCategory
+from app.schemes.enums import BenefitType, SchemeCategory
 from app.sources.enums import VerificationStatus
 
 MAX_PAGE_SIZE = 50
 DEFAULT_PAGE_SIZE = 20
 
 
-class ServiceListQueryParams(BaseModel):
-    """Validated query parameters for `GET /services`. `sort` is a
+class SchemeListQueryParams(BaseModel):
+    """Validated query parameters for `GET /schemes`. `sort` is a
     `Literal` with one allowed value today — an explicit allow-list
     (docs/API.md §6), never a popularity-based sort."""
 
@@ -38,8 +38,7 @@ class ServiceListQueryParams(BaseModel):
     district_id: uuid.UUID | None = None
     organization_id: uuid.UUID | None = None
     department_id: uuid.UUID | None = None
-    category: ServiceCategory | None = None
-    delivery_mode: DeliveryMode | None = None
+    category: SchemeCategory | None = None
     status: str | None = Field(default=None, max_length=50)
     date_from: datetime | None = None
     date_to: datetime | None = None
@@ -63,7 +62,7 @@ class DepartmentSummary(BaseModel):
     name: str
 
 
-class ServiceListItem(BaseModel):
+class SchemeListItem(BaseModel):
     # `slug`, not a raw database id, is the sole public identifier
     # (this phase's §21; docs/API.md §12's "don't expose internal
     # database IDs unnecessarily").
@@ -72,15 +71,20 @@ class ServiceListItem(BaseModel):
     organization: OrganizationSummary
     department: DepartmentSummary | None
     short_description: str | None
-    category: ServiceCategory
-    service_type: str | None
-    delivery_mode: DeliveryMode
+    category: SchemeCategory
     state: str | None
     district: str | None
     status: str | None
     verification_status: VerificationStatus
     last_verified: datetime | None
     source: SourceSummary
+
+
+class BenefitSummary(BaseModel):
+    benefit_type: BenefitType
+    description: str
+    amount_summary: str | None
+    frequency_summary: str | None
 
 
 class RequirementSummary(BaseModel):
@@ -102,31 +106,34 @@ class ApplicationMethodSummary(BaseModel):
     instructions: str | None
 
 
-class ServiceDetail(BaseModel):
+class RelatedServiceSummary(BaseModel):
+    slug: str
+    name: str
+    note: str | None
+
+
+class SchemeDetail(BaseModel):
     slug: str
     name: str
     organization: OrganizationSummary
     department: DepartmentSummary | None
     short_description: str | None
     description: str | None
-    category: ServiceCategory
-    service_type: str | None
+    category: SchemeCategory
     target_audience: str | None
-    delivery_mode: DeliveryMode
     state: str | None
     district: str | None
-    official_service_url: str | None
+    official_scheme_url: str | None
     application_url: str | None
-    fee_summary: str | None
-    processing_time_summary: str | None
-    location_summary: str | None
     status: str | None
     verification_status: VerificationStatus
     last_verified: datetime | None
     source: SourceSummary
+    benefits: list[BenefitSummary]
     requirements: list[RequirementSummary]
     required_documents: list[RequiredDocumentSummary]
     application_methods: list[ApplicationMethodSummary]
+    related_services: list[RelatedServiceSummary]
 
 
 class PaginationMeta(BaseModel):
@@ -135,6 +142,6 @@ class PaginationMeta(BaseModel):
     total_count: int
 
 
-class ServiceListResponse(BaseModel):
-    results: list[ServiceListItem]
+class SchemeListResponse(BaseModel):
+    results: list[SchemeListItem]
     pagination: PaginationMeta

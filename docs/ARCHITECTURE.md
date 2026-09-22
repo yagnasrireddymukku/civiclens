@@ -102,10 +102,14 @@ civiclens/
 │       └── app/
 │           ├── geography/    # states/districts/constituencies (Phase 3+)
 │           ├── institutions/ # organizations/departments (Phase 6+) —
-│           │                 # shared by jobs/services/future domains,
-│           │                 # the same role geography/ plays
-│           ├── jobs/ (Phase 6+) exams/ schemes/ services/ (Phase 7+)
-│           │   scholarships/
+│           │                 # shared by jobs/services/schemes/future
+│           │                 # domains, the same role geography/ plays
+│           ├── requirements/ # RequirementType/ApplicationChannelType
+│           │                 # vocabulary (Phase 8+) — extracted from
+│           │                 # services/ once schemes/ needed it too;
+│           │                 # enums only, no models/tables
+│           ├── jobs/ (Phase 6+) services/ (Phase 7+) schemes/ (Phase 8+)
+│           │   exams/ scholarships/
 │           ├── representatives/ elections/
 │           ├── eligibility/ documents/
 │           ├── search/ (Phase 5+) ai/ tracking/ notifications/

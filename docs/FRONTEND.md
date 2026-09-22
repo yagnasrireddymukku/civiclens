@@ -331,29 +331,36 @@ endpoints for the current user:
 
 ## 12. Explicitly Not Built Yet
 
-- Any real domain content page beyond Jobs and Services (schemes/
-  scholarships/representatives/etc.) — Jobs (Phase 6,
-  `apps/web/app/[locale]/jobs/`) and Services (Phase 7,
-  `.../services/`) are the first two; the rest land incrementally
-  against the same foundation, reusing the same component set
-  (`InformationCard`/`SourceBadge`/`VerificationStatus`/`Breadcrumb`)
-  rather than each domain inventing its own card/detail shape.
+- Any real domain content page beyond Jobs, Services, and Schemes
+  (scholarships/representatives/etc.) — Jobs (Phase 6,
+  `apps/web/app/[locale]/jobs/`), Services (Phase 7, `.../services/`),
+  and Schemes (Phase 8, `.../schemes/`) are the first three; the rest
+  land incrementally against the same foundation, reusing the same
+  component set (`InformationCard`/`SourceBadge`/`VerificationStatus`/
+  `Breadcrumb`) rather than each domain inventing its own card/detail
+  shape — Schemes' pages reuse them as-is, with no new shared component
+  extracted (its list/detail shape differed enough from Services'
+  — benefits, related services — that the page-level composition, not a
+  shared component, is what changed).
 - Choice of a client-side data-fetching library (SWR/React Query/etc.)
   beyond the constraints in §5 — every real page built so far (search,
-  jobs, services) fetches server-side in a Server Component via a
-  `lib/*.ts` wrapper following `lib/api.ts`'s original health-check
+  jobs, services, schemes) fetches server-side in a Server Component via
+  a `lib/*.ts` wrapper following `lib/api.ts`'s original health-check
   pattern; no page has needed client-side data fetching yet.
 - A component library published as a standalone package — components live
   in `apps/web` until (if ever) a documented reuse need (a second
   consuming app) justifies extraction.
 - OpenAPI-generated types in `packages/types` — still hand-written as of
-  Phase 7 (`SearchResponse`/`JobDetail`/`ServiceDetail`/etc.), matching
-  each domain's backend Pydantic schemas by hand rather than through
-  generation tooling, which remains unbuilt; the OpenAPI-generation step
-  named here is a future investment once enough domains exist to
-  justify it.
-- Real translations reviewed by a professional Telugu editor (§7).
+  Phase 8 (`SearchResponse`/`JobDetail`/`ServiceDetail`/`SchemeDetail`/
+  etc.), matching each domain's backend Pydantic schemas by hand rather
+  than through generation tooling, which remains unbuilt; the
+  OpenAPI-generation step named here is a future investment once enough
+  domains exist to justify it.
+- Real translations reviewed by a professional Telugu editor (§7) — the
+  Schemes namespace's Telugu strings are a good-faith machine/manual
+  translation, not yet professionally reviewed, same caveat as every
+  other namespace so far.
 
 This document now reflects the realized Phase 4 design system/shell and
-Phase 5–7's real pages built on it; it is extended, not rewritten, as
+Phase 5–8's real pages built on it; it is extended, not rewritten, as
 further real content pages land.
