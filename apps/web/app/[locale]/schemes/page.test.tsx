@@ -29,7 +29,7 @@ vi.mock("@/lib/schemes", () => ({
 
 import SchemesPage from "./page";
 
-function renderPage(searchParams: { category?: string; page?: string }) {
+function renderPage(searchParams: { category?: string; education_level?: string; page?: string }) {
   return SchemesPage({
     params: Promise.resolve({ locale: "en" }),
     searchParams: Promise.resolve(searchParams),
@@ -134,7 +134,26 @@ describe("Schemes list page (Phase 8)", () => {
 
     await renderPage({ category: "SCHOLARSHIP" });
 
-    expect(getSchemes).toHaveBeenCalledWith({ page: 1, category: "SCHOLARSHIP" });
+    expect(getSchemes).toHaveBeenCalledWith({
+      page: 1,
+      category: "SCHOLARSHIP",
+      educationLevel: undefined,
+    });
+  });
+
+  it("passes the education level filter through to the API call", async () => {
+    resolveSchemes({
+      reachable: true,
+      data: { results: [], pagination: { page: 1, page_size: 20, total_count: 0 } },
+    });
+
+    await renderPage({ education_level: "UNDERGRADUATE" });
+
+    expect(getSchemes).toHaveBeenCalledWith({
+      page: 1,
+      category: undefined,
+      educationLevel: "UNDERGRADUATE",
+    });
   });
 
   it("ignores invalid filter values rather than passing them through", async () => {
@@ -143,9 +162,13 @@ describe("Schemes list page (Phase 8)", () => {
       data: { results: [], pagination: { page: 1, page_size: 20, total_count: 0 } },
     });
 
-    await renderPage({ category: "not-a-real-category" });
+    await renderPage({ category: "not-a-real-category", education_level: "not-a-real-level" });
 
-    expect(getSchemes).toHaveBeenCalledWith({ page: 1, category: undefined });
+    expect(getSchemes).toHaveBeenCalledWith({
+      page: 1,
+      category: undefined,
+      educationLevel: undefined,
+    });
   });
 
   it("links to full-text search for free-text queries", async () => {

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import datetime
 import uuid
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -17,7 +18,13 @@ from app.geography.models import District, State
 from app.institutions.enums import OrganizationType
 from app.institutions.models import Department, Organization
 from app.requirements.enums import ApplicationChannelType, RequirementType
-from app.schemes.enums import BenefitType, SchemeCategory, SchemePublicationStatus
+from app.schemes.enums import (
+    BenefitType,
+    EducationLevel,
+    SchemeCategory,
+    SchemePublicationStatus,
+    StudyMode,
+)
 from app.schemes.models import (
     Scheme,
     SchemeApplicationMethod,
@@ -25,6 +32,7 @@ from app.schemes.models import (
     SchemeRelatedService,
     SchemeRequiredDocument,
     SchemeRequirement,
+    ScholarshipDetail,
 )
 from app.services.enums import DeliveryMode, ServiceCategory, ServicePublicationStatus
 from app.services.models import Service
@@ -247,3 +255,30 @@ def make_related_service(
     session.add(related)
     session.flush()
     return related
+
+
+def make_scholarship_detail(
+    session: Session, scheme: Scheme, **overrides: Any
+) -> ScholarshipDetail:
+    defaults: dict[str, Any] = dict(
+        scheme_id=scheme.id,
+        education_level=EducationLevel.UNDERGRADUATE,
+        course_discipline=None,
+        institution_type=None,
+        study_mode=StudyMode.FULL_TIME,
+        year_of_study=None,
+        minimum_percentage=Decimal("60.00"),
+        minimum_cgpa=None,
+        academic_requirement_notes=None,
+        application_opens=datetime.date(2026, 6, 1),
+        application_closes=datetime.date(2026, 7, 31),
+        correction_window_end=None,
+        academic_year="2026-27",
+        renewable=False,
+        renewal_notes=None,
+    )
+    defaults.update(overrides)
+    detail = ScholarshipDetail(**defaults)
+    session.add(detail)
+    session.flush()
+    return detail

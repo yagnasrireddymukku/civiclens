@@ -8,7 +8,7 @@ import datetime
 
 from sqlalchemy.orm import Session
 
-from app.schemes.enums import SchemeCategory, SchemePublicationStatus
+from app.schemes.enums import EducationLevel, SchemeCategory, SchemePublicationStatus
 from app.schemes.service import (
     SEARCH_ENTITY_TYPE,
     get_scheme_by_slug,
@@ -27,6 +27,7 @@ from tests.test_schemes._helpers import (
     make_required_document,
     make_requirement,
     make_scheme,
+    make_scholarship_detail,
     make_service,
     make_source,
     make_state,
@@ -122,6 +123,7 @@ def test_get_scheme_by_slug_returns_row_with_joined_names_and_children(
     make_application_method(db_session, scheme)
     linked_service = make_service(db_session, organization=organization, source=source)
     make_related_service(db_session, scheme, linked_service)
+    make_scholarship_detail(db_session, scheme)
 
     row = get_scheme_by_slug(db_session, "findable-scheme")
 
@@ -135,6 +137,28 @@ def test_get_scheme_by_slug_returns_row_with_joined_names_and_children(
     assert len(row.scheme.application_methods) == 1
     assert len(row.scheme.related_services) == 1
     assert row.scheme.related_services[0].service_id == linked_service.id
+    assert row.scheme.scholarship_detail is not None
+    assert row.scheme.scholarship_detail.education_level == EducationLevel.UNDERGRADUATE
+
+
+def test_get_scheme_by_slug_returns_none_scholarship_detail_for_non_scholarship_scheme(
+    db_session: Session,
+) -> None:
+    state = make_state(db_session)
+    source = make_source(db_session)
+    organization = make_organization(db_session, state)
+    make_scheme(
+        db_session,
+        organization=organization,
+        source=source,
+        slug="pension-without-scholarship-detail",
+        category=SchemeCategory.PENSION,
+    )
+
+    row = get_scheme_by_slug(db_session, "pension-without-scholarship-detail")
+
+    assert row is not None
+    assert row.scheme.scholarship_detail is None
 
 
 def test_get_scheme_by_slug_returns_none_state_name_when_scheme_has_no_state(
@@ -219,6 +243,48 @@ def test_list_schemes_filters_are_applied_as_and_conditions(db_session: Session)
 
     assert result.total_count == 1
     assert result.rows[0].scheme.slug == "in-state-scheme"
+
+
+def test_list_schemes_filters_by_education_level(db_session: Session) -> None:
+    """Phase 9's scholarship-discovery filter (§18) — only matches
+    schemes that actually have a `ScholarshipDetail` row; a
+    non-scholarship scheme is never returned regardless of the enum
+    value requested."""
+    state = make_state(db_session)
+    source = make_source(db_session)
+    organization = make_organization(db_session, state)
+    undergrad_scholarship = make_scheme(
+        db_session,
+        organization=organization,
+        source=source,
+        slug="undergrad-scholarship",
+        category=SchemeCategory.SCHOLARSHIP,
+    )
+    make_scholarship_detail(
+        db_session, undergrad_scholarship, education_level=EducationLevel.UNDERGRADUATE
+    )
+    postgrad_scholarship = make_scheme(
+        db_session,
+        organization=organization,
+        source=source,
+        slug="postgrad-scholarship",
+        category=SchemeCategory.SCHOLARSHIP,
+    )
+    make_scholarship_detail(
+        db_session, postgrad_scholarship, education_level=EducationLevel.POSTGRADUATE
+    )
+    make_scheme(
+        db_session,
+        organization=organization,
+        source=source,
+        slug="unrelated-pension",
+        category=SchemeCategory.PENSION,
+    )
+
+    result = list_schemes(db_session, education_level=EducationLevel.UNDERGRADUATE)
+
+    assert result.total_count == 1
+    assert result.rows[0].scheme.slug == "undergrad-scholarship"
 
 
 def test_list_schemes_pagination_is_bounded_and_reports_total_count(db_session: Session) -> None:

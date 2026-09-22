@@ -451,7 +451,137 @@ until the prior phase's acceptance criteria are met and, per
   rather than being rediscovered by a fresh failure.
 - **Rollback**: Additive; feature-flaggable.
 
-## Phase 9 — Public Representatives + Elections
+## Phase 9 — Scholarships & Education Opportunities
+- **Objective**: Establish Scholarships & Education Opportunities as a
+  CivicLens domain — structured, searchable, verifiable information about
+  educational financial-support opportunities. This document's original
+  Phase 9 line named Public Representatives + Elections; the actual
+  kickoff for this phase explicitly redirected work to Scholarships
+  instead, ahead of Representatives + Elections. **Representatives +
+  Elections is rescheduled, not cancelled** — see the note appended at
+  the end of this document; it keeps its original scope description
+  unchanged, pending an explicit decision on which upcoming phase number
+  it now occupies, so this document does not guess a slot for it and
+  create a second inconsistency alongside this one.
+- **The central architectural question (this phase's §3/§28)**: should
+  scholarships be (1) represented entirely as `Scheme` rows, (2) a
+  specialized `Scheme` subtype, or (3) a dedicated domain referencing
+  `Scheme` where appropriate? **Decision: (2), a specialized `Scheme`
+  subtype.** `SchemeCategory` already included `SCHOLARSHIP` and
+  `BenefitType` already included `SCHOLARSHIP_AMOUNT` since Phase 8 —
+  the codebase already treated scholarships as one kind of scheme, not a
+  separate concept. A scholarship shares every lifecycle/provenance/
+  visibility/search concern `Scheme` already owns (same
+  `publication_status`/`verification_status` gate, same
+  `entity_type="scheme"` search projection, same `GET /api/v1/schemes`
+  API). What's genuinely new is a fixed set of education-specific fields
+  (education level, course/discipline, study mode, academic-performance
+  thresholds, an application window, renewal) that would be permanently
+  `NULL` on the other 15 `SchemeCategory` values if added directly to
+  `schemes`. Resolution: a new 1:1 extension table, `scholarship_details`
+  (unique `scheme_id` FK, `ON DELETE CASCADE`), carrying only that delta
+  — no new audit architecture (it inherits its parent `Scheme` row's
+  provenance entirely, like every other child table in this codebase),
+  no new search entity type, no new API endpoint. Option (1) was
+  rejected because it would lose genuinely useful structured data (no
+  `education_level` to filter by, no application-window dates) by
+  forcing everything into prose. Option (3) was rejected because it
+  would duplicate the entire provenance/visibility/search machinery
+  `Scheme` already provides for something that, in every real sense, IS
+  a scheme — two audit trails for one conceptual entity.
+- **Dependencies**: Phase 8 (`Scheme`, `SchemeRequirement`,
+  `SchemeRequiredDocument`, `SchemeApplicationMethod`,
+  `app.requirements` vocabulary).
+- **Files/modules**: no new top-level module — `ScholarshipDetail` and
+  its `EducationLevel`/`StudyMode` enums live inside `apps/api/app/
+  schemes/` (the same "extract only when a second consumer appears"
+  precedent §11/§12 already established, applied in reverse: there is
+  no second consumer of this vocabulary, so nothing was extracted to its
+  own module). One new Alembic migration
+  (`f36a332eb8ca_add_scholarship_details.py`). `apps/web/app/[locale]/
+  schemes/` gained a scholarship-details section on the detail page and
+  an education-level filter on the list page — no new frontend routes.
+- **Technical work**: `scholarship_details` — `scheme_id` (unique FK),
+  `education_level` (9-value enum, nullable — even the scholarship's
+  defining dimension is left unset rather than guessed when a source is
+  silent), `course_discipline`/`institution_type`/`year_of_study` (prose,
+  deliberately not reference tables — this phase's §10 explicitly warns
+  against building an academic-institution database), `study_mode`
+  (5-value enum, a genuinely bounded dimension like `DeliveryMode`),
+  `minimum_percentage`/`minimum_cgpa` (`Numeric`, not `Float` — exact
+  decimal comparison values, never evaluated against a real student in
+  this phase), `academic_requirement_notes` (prose catch-all),
+  `application_opens`/`application_closes`/`correction_window_end`
+  (dates, mirroring `JobNotification`'s field names), `academic_year`
+  (a label, not a date), `renewable`/`renewal_notes`. Household-income
+  ceilings reuse `SchemeRequirement(requirement_type=INCOME)` rather than
+  a duplicate field — the structured requirement model Phase 8 already
+  built. Required documents reuse `SchemeRequiredDocument` as-is (no
+  `DocumentType` taxonomy existed to extract, and none was invented).
+  `GET /api/v1/schemes` gained one filter, `education_level` — only
+  joined to `scholarship_details` when actually supplied, so every other
+  (non-scholarship) list/count query pays no extra join cost.
+  `GET /api/v1/schemes/{slug}` gained one nested field, `scholarship`
+  (`null` for every non-scholarship scheme, not an object of all-`null`
+  fields). No `ELIGIBLE`/`NOT_ELIGIBLE`/`INCOMPLETE` evaluation anywhere
+  — Phase 10's Eligibility Engine domain, entirely.
+- **Tests**: 10 new backend tests (model constraints including the
+  1:1-uniqueness enforcement and cascade behavior in both directions,
+  the `education_level` service-layer and API filter, the `scholarship`
+  detail object appearing/being `null` correctly, the new migration's
+  own upgrade/downgrade/upgrade cycle, fixture loading) plus 6 new
+  frontend tests (education-level filter control, list-page filter
+  pass-through, detail-page scholarship section rendering including an
+  explicit "never renders a personalized eligibility verdict" check) —
+  169 backend / 75 frontend tests passing in total, including full
+  Phase 0–8 regression.
+- **Documentation**: [DATABASE.md](DATABASE.md) §13 (plus Phase 8/9
+  status notes added retroactively to this document's own intro, which
+  had been left unwritten when Phase 8 landed), [API.md](API.md) §16,
+  [SEARCH.md](SEARCH.md) §17 (documents *not* creating a new
+  `entity_type="scholarship"` — scholarships are found via the existing
+  `entity_type="scheme"` projection, since they are `Scheme` rows),
+  [SEO.md](SEO.md) §15 (documents *not* adding new structured data for
+  education-specific fields — no clean schema.org property fits without
+  stretching semantics, so the existing `GovernmentService` JSON-LD is
+  left unchanged rather than forcing a `Course`/
+  `EducationalOccupationalProgram` type onto it), [FRONTEND.md](FRONTEND.md)
+  §12, and this document.
+- **Acceptance criteria**: The existing scholarship-like fixture scheme
+  (`test-civiclens-scheme-002`) now carries a full `scholarship_details`
+  row (education level, academic-performance thresholds, an application
+  window, a renewal note) rendered on its detail page and reachable via
+  the `education_level` filter — verified directly against a live
+  backend and frontend (a self-contained smoke test: scratch Postgres
+  migrated to head, all three domains' fixtures loaded, the scholarship
+  fields and filter exercised via `TestClient`, cross-domain search
+  re-verified unaffected, scratch database torn down in the same
+  process). No real government data entered; no personalized eligibility
+  verdict rendered anywhere.
+- **Risks**: A real bug the live smoke test caught, not assumed away:
+  an isolated check of `jsonable_encoder(Decimal(...))` outside a real
+  response-model serialization path suggested `minimum_percentage`/
+  `minimum_cgpa` would serialize as JSON numbers; the actual
+  `TestClient` response showed Pydantic v2 serializes a `Decimal`
+  response-model field as a **string** ("60.00") to preserve exact
+  precision. `@civiclens/types`/`@civiclens/validation` were typed
+  `number`, caught before commit, and fixed to `string`. Documented in
+  both packages' comments so the next `Decimal`-typed field doesn't
+  repeat the same wrong assumption. Requirement-vocabulary sprawl —
+  mitigated the same way Phase 8 was: no `RequirementType` enum
+  expansion for dimensions this phase names (student/employment status,
+  social category, gender, disability, landholding), represented as
+  `OTHER` + prose instead.
+- **Rollback**: Additive; feature-flaggable.
+
+---
+
+**Representatives + Elections — rescheduled from Phase 9.** Original
+scope, unchanged from this document's earlier plan, kept here rather
+than assigned a new number so this document does not guess at a
+sequencing decision that belongs to explicit product-owner approval
+(the same "ask before major architectural changes" standard CLAUDE.md
+rule 22 applies to code applies here to roadmap ordering):
 - **Objective**: Representatives/elections domains, politically-neutral by
   construction.
 - **Dependencies**: Phase 3 (constituencies).

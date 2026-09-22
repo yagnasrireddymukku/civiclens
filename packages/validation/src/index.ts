@@ -344,6 +344,45 @@ export const relatedServiceSummarySchema = z.object({
   note: z.string().nullable(),
 });
 
+/**
+ * Mirrors `apps/api/app/schemes/schemas.py::ScholarshipDetailSummary`
+ * exactly (Phase 9). `minimum_percentage`/`minimum_cgpa` validate as
+ * `z.string()`, not `z.number()` — verified directly against a real
+ * `TestClient` response that Pydantic v2 serializes a `Decimal`
+ * response-model field as a JSON string ("60.00"), not a number (see
+ * `@civiclens/types`'s matching comment for the full story).
+ */
+export const educationLevelSchema = z.enum([
+  "SCHOOL",
+  "INTERMEDIATE",
+  "DIPLOMA",
+  "UNDERGRADUATE",
+  "POSTGRADUATE",
+  "DOCTORAL",
+  "PROFESSIONAL",
+  "VOCATIONAL",
+  "OTHER",
+]);
+
+export const studyModeSchema = z.enum(["FULL_TIME", "PART_TIME", "DISTANCE", "ONLINE", "OTHER"]);
+
+export const scholarshipDetailSummarySchema = z.object({
+  education_level: educationLevelSchema.nullable(),
+  course_discipline: z.string().nullable(),
+  institution_type: z.string().nullable(),
+  study_mode: studyModeSchema.nullable(),
+  year_of_study: z.string().nullable(),
+  minimum_percentage: z.string().nullable(),
+  minimum_cgpa: z.string().nullable(),
+  academic_requirement_notes: z.string().nullable(),
+  application_opens: z.string().nullable(),
+  application_closes: z.string().nullable(),
+  correction_window_end: z.string().nullable(),
+  academic_year: z.string().nullable(),
+  renewable: z.boolean(),
+  renewal_notes: z.string().nullable(),
+});
+
 export const schemeDetailSchema = z.object({
   slug: z.string(),
   name: z.string(),
@@ -366,6 +405,7 @@ export const schemeDetailSchema = z.object({
   required_documents: z.array(requiredDocumentSummarySchema),
   application_methods: z.array(applicationMethodSummarySchema),
   related_services: z.array(relatedServiceSummarySchema),
+  scholarship: scholarshipDetailSummarySchema.nullable(),
 });
 
 export const schemeListResponseSchema = z.object({

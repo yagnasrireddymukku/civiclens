@@ -229,11 +229,13 @@ request → get_db dependency (opens a Session) → route/service function
 ## 12. Explicitly Not Built Yet
 
 - Any domain-content business route beyond Jobs, Services, and Schemes
-  (exams, scholarships, representatives, elections, eligibility,
-  tracking, AI) or its request/response models — `health`/`health/ready`
-  (§11), `/search` (Phase 5, [SEARCH.md](SEARCH.md) §12), `/jobs`
-  (Phase 6, §13), `/services` (Phase 7, §14), and `/schemes`
-  (Phase 8, §15) exist so far.
+  (exams, representatives, elections, eligibility, tracking, AI) or its
+  request/response models — `health`/`health/ready` (§11), `/search`
+  (Phase 5, [SEARCH.md](SEARCH.md) §12), `/jobs` (Phase 6, §13),
+  `/services` (Phase 7, §14), and `/schemes` (Phase 8, §15) exist so
+  far. Scholarships (Phase 9, §16) are not a separate route —
+  `category=SCHOLARSHIP` schemes returned by the same `/schemes`
+  endpoints.
 - Concrete rate-limit thresholds, cache headers, or CDN interaction rules
   (deferred to [SECURITY.md](SECURITY.md) / [ARCHITECTURE.md](ARCHITECTURE.md)
   performance work in later phases).
@@ -330,6 +332,45 @@ The third real domain module, mirroring §13/§14's conventions exactly:
   search result (`entity_type="scheme"`), the third real domain to do
   so — with an explicit test that Jobs, Services, and Schemes all appear
   together in one cross-domain search result set.
+
+## 16. Scholarships (Phase 9)
+
+Not a separate route — Scholarships are a `Scheme` specialization
+(`category == "SCHOLARSHIP"`), per the architectural decision in
+[DATABASE.md](DATABASE.md) §13 and [ROADMAP.md](ROADMAP.md)'s Phase 9
+entry. `GET /api/v1/schemes` and `GET /api/v1/schemes/{slug}` (§15) serve
+scholarships exactly as they serve any other scheme, with two additions:
+
+- `GET /api/v1/schemes` gained one filter, `education_level` (enum —
+  `EducationLevel`, 9 values). It matches only schemes that have a
+  `ScholarshipDetail` row at all — combining it with a non-scholarship
+  `category` deterministically yields zero results, the same way any
+  other AND-combined filter pair would, rather than one filter silently
+  overriding the other. No `course_discipline`/`institution_type`
+  filter exists — those fields are prose (§10 of the kickoff explicitly
+  warns against building an academic-institution reference database),
+  not a bounded value a query parameter could match exactly.
+- `GET /api/v1/schemes/{slug}` gained one nested field, `scholarship` —
+  `null` for every non-scholarship scheme (not an object of all-`null`
+  fields), populated with `education_level`/`course_discipline`/
+  `institution_type`/`study_mode`/`year_of_study`/`minimum_percentage`/
+  `minimum_cgpa`/`academic_requirement_notes`/`application_opens`/
+  `application_closes`/`correction_window_end`/`academic_year`/
+  `renewable`/`renewal_notes` when the scheme has one.
+  `minimum_percentage`/`minimum_cgpa` serialize as JSON **strings**
+  ("60.00"), not numbers — Pydantic v2's default serialization for a
+  `Decimal` response-model field, verified directly against a real
+  response rather than assumed (a wrong `number` assumption was caught
+  by the live smoke test before commit, documented in
+  [DATABASE.md](DATABASE.md) §13).
+- Same visibility rule as every other domain (§13/§14/§15): a
+  scholarship scheme is only ever returned when its parent `Scheme` row
+  is `publication_status="PUBLISHED"` and `verification_status`
+  `VERIFIED`/`NEEDS_REVIEW` — there is no separate scholarship
+  visibility rule to keep in sync, since it is the same row.
+- No eligibility endpoint, no `ELIGIBLE`/`NOT_ELIGIBLE`/`INCOMPLETE`
+  field anywhere in either response — Phase 10's Eligibility Engine
+  domain, entirely.
 
 This document defines the target API conventions for Phase 2 onward; each
 domain phase (6–9, 10–12) implements against it and updates this document

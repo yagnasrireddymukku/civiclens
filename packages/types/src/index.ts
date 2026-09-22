@@ -329,6 +329,51 @@ export interface RelatedServiceSummary {
   note: string | null;
 }
 
+/**
+ * Mirrors `apps/api/app/schemes/schemas.py::ScholarshipDetailSummary`
+ * exactly (Phase 9, docs/DATABASE.md §13). Present only on
+ * `SchemeDetail.scholarship` when the scheme has a backend
+ * `ScholarshipDetail` row (i.e. is a `category: "SCHOLARSHIP"` scheme) —
+ * `null` for every other category, not an object of all-`null` fields.
+ * `minimum_percentage`/`minimum_cgpa` are `string`, not `number` —
+ * verified directly against a real `TestClient` response (not assumed):
+ * Pydantic v2 serializes a `Decimal` response-model field as a JSON
+ * string ("60.00"), preserving exact precision rather than risking
+ * float rounding on the wire. The live smoke test caught an earlier,
+ * wrong assumption here that `jsonable_encoder` alone (called outside
+ * a real response-model serialization path) had suggested a plain
+ * number.
+ */
+export type EducationLevel =
+  | "SCHOOL"
+  | "INTERMEDIATE"
+  | "DIPLOMA"
+  | "UNDERGRADUATE"
+  | "POSTGRADUATE"
+  | "DOCTORAL"
+  | "PROFESSIONAL"
+  | "VOCATIONAL"
+  | "OTHER";
+
+export type StudyMode = "FULL_TIME" | "PART_TIME" | "DISTANCE" | "ONLINE" | "OTHER";
+
+export interface ScholarshipDetailSummary {
+  education_level: EducationLevel | null;
+  course_discipline: string | null;
+  institution_type: string | null;
+  study_mode: StudyMode | null;
+  year_of_study: string | null;
+  minimum_percentage: string | null;
+  minimum_cgpa: string | null;
+  academic_requirement_notes: string | null;
+  application_opens: string | null;
+  application_closes: string | null;
+  correction_window_end: string | null;
+  academic_year: string | null;
+  renewable: boolean;
+  renewal_notes: string | null;
+}
+
 export interface SchemeDetail {
   slug: string;
   name: string;
@@ -351,6 +396,7 @@ export interface SchemeDetail {
   required_documents: RequiredDocumentSummary[];
   application_methods: ApplicationMethodSummary[];
   related_services: RelatedServiceSummary[];
+  scholarship: ScholarshipDetailSummary | null;
 }
 
 export interface SchemeListResponse {

@@ -12,6 +12,15 @@ two already-shipped tables for a theoretical future benefit
 Schemes import the shared vocabulary directly from
 `app.requirements.enums`, the same way Services does after Phase 8's
 extraction.
+
+`EducationLevel`/`StudyMode` (Phase 9, docs/DATABASE.md §13) belong here
+rather than a new module: they have exactly one consumer
+(`ScholarshipDetail`, itself a `Scheme` extension), unlike
+`RequirementType`/`ApplicationChannelType`, which were extracted to
+`app.requirements` only once a *second* consumer (Schemes) appeared.
+Following that same "extract only when a second consumer appears"
+precedent in reverse — there is no second consumer here, so there is
+nothing to extract.
 """
 
 import enum
@@ -63,3 +72,34 @@ class SchemePublicationStatus(enum.StrEnum):
     DRAFT = "DRAFT"
     PUBLISHED = "PUBLISHED"
     ARCHIVED = "ARCHIVED"
+
+
+class EducationLevel(enum.StrEnum):
+    """A controlled, extensible taxonomy (Phase 9's §5) for
+    `ScholarshipDetail.education_level` — bounded enough to be a useful
+    filter, per this phase's explicit "keep taxonomy extensible, do not
+    over-normalize" instruction."""
+
+    SCHOOL = "SCHOOL"
+    INTERMEDIATE = "INTERMEDIATE"
+    DIPLOMA = "DIPLOMA"
+    UNDERGRADUATE = "UNDERGRADUATE"
+    POSTGRADUATE = "POSTGRADUATE"
+    DOCTORAL = "DOCTORAL"
+    PROFESSIONAL = "PROFESSIONAL"
+    VOCATIONAL = "VOCATIONAL"
+    OTHER = "OTHER"
+
+
+class StudyMode(enum.StrEnum):
+    """A small, closed set (Phase 9's §4/§10) — deliberately an enum, not
+    prose, matching `DeliveryMode`'s precedent for a genuinely bounded
+    dimension (unlike `course_discipline`/`institution_type`, which stay
+    prose to avoid building an academic-institution reference database
+    this phase's §10 explicitly warns against)."""
+
+    FULL_TIME = "FULL_TIME"
+    PART_TIME = "PART_TIME"
+    DISTANCE = "DISTANCE"
+    ONLINE = "ONLINE"
+    OTHER = "OTHER"

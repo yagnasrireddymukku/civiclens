@@ -1,4 +1,9 @@
-import type { SchemeCategory, SchemeDetail, SchemeListResponse } from "@civiclens/types";
+import type {
+  EducationLevel,
+  SchemeCategory,
+  SchemeDetail,
+  SchemeListResponse,
+} from "@civiclens/types";
 import { schemeDetailSchema, schemeListResponseSchema } from "@civiclens/validation";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -6,6 +11,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 export interface SchemeListParams {
   page?: number;
   category?: SchemeCategory;
+  educationLevel?: EducationLevel;
 }
 
 export type SchemeListApiResult =
@@ -25,10 +31,12 @@ export type SchemeDetailApiResult =
 export async function getSchemes({
   page = 1,
   category,
+  educationLevel,
 }: SchemeListParams): Promise<SchemeListApiResult> {
   try {
     const query = new URLSearchParams({ page: String(page) });
     if (category) query.set("category", category);
+    if (educationLevel) query.set("education_level", educationLevel);
 
     const response = await fetch(`${API_BASE_URL}/api/v1/schemes?${query.toString()}`, {
       cache: "no-store",

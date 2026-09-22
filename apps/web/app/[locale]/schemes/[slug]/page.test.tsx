@@ -96,6 +96,36 @@ const FIXTURE_SCHEME = {
       note: "Applicants typically obtain this service's income certificate first (fictional fixture).",
     },
   ],
+  scholarship: null,
+};
+
+const FIXTURE_SCHOLARSHIP_SCHEME = {
+  ...FIXTURE_SCHEME,
+  slug: "test-civiclens-scheme-002",
+  name: "Test Merit Scholarship Scheme (Fixture)",
+  category: "SCHOLARSHIP" as const,
+  related_services: [],
+  scholarship: {
+    education_level: "UNDERGRADUATE" as const,
+    course_discipline: "Any UGC-recognized undergraduate discipline (fictional fixture).",
+    institution_type: "Government or government-aided colleges (fictional fixture).",
+    study_mode: "FULL_TIME" as const,
+    year_of_study: "Any year of study (fictional fixture).",
+    // A string, not a number — Pydantic v2 serializes the backend's
+    // `Decimal` field this way (verified against a real response; see
+    // packages/types's matching comment).
+    minimum_percentage: "60.00",
+    minimum_cgpa: null,
+    academic_requirement_notes:
+      "Must not hold another active scholarship for the same academic year (fictional fixture).",
+    application_opens: "2026-06-01",
+    application_closes: "2026-07-31",
+    correction_window_end: "2026-08-07",
+    academic_year: "2026-27",
+    renewable: true,
+    renewal_notes:
+      "Renewable each academic year subject to continued enrollment and minimum percentage (fictional fixture).",
+  },
 };
 
 describe("Scheme detail page (Phase 8)", () => {
@@ -152,5 +182,50 @@ describe("Scheme detail page (Phase 8)", () => {
     render(ui);
 
     expect(screen.getByText("API responded with HTTP 500")).toBeInTheDocument();
+  });
+
+  it("does not render a scholarship details section for a non-scholarship scheme", async () => {
+    resolveScheme({ reachable: true, data: FIXTURE_SCHEME });
+
+    const ui = await renderPage("test-civiclens-scheme-001");
+    render(ui);
+
+    expect(screen.queryByText("Scholarship details")).not.toBeInTheDocument();
+  });
+});
+
+describe("Scheme detail page — scholarship details (Phase 9)", () => {
+  beforeEach(() => {
+    getSchemeBySlug.mockReset();
+    notFound.mockClear();
+  });
+
+  it("renders education level, academic requirements, and application window", async () => {
+    resolveScheme({ reachable: true, data: FIXTURE_SCHOLARSHIP_SCHEME });
+
+    const ui = await renderPage("test-civiclens-scheme-002");
+    render(ui);
+
+    expect(screen.getByText("Scholarship details")).toBeInTheDocument();
+    expect(screen.getByText(/Education level: Undergraduate/)).toBeInTheDocument();
+    expect(screen.getByText(/Minimum percentage required: 60\.00%/)).toBeInTheDocument();
+    expect(screen.getByText(/Renewable: Yes/)).toBeInTheDocument();
+    expect(screen.getByText(/Application opens:/)).toBeInTheDocument();
+    expect(screen.getByText(/Application closes:/)).toBeInTheDocument();
+  });
+
+  it("never renders a personalized eligibility verdict", async () => {
+    // The page legitimately shows an "Eligibility information" section
+    // (documented, source-backed requirements) — what it must never show
+    // is a computed ELIGIBLE/NOT_ELIGIBLE/INCOMPLETE verdict for this
+    // particular visitor (this phase's §11/§29; Phase 10's domain).
+    resolveScheme({ reachable: true, data: FIXTURE_SCHOLARSHIP_SCHEME });
+
+    const ui = await renderPage("test-civiclens-scheme-002");
+    render(ui);
+
+    expect(screen.queryByText(/^ELIGIBLE$/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^NOT_ELIGIBLE$/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^INCOMPLETE$/)).not.toBeInTheDocument();
   });
 });

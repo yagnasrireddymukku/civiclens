@@ -26,6 +26,7 @@ from app.schemes.schemas import (
     SchemeListItem,
     SchemeListQueryParams,
     SchemeListResponse,
+    ScholarshipDetailSummary,
     SourceSummary,
 )
 from app.schemes.service import SchemeRow
@@ -68,6 +69,7 @@ def list_schemes(
         organization_id=params.organization_id,
         department_id=params.department_id,
         category=params.category,
+        education_level=params.education_level,
         status=params.status,
         date_from=params.date_from,
         date_to=params.date_to,
@@ -154,4 +156,24 @@ def get_scheme(slug: str, db: Session = Depends(get_db)) -> SchemeDetail:
             for related in scheme.related_services
             if is_service_publicly_visible(related.service)
         ],
+        scholarship=(
+            ScholarshipDetailSummary(
+                education_level=scheme.scholarship_detail.education_level,
+                course_discipline=scheme.scholarship_detail.course_discipline,
+                institution_type=scheme.scholarship_detail.institution_type,
+                study_mode=scheme.scholarship_detail.study_mode,
+                year_of_study=scheme.scholarship_detail.year_of_study,
+                minimum_percentage=scheme.scholarship_detail.minimum_percentage,
+                minimum_cgpa=scheme.scholarship_detail.minimum_cgpa,
+                academic_requirement_notes=scheme.scholarship_detail.academic_requirement_notes,
+                application_opens=scheme.scholarship_detail.application_opens,
+                application_closes=scheme.scholarship_detail.application_closes,
+                correction_window_end=scheme.scholarship_detail.correction_window_end,
+                academic_year=scheme.scholarship_detail.academic_year,
+                renewable=scheme.scholarship_detail.renewable,
+                renewal_notes=scheme.scholarship_detail.renewal_notes,
+            )
+            if scheme.scholarship_detail is not None
+            else None
+        ),
     )

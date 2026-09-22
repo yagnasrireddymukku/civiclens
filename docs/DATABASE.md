@@ -16,11 +16,21 @@ opportunities (§2.3) are implemented — see §9.
 **Phase 7 status**: the Services slice of opportunities (§2.3) is
 implemented — see §10, which also covers institutions (§2.2) moving to
 its own module (`app.institutions`) now that a second domain depends on
-it. Exams, schemes, and scholarships (the rest of §2.3) remain
-design-only, implemented incrementally against real domain content in
-[ROADMAP.md](ROADMAP.md) Phase 8 onward. Requirements/eligibility
-(§2.4), time (§2.5), and people/elections (§2.6) also remain
-design-only — see §7 for what Phase 3 deliberately deferred and why.
+it. Requirements/eligibility (§2.4), time (§2.5), and people/elections
+(§2.6) remain design-only — see §7 for what Phase 3 deliberately
+deferred and why.
+
+**Phase 8 status**: the Schemes slice of opportunities (§2.3) is
+implemented — see §12, which also covers the `RequirementType`/
+`ApplicationChannelType` vocabulary moving to its own neutral module
+(`app.requirements`, §11) now that a second domain depends on it.
+
+**Phase 9 status**: Scholarships are represented as a `Scheme`
+specialization, not a new opportunities slice — see §13 for the
+architectural decision and the `scholarship_details` extension table it
+introduces. Exams and the rest of §2.3 remain design-only, implemented
+incrementally against real domain content in
+[ROADMAP.md](ROADMAP.md) Phase 10 onward.
 
 ## 0. Design Rules
 
@@ -77,7 +87,7 @@ per-row provenance (contrast with §2.3's `source_id` columns).
   — not every department sits under a recruiting board), state_id
   (nullable). Same reference-data treatment as organizations.
 
-### 2.3 Opportunities — Jobs (Phase 6), Services (Phase 7), and Schemes (Phase 8) slices **implemented** (see §9, §10, §12); exams/scholarships deferred beyond Phase 8
+### 2.3 Opportunities — Jobs (Phase 6), Services (Phase 7), and Schemes (Phase 8, including Scholarships as a Phase 9 Scheme specialization) slices **implemented** (see §9, §10, §12, §13); exams deferred beyond Phase 9
 - **jobs** — id, slug (public identifier), locale, title, organization_id,
   department_id (nullable), summary, description, employment_type
   (`PERMANENT`/`CONTRACT`/`TEMPORARY`), category (free text), state_id,
@@ -170,8 +180,20 @@ per-row provenance (contrast with §2.3's `source_id` columns).
     (scheme_id, service_id) — the smallest structure supporting the
     Scheme↔Service relationship (§12); not a many-to-many association
     table, since it needs the `note` column
+  - **scholarship_details** — id, scheme_id (unique FK — 1:1, not
+    1:many, unlike every table above), education_level (`EducationLevel`
+    — 9-value enum, nullable), course_discipline/institution_type/
+    year_of_study (prose), study_mode (`StudyMode` — 5-value enum,
+    nullable), minimum_percentage/minimum_cgpa (`Numeric`, nullable —
+    never evaluated against a real student, Phase 10's domain),
+    academic_requirement_notes (prose), application_opens/
+    application_closes/correction_window_end (nullable dates,
+    source-backed only), academic_year (a label, not a date), renewable
+    (boolean), renewal_notes (prose) — the Phase 9 education-specific
+    delta a `category == SCHOLARSHIP` scheme carries; see §13 for the
+    full architectural decision
 
-  The five child tables carry no provenance of their own — each
+  The six child tables carry no provenance of their own — each
   inherits its parent `schemes` row's `source_id`.
 
 ### 2.4 Requirements & Eligibility — deferred to Phase 10
@@ -547,3 +569,99 @@ create. The service-linked scheme fixture also get-or-creates its own
 small `Service` row rather than depending on `app/services/fixtures.py`
 having run first, so `app/schemes/fixtures.py` stays independently
 runnable like every other domain's fixture loader.
+
+## 13. Phase 9 Implementation Notes: Scholarships as a Scheme Specialization
+
+**Architectural decision (Phase 9's §3/§28)**: scholarships are
+represented as a `Scheme` specialization — `category == SCHOLARSHIP`
+plus a 1:1 `ScholarshipDetail` extension row — not a new opportunities
+slice and not a fully independent domain. `SchemeCategory` already
+included `SCHOLARSHIP` and `BenefitType` already included
+`SCHOLARSHIP_AMOUNT` since §12 — the schema already treated scholarships
+as one kind of scheme before this phase existed. A scholarship shares
+every lifecycle/provenance/visibility/search concern `Scheme` already
+owns; the two rejected alternatives were (1) representing scholarships
+with no new fields at all (loses genuinely useful structured data —
+no `education_level` to filter by, no application-window dates,
+forcing everything into prose) and (3) a fully independent domain with
+its own `source_id`/`verification_status`/`publication_status`/search
+`entity_type` (would duplicate the entire provenance/visibility/search
+machinery `Scheme` already provides for something that, in every real
+sense, IS a scheme — two audit trails for one conceptual entity,
+which §21's "do not create a second audit architecture" rules out).
+
+**`scholarship_details` is a 1:1 extension table, not a 1:many child
+table** like every other table §9–§12 introduced. Its only identity is
+a unique `scheme_id` FK (`ON DELETE CASCADE`) — enforced at the database
+level via a unique index, not merely a service-layer convention — so at
+most one row exists per scheme. It carries no provenance of its own,
+inheriting its parent `Scheme` row's entirely, the same "child inherits
+parent's `source_id`" convention every table since §9 follows.
+Nothing enforces that a `scholarship_details` row only exists when its
+parent's `category == SCHOLARSHIP` — that pairing is a service-layer/
+fixture convention, not a hard database rule, deliberately: a `CHECK`
+(or trigger) spanning two tables for a convention nothing yet depends on
+would be the kind of premature enforcement this phase's §28 warns
+against.
+
+**Fields, and why each is shaped the way it is**:
+- `education_level` (9-value enum, **nullable**) — even the
+  scholarship's defining dimension is left unset rather than guessed
+  when a source is silent on it, matching every other domain module's
+  "never fabricate, `NULL` when unknown" convention (CLAUDE.md rule 3).
+- `course_discipline`/`institution_type`/`year_of_study` — prose, not
+  reference tables. Phase 9's §10 explicitly warns against building a
+  full academic-institution/course database in this phase; real-world
+  values ("Any UGC-recognized undergraduate discipline") don't reduce
+  to a small closed set the way `education_level` does.
+- `study_mode` (5-value enum) — unlike the three fields above, a
+  genuinely bounded dimension, matching `DeliveryMode`'s precedent
+  (§10) for when an enum, not prose, is the honest choice.
+- `minimum_percentage`/`minimum_cgpa` (`Numeric(5,2)`/`Numeric(4,2)`,
+  not `Float`) — exact decimal comparison values (60.00, not
+  59.999999...), matching real academic-cutoff notation. Nothing in
+  this phase evaluates them against a real student's marks (Phase 10's
+  Eligibility Engine domain, entirely) — the exact type is chosen so a
+  future comparison doesn't have to migrate away from a lossy one.
+- `academic_requirement_notes` — prose catch-all for a documented
+  condition that isn't one of the two structured fields above.
+- `application_opens`/`application_closes`/`correction_window_end`
+  (`Date`) — mirrors `JobNotification`'s exact field names and meaning
+  (§9); dates must be source-backed, never invented or generated
+  (Phase 9's §13).
+- `academic_year` (a label, e.g. "2026-27") — not a `Date`: an academic
+  year is a named period, not a point in time.
+- `renewable`/`renewal_notes` — a flag plus prose describing renewal
+  conditions; no automatic-renewal workflow exists or is implied
+  (Phase 9's §14 explicitly prohibits one).
+
+**Household-income ceilings and required documents are reused, not
+duplicated.** An income ceiling is a `SchemeRequirement` row
+(`requirement_type=INCOME`, `max_value` set) — the exact structured
+requirement model §12 already built, reused rather than adding a
+duplicate `income_ceiling` column to `scholarship_details`. Required
+documents reuse `SchemeRequiredDocument` as-is: unlike `RequirementType`/
+`ApplicationChannelType`, `RequiredDocument` never had a vocabulary
+*enum* to extract in the first place (no `DocumentType` exists anywhere
+in this codebase), so there was nothing to move and nothing to
+duplicate — the existing `name`/`description`/`is_mandatory` shape
+already fits "income certificate," "caste certificate," "bonafide
+certificate," etc. without any change.
+
+**`GET /api/v1/schemes` gained one filter, `education_level`** — see
+[API.md](API.md) §16. It joins `scholarship_details` only when actually
+supplied, so every other (non-scholarship) list/count query pays no
+extra join cost; combining it with a non-scholarship `category` yields
+zero results deterministically, the same way any other AND-combined
+filter pair would, rather than one filter silently overriding the other.
+
+**A real bug the live smoke test caught, not assumed away**: an
+isolated check of `jsonable_encoder(Decimal(...))` outside a real
+response-model serialization path suggested `minimum_percentage`/
+`minimum_cgpa` would serialize as JSON numbers. The actual `TestClient`
+response showed Pydantic v2 serializes a `Decimal` response-model field
+as a **string** ("60.00") to preserve exact precision instead.
+`@civiclens/types`/`@civiclens/validation` were initially typed
+`number`, caught before commit by the live smoke test (not by unit
+tests, which had mocked the API layer and so never exercised real
+serialization), and fixed to `string`.

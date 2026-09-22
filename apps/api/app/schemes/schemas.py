@@ -14,13 +14,14 @@ shape (CLAUDE.md rule 10).
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
+from decimal import Decimal
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.requirements.enums import ApplicationChannelType, RequirementType
-from app.schemes.enums import BenefitType, SchemeCategory
+from app.schemes.enums import BenefitType, EducationLevel, SchemeCategory, StudyMode
 from app.sources.enums import VerificationStatus
 
 MAX_PAGE_SIZE = 50
@@ -39,6 +40,11 @@ class SchemeListQueryParams(BaseModel):
     organization_id: uuid.UUID | None = None
     department_id: uuid.UUID | None = None
     category: SchemeCategory | None = None
+    # Phase 9: filters on `ScholarshipDetail.education_level` — only
+    # matches schemes that have a scholarship detail row at all, so
+    # combining this with a non-scholarship `category` deliberately
+    # yields zero results rather than silently ignoring one filter.
+    education_level: EducationLevel | None = None
     status: str | None = Field(default=None, max_length=50)
     date_from: datetime | None = None
     date_to: datetime | None = None
@@ -112,6 +118,27 @@ class RelatedServiceSummary(BaseModel):
     note: str | None
 
 
+class ScholarshipDetailSummary(BaseModel):
+    """Present only when the scheme has a `ScholarshipDetail` row
+    (Phase 9, docs/DATABASE.md §13) — `null` on `SchemeDetail.scholarship`
+    for every non-scholarship scheme, not an object of all-`null` fields."""
+
+    education_level: EducationLevel | None
+    course_discipline: str | None
+    institution_type: str | None
+    study_mode: StudyMode | None
+    year_of_study: str | None
+    minimum_percentage: Decimal | None
+    minimum_cgpa: Decimal | None
+    academic_requirement_notes: str | None
+    application_opens: date | None
+    application_closes: date | None
+    correction_window_end: date | None
+    academic_year: str | None
+    renewable: bool
+    renewal_notes: str | None
+
+
 class SchemeDetail(BaseModel):
     slug: str
     name: str
@@ -134,6 +161,7 @@ class SchemeDetail(BaseModel):
     required_documents: list[RequiredDocumentSummary]
     application_methods: list[ApplicationMethodSummary]
     related_services: list[RelatedServiceSummary]
+    scholarship: ScholarshipDetailSummary | None
 
 
 class PaginationMeta(BaseModel):

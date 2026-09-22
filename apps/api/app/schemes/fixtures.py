@@ -18,11 +18,18 @@ linked to a service via `SchemeRelatedService`. The linked service is
 its own small get-or-create fixture here — not a hard dependency on
 `app.services.fixtures` having already run — so this module stays
 independently runnable, the same way every other domain's fixtures are.
+
+The scholarship-like scheme (Phase 9) additionally carries a
+`ScholarshipDetail` row exercising every field of that extension table —
+education level, study mode, structured academic-performance thresholds,
+an application window, and a renewal note — all clearly fictional
+figures/dates, never presented as real.
 """
 
 from __future__ import annotations
 
 import datetime
+from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
@@ -32,7 +39,13 @@ from app.geography.models import District, State
 from app.institutions.enums import OrganizationType
 from app.institutions.models import Department, Organization
 from app.requirements.enums import ApplicationChannelType, RequirementType
-from app.schemes.enums import BenefitType, SchemeCategory, SchemePublicationStatus
+from app.schemes.enums import (
+    BenefitType,
+    EducationLevel,
+    SchemeCategory,
+    SchemePublicationStatus,
+    StudyMode,
+)
 from app.schemes.models import (
     Scheme,
     SchemeApplicationMethod,
@@ -40,6 +53,7 @@ from app.schemes.models import (
     SchemeRelatedService,
     SchemeRequiredDocument,
     SchemeRequirement,
+    ScholarshipDetail,
 )
 from app.schemes.service import sync_scheme_search_index
 from app.services.enums import DeliveryMode, ServiceCategory, ServicePublicationStatus
@@ -335,6 +349,31 @@ def _build_scholarship_scheme(
             channel_type=ApplicationChannelType.ONLINE,
             url="https://example-test.invalid/apply/test-civiclens-scheme-002",
             instructions=None,
+        )
+    )
+    session.add(
+        ScholarshipDetail(
+            scheme_id=scheme.id,
+            education_level=EducationLevel.UNDERGRADUATE,
+            course_discipline="Any UGC-recognized undergraduate discipline (fictional fixture).",
+            institution_type="Government or government-aided colleges (fictional fixture).",
+            study_mode=StudyMode.FULL_TIME,
+            year_of_study="Any year of study (fictional fixture).",
+            minimum_percentage=Decimal("60.00"),
+            minimum_cgpa=None,
+            academic_requirement_notes=(
+                "Must not hold another active scholarship for the same academic year "
+                "(fictional fixture)."
+            ),
+            application_opens=datetime.date(2026, 6, 1),
+            application_closes=datetime.date(2026, 7, 31),
+            correction_window_end=datetime.date(2026, 8, 7),
+            academic_year="2026-27",
+            renewable=True,
+            renewal_notes=(
+                "Renewable each academic year subject to continued enrollment and minimum "
+                "percentage (fictional fixture)."
+            ),
         )
     )
     return scheme

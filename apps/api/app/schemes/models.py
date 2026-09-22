@@ -40,22 +40,57 @@ related (e.g. "apply for this certificate first"), which a bare
 `secondary=` association table can't carry — so it's one small mapped
 class with a `note` column instead, not a full many-to-many with its
 own additional infrastructure.
+
+`ScholarshipDetail` (Phase 9, docs/DATABASE.md §13) is a 1:1 extension
+of `Scheme` — the architectural decision documented in full in that
+section: scholarships are a `Scheme` specialization (`category ==
+SCHOLARSHIP`), not an independent domain, since they share every
+lifecycle/provenance/visibility/search concern `Scheme` already owns.
+The genuinely new, education-specific fields (education level, course/
+discipline, study mode, academic-performance thresholds, application
+window, renewal) would be always-null on the other 15 categories if
+added directly to `schemes`, so they live in their own table instead —
+still no second audit architecture: `ScholarshipDetail` carries no
+provenance of its own, inheriting its parent `Scheme` row's entirely, the
+same "child inherits parent's source_id" convention every other child
+table here follows. Unlike those child tables, `ScholarshipDetail` is a
+1:1 extension (a unique `scheme_id`), not a 1:many itemized breakdown —
+still the same broad shape (a table whose only identity is its mandatory
+FK to `schemes.id`), just a cardinality of one instead of many.
 """
 
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 from app.institutions.models import Department, Organization
 from app.requirements.enums import ApplicationChannelType, RequirementType
-from app.schemes.enums import BenefitType, SchemeCategory, SchemePublicationStatus
+from app.schemes.enums import (
+    BenefitType,
+    EducationLevel,
+    SchemeCategory,
+    SchemePublicationStatus,
+    StudyMode,
+)
 from app.sources.enums import VerificationStatus
 
 if TYPE_CHECKING:
@@ -144,6 +179,9 @@ class Scheme(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     related_services: Mapped[list[SchemeRelatedService]] = relationship(
         back_populates="scheme", cascade="all, delete-orphan"
+    )
+    scholarship_detail: Mapped[ScholarshipDetail | None] = relationship(
+        back_populates="scheme", cascade="all, delete-orphan", uselist=False
     )
 
 
@@ -257,3 +295,65 @@ class SchemeRelatedService(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     scheme: Mapped[Scheme] = relationship(back_populates="related_services")
     service: Mapped[Service] = relationship()
+
+
+class ScholarshipDetail(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """The education-specific delta a `Scheme` with `category ==
+    SCHOLARSHIP` carries — see module docstring's Phase 9 note for why
+    this is a 1:1 extension table rather than new columns on `schemes`
+    directly or an independent domain. Nothing here is enforced by a
+    database constraint to require `category == SCHOLARSHIP` on the
+    parent — that pairing is a service-layer/fixture convention, not a
+    hard rule, deliberately: adding a `CHECK` (or trigger) spanning two
+    tables for a convention nothing yet depends on would be the kind of
+    premature enforcement Phase 9's §28 warns against.
+
+    Every field is nullable except `renewable` — matching every other
+    domain module's "never fabricate, `NULL` when a source doesn't state
+    it" convention (this phase's §4/§6/§7/§13), including
+    `education_level` itself: even the scholarship's defining dimension
+    is left unset rather than guessed when a source is silent on it.
+    `minimum_percentage`/`minimum_cgpa` are `Numeric`, not `Float` —
+    exact decimal comparison values (60.00, not 59.999999...), matching
+    real academic-cutoff notation; nothing in this phase evaluates them
+    against a student's own marks (Phase 10's Eligibility Engine,
+    entirely) but a future comparison should not have to migrate a
+    lossy type to become correct.
+    """
+
+    __tablename__ = "scholarship_details"
+
+    scheme_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("schemes.id", ondelete="CASCADE"), nullable=False, unique=True, index=True
+    )
+    education_level: Mapped[EducationLevel | None] = mapped_column(
+        Enum(EducationLevel, name="education_level", native_enum=True), nullable=True
+    )
+    # Prose, not a reference table — this phase's §10 explicitly warns
+    # against building a full academic-institution/course database.
+    course_discipline: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    institution_type: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    study_mode: Mapped[StudyMode | None] = mapped_column(
+        Enum(StudyMode, name="study_mode", native_enum=True), nullable=True
+    )
+    # Prose ("1st year", "Final year UG") — course lengths vary too much
+    # for a bounded enum to stay honest.
+    year_of_study: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    minimum_percentage: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
+    minimum_cgpa: Mapped[Decimal | None] = mapped_column(Numeric(4, 2), nullable=True)
+    # Catch-all prose for a documented academic condition that isn't one
+    # of the two structured fields above (e.g. "must have passed the
+    # qualifying examination in the first attempt").
+    academic_requirement_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    application_opens: Mapped[date | None] = mapped_column(Date, nullable=True)
+    application_closes: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # Mirrors `JobNotification.correction_window_end`'s exact field name
+    # and meaning.
+    correction_window_end: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # A label ("2026-27"), not a `Date` — an academic year is a named
+    # period, not a point in time.
+    academic_year: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    renewable: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    renewal_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    scheme: Mapped[Scheme] = relationship(back_populates="scholarship_detail")

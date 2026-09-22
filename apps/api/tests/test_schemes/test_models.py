@@ -15,6 +15,7 @@ from app.schemes.models import (
     SchemeRelatedService,
     SchemeRequiredDocument,
     SchemeRequirement,
+    ScholarshipDetail,
 )
 from tests.test_schemes._helpers import (
     make_application_method,
@@ -26,6 +27,7 @@ from tests.test_schemes._helpers import (
     make_required_document,
     make_requirement,
     make_scheme,
+    make_scholarship_detail,
     make_service,
     make_source,
     make_state,
@@ -241,3 +243,86 @@ def test_scheme_soft_delete_field_defaults_to_none(db_session: Session) -> None:
     scheme = make_scheme(db_session, organization=organization, source=source)
 
     assert scheme.deleted_at is None
+
+
+def test_scheme_scholarship_detail_relationship(db_session: Session) -> None:
+    state = make_state(db_session)
+    source = make_source(db_session)
+    organization = make_organization(db_session, state)
+    scheme = make_scheme(
+        db_session, organization=organization, source=source, category="SCHOLARSHIP"
+    )
+    detail = make_scholarship_detail(db_session, scheme)
+
+    db_session.refresh(scheme)
+
+    assert scheme.scholarship_detail is detail
+    assert detail.scheme is scheme
+
+
+def test_scheme_without_scholarship_detail_has_none(db_session: Session) -> None:
+    """A pension/subsidy/etc. scheme never gets a `ScholarshipDetail`
+    row — this phase's §3 decision means the relationship is simply
+    `None`, not an all-null row."""
+    state = make_state(db_session)
+    source = make_source(db_session)
+    organization = make_organization(db_session, state)
+    scheme = make_scheme(db_session, organization=organization, source=source, category="PENSION")
+
+    db_session.refresh(scheme)
+
+    assert scheme.scholarship_detail is None
+
+
+def test_scholarship_detail_scheme_id_must_be_unique(db_session: Session) -> None:
+    """Enforces the 1:1 cardinality this phase's §3 decision relies on —
+    a second `ScholarshipDetail` row for the same scheme must fail."""
+    state = make_state(db_session)
+    source = make_source(db_session)
+    organization = make_organization(db_session, state)
+    scheme = make_scheme(
+        db_session, organization=organization, source=source, category="SCHOLARSHIP"
+    )
+    make_scholarship_detail(db_session, scheme)
+
+    with pytest.raises(IntegrityError):
+        make_scholarship_detail(db_session, scheme)
+
+
+def test_deleting_scheme_cascades_to_scholarship_detail(db_session: Session) -> None:
+    state = make_state(db_session)
+    source = make_source(db_session)
+    organization = make_organization(db_session, state)
+    scheme = make_scheme(
+        db_session, organization=organization, source=source, category="SCHOLARSHIP"
+    )
+    detail = make_scholarship_detail(db_session, scheme)
+    detail_id = detail.id
+
+    db_session.delete(scheme)
+    db_session.flush()
+
+    assert db_session.get(ScholarshipDetail, detail_id) is None
+
+
+def test_scholarship_detail_fields_are_nullable_except_renewable(db_session: Session) -> None:
+    """Never fabricate a value a source doesn't state (CLAUDE.md rule 3)
+    — every field is optional except `renewable`, which has a safe
+    `False` default rather than requiring every fixture/caller to state
+    it explicitly."""
+    state = make_state(db_session)
+    source = make_source(db_session)
+    organization = make_organization(db_session, state)
+    scheme = make_scheme(
+        db_session, organization=organization, source=source, category="SCHOLARSHIP"
+    )
+
+    detail = ScholarshipDetail(scheme_id=scheme.id)
+    db_session.add(detail)
+    db_session.flush()
+
+    assert detail.education_level is None
+    assert detail.minimum_percentage is None
+    assert detail.minimum_cgpa is None
+    assert detail.application_opens is None
+    assert detail.renewable is False

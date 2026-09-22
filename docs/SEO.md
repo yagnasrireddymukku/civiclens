@@ -199,12 +199,13 @@ stating "closed" is genuine user value, not thin content.
 - Any `sitemap.ts`/`robots.ts` — the full sitemap-generation
   infrastructure (§4) remains Phase 14 scope.
 - JSON-LD/metadata for any domain besides Jobs (§12), Services (§13),
-  and Schemes (§14) — Phase 6/7/8 implemented the `/jobs`, `/services`,
-  `/schemes`, and their `{slug}` metadata/canonical/breadcrumb/
-  structured-data patterns this document sketches, ahead of Phase 14's
-  full rollout, specifically because they're the first phases with real
-  page content to attach it to; exams/scholarships/representatives get
-  the equivalent treatment as each lands.
+  and Schemes (§14, including Scholarships as a Scheme specialization —
+  §15) — Phase 6/7/8 implemented the `/jobs`, `/services`, `/schemes`,
+  and their `{slug}` metadata/canonical/breadcrumb/structured-data
+  patterns this document sketches, ahead of Phase 14's full rollout,
+  specifically because they're the first phases with real page content
+  to attach it to; exams/representatives get the equivalent treatment
+  as each lands.
 - Analytics/Search Console integration and reporting
   ([OBSERVABILITY.md](OBSERVABILITY.md) territory, not this document).
 - Any paid search/SEM strategy — out of scope; this document covers
@@ -299,7 +300,43 @@ Services:
 - No `Service`/`GovernmentService` schema.org rating/review fields are
   used anywhere, matching §13's identical rule.
 
+## 15. Phase 9 Implementation Note: Scholarships
+
+Scholarships render on the same `.../schemes/[slug]/page.tsx` §14
+already covers — no new route, no new page. This phase's §19 explicitly
+required the structured-data choice to be judged on real semantics, not
+picked because a schema name "sounds search-friendly," and named
+`Course`/`JobPosting` as two specific types **not** to reach for
+regardless. The decision here: **no new structured data was added for
+the scholarship-specific fields.**
+
+- The existing `GovernmentService` JSON-LD (§14) is left completely
+  unchanged for a scholarship scheme — `serviceType` already carries
+  `scheme.category` (`"SCHOLARSHIP"`), and no schema.org property on
+  `GovernmentService` cleanly represents "applicable education level"
+  or "minimum percentage required" without stretching semantics past
+  what §6's "fit judged type-by-type, never forced" rule allows.
+- `Course` was considered and rejected: a scholarship is not a course —
+  forcing `Course` onto it to pick up `Course.coursePrerequisites` or
+  similar would be exactly the "name sounds plausible" mistake this
+  phase's §19 warns against, not a genuine semantic fit.
+- `EducationalOccupationalProgram`/`EducationalOccupationalCredential`
+  (schema.org's education-adjacent types) were also considered and
+  rejected for the same reason — they describe a program of study or a
+  credential, not a benefit/support scheme that happens to have
+  education-related eligibility criteria.
+- The scholarship-specific fields (education level, academic
+  requirements, application window, renewal) are visible page content
+  (§14's detail page, extended this phase — see
+  [FRONTEND.md](FRONTEND.md) §12) but not structured data. If a later
+  phase identifies a genuinely-fitting property or type, this section
+  is where that addition belongs — not bolted onto `GovernmentService`
+  speculatively now.
+- Canonical/hreflang/breadcrumb/`notFound()`-noindex handling are
+  unchanged from §14 — a scholarship scheme is a scheme, and gets
+  exactly the same treatment every other scheme does.
+
 This document defines the target SEO architecture for Phase 14; it is
 finalized against real, live URL patterns once indexable content exists
-from all of Phases 6–9, per Phase 6, 7, and 8's domain-specific head
+from all of Phases 6–9, per Phase 6, 7, 8, and 9's domain-specific head
 starts above.

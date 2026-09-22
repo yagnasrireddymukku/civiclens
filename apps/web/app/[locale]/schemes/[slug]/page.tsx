@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import type { ApplicationChannelType, SchemeDetail } from "@civiclens/types";
+import type {
+  ApplicationChannelType,
+  EducationLevel,
+  SchemeDetail,
+  StudyMode,
+} from "@civiclens/types";
 import { LastVerified, SourceBadge, VerificationStatus } from "@/components/civic";
 import { Container } from "@/components/layout";
 import { Breadcrumb } from "@/components/navigation";
@@ -107,6 +112,26 @@ export default async function SchemeDetailPage({ params }: SchemeDetailPageProps
     OTHER: t("channelOther"),
   };
 
+  const educationLevelLabels: Record<EducationLevel, string> = {
+    SCHOOL: t("educationLevelSchool"),
+    INTERMEDIATE: t("educationLevelIntermediate"),
+    DIPLOMA: t("educationLevelDiploma"),
+    UNDERGRADUATE: t("educationLevelUndergraduate"),
+    POSTGRADUATE: t("educationLevelPostgraduate"),
+    DOCTORAL: t("educationLevelDoctoral"),
+    PROFESSIONAL: t("educationLevelProfessional"),
+    VOCATIONAL: t("educationLevelVocational"),
+    OTHER: t("educationLevelOther"),
+  };
+
+  const studyModeLabels: Record<StudyMode, string> = {
+    FULL_TIME: t("studyModeFullTime"),
+    PART_TIME: t("studyModePartTime"),
+    DISTANCE: t("studyModeDistance"),
+    ONLINE: t("studyModeOnline"),
+    OTHER: t("studyModeOther"),
+  };
+
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -181,6 +206,96 @@ export default async function SchemeDetailPage({ params }: SchemeDetailPageProps
                 </li>
               ))}
             </ul>
+          </section>
+        )}
+
+        {scheme.scholarship && (
+          <section className={styles.section} aria-labelledby="scholarship-heading">
+            <h2 id="scholarship-heading" className={styles.sectionHeading}>
+              {t("sectionScholarshipDetails")}
+            </h2>
+            <ul className={styles.factItemList}>
+              {scheme.scholarship.education_level && (
+                <li>
+                  {t("scholarshipEducationLevel")}:{" "}
+                  {educationLevelLabels[scheme.scholarship.education_level]}
+                </li>
+              )}
+              {scheme.scholarship.course_discipline && (
+                <li>
+                  {t("scholarshipCourseDiscipline")}: {scheme.scholarship.course_discipline}
+                </li>
+              )}
+              {scheme.scholarship.institution_type && (
+                <li>
+                  {t("scholarshipInstitutionType")}: {scheme.scholarship.institution_type}
+                </li>
+              )}
+              {scheme.scholarship.study_mode && (
+                <li>
+                  {t("scholarshipStudyMode")}: {studyModeLabels[scheme.scholarship.study_mode]}
+                </li>
+              )}
+              {scheme.scholarship.year_of_study && (
+                <li>
+                  {t("scholarshipYearOfStudy")}: {scheme.scholarship.year_of_study}
+                </li>
+              )}
+              {scheme.scholarship.minimum_percentage !== null && (
+                <li>
+                  {t("scholarshipMinimumPercentage")}: {scheme.scholarship.minimum_percentage}%
+                </li>
+              )}
+              {scheme.scholarship.minimum_cgpa !== null && (
+                <li>
+                  {t("scholarshipMinimumCgpa")}: {scheme.scholarship.minimum_cgpa}
+                </li>
+              )}
+              {scheme.scholarship.academic_requirement_notes && (
+                <li>{scheme.scholarship.academic_requirement_notes}</li>
+              )}
+              {scheme.scholarship.academic_year && (
+                <li>
+                  {t("scholarshipAcademicYear")}: {scheme.scholarship.academic_year}
+                </li>
+              )}
+              <li>
+                {t("scholarshipRenewable")}:{" "}
+                {scheme.scholarship.renewable
+                  ? t("scholarshipRenewableYes")
+                  : t("scholarshipRenewableNo")}
+                {scheme.scholarship.renewable &&
+                  scheme.scholarship.renewal_notes &&
+                  ` — ${scheme.scholarship.renewal_notes}`}
+              </li>
+            </ul>
+            {(scheme.scholarship.application_opens ||
+              scheme.scholarship.application_closes ||
+              scheme.scholarship.correction_window_end) && (
+              <div className={styles.badges}>
+                {scheme.scholarship.application_opens && (
+                  <LastVerified
+                    date={new Date(scheme.scholarship.application_opens)}
+                    locale={locale}
+                    label={t("scholarshipApplicationOpens")}
+                  />
+                )}
+                {scheme.scholarship.application_closes && (
+                  <LastVerified
+                    date={new Date(scheme.scholarship.application_closes)}
+                    locale={locale}
+                    label={t("scholarshipApplicationCloses")}
+                  />
+                )}
+                {scheme.scholarship.correction_window_end && (
+                  <LastVerified
+                    date={new Date(scheme.scholarship.correction_window_end)}
+                    locale={locale}
+                    label={t("scholarshipCorrectionWindowEnd")}
+                  />
+                )}
+              </div>
+            )}
           </section>
         )}
 

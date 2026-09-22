@@ -1,7 +1,7 @@
 "use client";
 
 import type { ChangeEvent } from "react";
-import type { SchemeCategory } from "@civiclens/types";
+import type { EducationLevel, SchemeCategory } from "@civiclens/types";
 import { useRouter } from "@/i18n/navigation";
 import { Pagination } from "@/components/navigation";
 import styles from "./SchemeControls.module.css";
@@ -25,11 +25,26 @@ const SCHEME_CATEGORIES: SchemeCategory[] = [
   "OTHER",
 ];
 
+const EDUCATION_LEVELS: EducationLevel[] = [
+  "SCHOOL",
+  "INTERMEDIATE",
+  "DIPLOMA",
+  "UNDERGRADUATE",
+  "POSTGRADUATE",
+  "DOCTORAL",
+  "PROFESSIONAL",
+  "VOCATIONAL",
+  "OTHER",
+];
+
 export interface SchemeControlsProps {
   category: SchemeCategory | undefined;
+  educationLevel: EducationLevel | undefined;
   categoryLabel: string;
+  educationLevelLabel: string;
   allLabel: string;
   categoryLabels: Record<SchemeCategory, string>;
+  educationLevelLabels: Record<EducationLevel, string>;
   page: number;
   totalPages: number;
 }
@@ -37,27 +52,36 @@ export interface SchemeControlsProps {
 /**
  * The only interactive part of the schemes list page — everything else
  * is server-rendered from `searchParams` (page.tsx), matching
- * `ServiceControls`'s identical pattern (apps/web/app/[locale]/services)
- * so results stay shareable/bookmarkable URLs. Only one filter (unlike
- * Services' category + delivery mode): a scheme has no delivery-mode
- * equivalent field.
+ * `ServiceControls`'s identical pattern (apps/web/app/[locale]/services).
+ * Two filters as of Phase 9: category (every scheme) and education
+ * level (Phase 9's scholarship-discovery filter, §18 — only matches
+ * schemes with a `ScholarshipDetail` row; shown unconditionally rather
+ * than only when `category=SCHOLARSHIP` is selected, to keep this
+ * component simple, per this phase's "do not build an overly complex
+ * filtering system" instruction — combining it with a non-scholarship
+ * category simply yields zero results, same as the backend).
  */
 export function SchemeControls({
   category,
+  educationLevel,
   categoryLabel,
+  educationLevelLabel,
   allLabel,
   categoryLabels,
+  educationLevelLabels,
   page,
   totalPages,
 }: SchemeControlsProps) {
   const router = useRouter();
 
-  function pushQuery(next: { category?: string; page?: string }) {
+  function pushQuery(next: { category?: string; educationLevel?: string; page?: string }) {
     const nextCategory = "category" in next ? next.category : category;
+    const nextEducationLevel = "educationLevel" in next ? next.educationLevel : educationLevel;
     router.push({
       pathname: "/schemes",
       query: {
         ...(nextCategory ? { category: nextCategory } : {}),
+        ...(nextEducationLevel ? { education_level: nextEducationLevel } : {}),
         ...(next.page ? { page: next.page } : {}),
       },
     });
@@ -65,6 +89,10 @@ export function SchemeControls({
 
   function handleCategoryChange(event: ChangeEvent<HTMLSelectElement>) {
     pushQuery({ category: event.target.value });
+  }
+
+  function handleEducationLevelChange(event: ChangeEvent<HTMLSelectElement>) {
+    pushQuery({ educationLevel: event.target.value });
   }
 
   function handlePageChange(nextPage: number) {
@@ -81,6 +109,21 @@ export function SchemeControls({
             {SCHEME_CATEGORIES.map((value) => (
               <option key={value} value={value}>
                 {categoryLabels[value]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className={styles.filterLabel}>
+          <span>{educationLevelLabel}</span>
+          <select
+            value={educationLevel ?? ""}
+            onChange={handleEducationLevelChange}
+            className={styles.select}
+          >
+            <option value="">{allLabel}</option>
+            {EDUCATION_LEVELS.map((value) => (
+              <option key={value} value={value}>
+                {educationLevelLabels[value]}
               </option>
             ))}
           </select>

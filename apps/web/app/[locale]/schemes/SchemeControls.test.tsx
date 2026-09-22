@@ -29,7 +29,19 @@ const CATEGORY_LABELS = {
   OTHER: "Other",
 } as const;
 
-describe("SchemeControls (Phase 8)", () => {
+const EDUCATION_LEVEL_LABELS = {
+  SCHOOL: "School",
+  INTERMEDIATE: "Intermediate / Higher Secondary",
+  DIPLOMA: "Diploma",
+  UNDERGRADUATE: "Undergraduate",
+  POSTGRADUATE: "Postgraduate",
+  DOCTORAL: "Doctoral",
+  PROFESSIONAL: "Professional",
+  VOCATIONAL: "Vocational",
+  OTHER: "Other",
+} as const;
+
+describe("SchemeControls (Phase 8/9)", () => {
   beforeEach(() => {
     push.mockClear();
   });
@@ -39,9 +51,12 @@ describe("SchemeControls (Phase 8)", () => {
     render(
       <SchemeControls
         category={undefined}
+        educationLevel={undefined}
         categoryLabel="Category"
+        educationLevelLabel="Education level"
         allLabel="All"
         categoryLabels={CATEGORY_LABELS}
+        educationLevelLabels={EDUCATION_LEVEL_LABELS}
         page={1}
         totalPages={0}
       />,
@@ -55,14 +70,68 @@ describe("SchemeControls (Phase 8)", () => {
     });
   });
 
+  it("navigates with the selected education level filter", async () => {
+    const user = userEvent.setup();
+    render(
+      <SchemeControls
+        category={undefined}
+        educationLevel={undefined}
+        categoryLabel="Category"
+        educationLevelLabel="Education level"
+        allLabel="All"
+        categoryLabels={CATEGORY_LABELS}
+        educationLevelLabels={EDUCATION_LEVEL_LABELS}
+        page={1}
+        totalPages={0}
+      />,
+    );
+
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "Education level" }),
+      "UNDERGRADUATE",
+    );
+
+    expect(push).toHaveBeenCalledWith({
+      pathname: "/schemes",
+      query: { education_level: "UNDERGRADUATE" },
+    });
+  });
+
+  it("preserves the education level filter when changing category", async () => {
+    const user = userEvent.setup();
+    render(
+      <SchemeControls
+        category={undefined}
+        educationLevel="UNDERGRADUATE"
+        categoryLabel="Category"
+        educationLevelLabel="Education level"
+        allLabel="All"
+        categoryLabels={CATEGORY_LABELS}
+        educationLevelLabels={EDUCATION_LEVEL_LABELS}
+        page={1}
+        totalPages={0}
+      />,
+    );
+
+    await user.selectOptions(screen.getByRole("combobox", { name: "Category" }), "SCHOLARSHIP");
+
+    expect(push).toHaveBeenCalledWith({
+      pathname: "/schemes",
+      query: { category: "SCHOLARSHIP", education_level: "UNDERGRADUATE" },
+    });
+  });
+
   it("clears the category filter when 'All' is selected", async () => {
     const user = userEvent.setup();
     render(
       <SchemeControls
         category="PENSION"
+        educationLevel={undefined}
         categoryLabel="Category"
+        educationLevelLabel="Education level"
         allLabel="All"
         categoryLabels={CATEGORY_LABELS}
+        educationLevelLabels={EDUCATION_LEVEL_LABELS}
         page={1}
         totalPages={0}
       />,
@@ -76,14 +145,17 @@ describe("SchemeControls (Phase 8)", () => {
     });
   });
 
-  it("preserves the category filter across pagination", async () => {
+  it("preserves both filters across pagination", async () => {
     const user = userEvent.setup();
     render(
       <SchemeControls
         category="PENSION"
+        educationLevel="UNDERGRADUATE"
         categoryLabel="Category"
+        educationLevelLabel="Education level"
         allLabel="All"
         categoryLabels={CATEGORY_LABELS}
+        educationLevelLabels={EDUCATION_LEVEL_LABELS}
         page={1}
         totalPages={3}
       />,
@@ -93,7 +165,7 @@ describe("SchemeControls (Phase 8)", () => {
 
     expect(push).toHaveBeenCalledWith({
       pathname: "/schemes",
-      query: { category: "PENSION", page: "2" },
+      query: { category: "PENSION", education_level: "UNDERGRADUATE", page: "2" },
     });
   });
 });

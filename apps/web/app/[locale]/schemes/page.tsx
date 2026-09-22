@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import type { SchemeCategory } from "@civiclens/types";
+import type { EducationLevel, SchemeCategory } from "@civiclens/types";
 import { Alert } from "@/components/feedback";
 import { InformationCard, SourceBadge } from "@/components/civic";
 import { Container } from "@/components/layout";
@@ -31,9 +31,21 @@ const SCHEME_CATEGORIES: SchemeCategory[] = [
   "OTHER",
 ];
 
+const EDUCATION_LEVELS: EducationLevel[] = [
+  "SCHOOL",
+  "INTERMEDIATE",
+  "DIPLOMA",
+  "UNDERGRADUATE",
+  "POSTGRADUATE",
+  "DOCTORAL",
+  "PROFESSIONAL",
+  "VOCATIONAL",
+  "OTHER",
+];
+
 interface SchemesPageProps {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ category?: string; page?: string }>;
+  searchParams: Promise<{ category?: string; education_level?: string; page?: string }>;
 }
 
 export async function generateMetadata({ params }: SchemesPageProps): Promise<Metadata> {
@@ -52,17 +64,26 @@ function isSchemeCategory(value: string | undefined): value is SchemeCategory {
   return value !== undefined && (SCHEME_CATEGORIES as string[]).includes(value);
 }
 
+function isEducationLevel(value: string | undefined): value is EducationLevel {
+  return value !== undefined && (EDUCATION_LEVELS as string[]).includes(value);
+}
+
 export default async function SchemesPage({ params, searchParams }: SchemesPageProps) {
   const { locale } = await params;
-  const { category: categoryParam, page: pageParam } = await searchParams;
+  const {
+    category: categoryParam,
+    education_level: educationLevelParam,
+    page: pageParam,
+  } = await searchParams;
   setRequestLocale(locale);
 
   const category = isSchemeCategory(categoryParam) ? categoryParam : undefined;
+  const educationLevel = isEducationLevel(educationLevelParam) ? educationLevelParam : undefined;
   const page = Math.max(1, Number.parseInt(pageParam ?? "1", 10) || 1);
 
   const [t, result] = await Promise.all([
     getTranslations("Schemes"),
-    getSchemes({ page, category }),
+    getSchemes({ page, category, educationLevel }),
   ]);
 
   const categoryLabels: Record<SchemeCategory, string> = {
@@ -82,6 +103,18 @@ export default async function SchemesPage({ params, searchParams }: SchemesPageP
     BUSINESS_ENTREPRENEURSHIP: t("categoryBusinessEntrepreneurship"),
     DISABILITY_SUPPORT: t("categoryDisabilitySupport"),
     OTHER: t("categoryOther"),
+  };
+
+  const educationLevelLabels: Record<EducationLevel, string> = {
+    SCHOOL: t("educationLevelSchool"),
+    INTERMEDIATE: t("educationLevelIntermediate"),
+    DIPLOMA: t("educationLevelDiploma"),
+    UNDERGRADUATE: t("educationLevelUndergraduate"),
+    POSTGRADUATE: t("educationLevelPostgraduate"),
+    DOCTORAL: t("educationLevelDoctoral"),
+    PROFESSIONAL: t("educationLevelProfessional"),
+    VOCATIONAL: t("educationLevelVocational"),
+    OTHER: t("educationLevelOther"),
   };
 
   const totalPages =
@@ -110,9 +143,12 @@ export default async function SchemesPage({ params, searchParams }: SchemesPageP
           <>
             <SchemeControls
               category={category}
+              educationLevel={educationLevel}
               categoryLabel={t("filterCategoryLabel")}
+              educationLevelLabel={t("filterEducationLevelLabel")}
               allLabel={t("filterAll")}
               categoryLabels={categoryLabels}
+              educationLevelLabels={educationLevelLabels}
               page={page}
               totalPages={totalPages}
             />

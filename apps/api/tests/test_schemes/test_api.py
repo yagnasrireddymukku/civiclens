@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.jobs.service import sync_job_search_index
-from app.schemes.enums import SchemeCategory, SchemePublicationStatus
+from app.schemes.enums import EducationLevel, SchemeCategory, SchemePublicationStatus
 from app.schemes.service import sync_scheme_search_index
 from app.services.enums import ServicePublicationStatus
 from app.services.service import sync_service_search_index
@@ -21,6 +21,7 @@ from tests.test_schemes._helpers import (
     make_required_document,
     make_requirement,
     make_scheme,
+    make_scholarship_detail,
     make_service,
     make_source,
     make_state,
@@ -77,6 +78,37 @@ def test_list_schemes_filters_by_category(api_client: TestClient, db_session: Se
     body = response.json()
     assert body["pagination"]["total_count"] == 1
     assert body["results"][0]["slug"] == "pension-scheme"
+
+
+def test_list_schemes_filters_by_education_level(
+    api_client: TestClient, db_session: Session
+) -> None:
+    state = make_state(db_session)
+    source = make_source(db_session)
+    organization = make_organization(db_session, state)
+    undergrad = make_scheme(
+        db_session,
+        organization=organization,
+        source=source,
+        slug="undergrad-scholarship",
+        category=SchemeCategory.SCHOLARSHIP,
+    )
+    make_scholarship_detail(db_session, undergrad, education_level=EducationLevel.UNDERGRADUATE)
+    postgrad = make_scheme(
+        db_session,
+        organization=organization,
+        source=source,
+        slug="postgrad-scholarship",
+        category=SchemeCategory.SCHOLARSHIP,
+    )
+    make_scholarship_detail(db_session, postgrad, education_level=EducationLevel.POSTGRADUATE)
+
+    response = api_client.get("/api/v1/schemes", params={"education_level": "UNDERGRADUATE"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["pagination"]["total_count"] == 1
+    assert body["results"][0]["slug"] == "undergrad-scholarship"
 
 
 def test_list_schemes_pagination_params_are_honored(
@@ -146,6 +178,12 @@ def test_get_scheme_returns_full_detail_with_children(
     make_related_service(
         db_session, scheme, linked_service, note="Apply for this certificate first."
     )
+    make_scholarship_detail(
+        db_session,
+        scheme,
+        education_level=EducationLevel.UNDERGRADUATE,
+        academic_year="2026-27",
+    )
 
     response = api_client.get("/api/v1/schemes/detailed-scheme")
 
@@ -159,8 +197,30 @@ def test_get_scheme_returns_full_detail_with_children(
     assert len(body["related_services"]) == 1
     assert body["related_services"][0]["slug"] == linked_service.slug
     assert body["related_services"][0]["note"] == "Apply for this certificate first."
+    assert body["scholarship"]["education_level"] == "UNDERGRADUATE"
+    assert body["scholarship"]["academic_year"] == "2026-27"
     # No raw database id leaks into the response (docs/API.md §12).
     assert "id" not in body
+
+
+def test_get_scheme_scholarship_is_null_for_non_scholarship_scheme(
+    api_client: TestClient, db_session: Session
+) -> None:
+    state = make_state(db_session)
+    source = make_source(db_session)
+    organization = make_organization(db_session, state)
+    make_scheme(
+        db_session,
+        organization=organization,
+        source=source,
+        slug="pension-without-scholarship",
+        category=SchemeCategory.PENSION,
+    )
+
+    response = api_client.get("/api/v1/schemes/pension-without-scholarship")
+
+    assert response.status_code == 200
+    assert response.json()["scholarship"] is None
 
 
 def test_get_scheme_omits_related_service_that_is_not_publicly_visible(

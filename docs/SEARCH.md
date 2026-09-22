@@ -11,10 +11,12 @@ abstraction generalizes across domains, not something built once and
 never exercised again. Every result is still a synthetic fixture (no
 real government data exists yet). Phase 8 made Schemes the third
 (§16), with an explicit test that Jobs, Services, and Schemes all
-appear together in one cross-domain result set. Exams, scholarships,
-representatives, elections, and documents remain unindexed; §3 and
-§12–16 describe what's actually built and are updated again as each of
-those lands.
+appear together in one cross-domain result set. **Phase 9 deliberately
+added no fourth `entity_type`** — Scholarships are a `Scheme`
+specialization, already indexed as `entity_type="scheme"` since §16
+(see §17). Exams, representatives, elections, and documents remain
+unindexed; §3 and §12–17 describe what's actually built and are
+updated again as each of those lands.
 
 ## 1. Core Principle: Search Is a Projection, Not a System of Record
 
@@ -224,10 +226,11 @@ anything but the disposable index itself.
   (`TEST_JOB`/`TEST_SERVICE`/`TEST_SCHEME`), `app/jobs/fixtures.py`'s one
   synthetic job (§14), and `app/services/fixtures.py`'s one synthetic
   service (§15).
-- Exams, scholarships, representatives, elections, and documents
-  indexing anything — Jobs (Phase 6), Services (Phase 7), and Schemes
-  (Phase 8) are the only real domain modules calling
-  `upsert_search_document` so far.
+- Exams, representatives, elections, and documents indexing anything —
+  Jobs (Phase 6), Services (Phase 7), and Schemes (Phase 8) are the only
+  real domain modules calling `upsert_search_document` so far.
+  Scholarships (Phase 9) are already covered — they're `Scheme` rows,
+  not a fourth module (§17).
 - Autocomplete (§4) and any dedicated as-you-type endpoint.
 - Any Meilisearch (or other dedicated search engine) infrastructure — not
   provisioned until a §10 trigger is met and documented.
@@ -382,6 +385,34 @@ abstraction generalizes to a *third* independent caller, not just two:
   (`tests/test_schemes/test_api.py::
   test_cross_domain_search_returns_jobs_services_and_schemes`) — verified
   live end-to-end as well as via automated tests.
+
+## 17. Scholarships (Phase 9) — No New `entity_type`
+
+Scholarships are represented as a `Scheme` specialization (`category ==
+"SCHOLARSHIP"` plus a 1:1 `ScholarshipDetail` extension row — see
+[DATABASE.md](DATABASE.md) §13), not an independent domain. This phase's
+§15 explicitly asked the architecture to justify `entity_type="scholarship"`
+before creating one; the decision here is **not to**:
+
+- A scholarship scheme is a row in `schemes`, already indexed via
+  `sync_scheme_search_index()` (§16) with `entity_type="scheme"` the
+  moment it's published and verified — nothing scholarship-specific
+  needed to change in `app/search/` or `app/schemes/service.py`'s
+  indexing call for this to work.
+- `searchable_text` is unchanged (`scheme.target_audience`) — the new
+  `scholarship_details` fields (education level, academic requirements,
+  application window) are not folded into the indexed text. They're
+  structured data surfaced via `GET /api/v1/schemes/{slug}` (§16's
+  API.md entry) and the `education_level` list filter, not free-text
+  search inputs; nothing in this phase's §18 asked for
+  "find me an undergraduate scholarship" as a *keyword* search
+  experience distinct from the `education_level` filter already built.
+- Verified directly: the existing Phase 8 cross-domain search test
+  (`test_cross_domain_search_returns_jobs_services_and_schemes`) and the
+  live smoke test both re-confirmed cross-domain search is unaffected —
+  a scholarship-category scheme is findable via `/search` exactly like
+  any other scheme, with `entity_type: "scheme"` in the result, not a
+  fourth type.
 
 This document is updated again with real query patterns as each further
 domain module starts calling `upsert_search_document`, per

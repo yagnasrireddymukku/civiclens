@@ -332,7 +332,7 @@ endpoints for the current user:
 ## 12. Explicitly Not Built Yet
 
 - Any real domain content page beyond Jobs, Services, and Schemes
-  (scholarships/representatives/etc.) — Jobs (Phase 6,
+  (representatives/exams/etc.) — Jobs (Phase 6,
   `apps/web/app/[locale]/jobs/`), Services (Phase 7, `.../services/`),
   and Schemes (Phase 8, `.../schemes/`) are the first three; the rest
   land incrementally against the same foundation, reusing the same
@@ -341,7 +341,13 @@ endpoints for the current user:
   shape — Schemes' pages reuse them as-is, with no new shared component
   extracted (its list/detail shape differed enough from Services'
   — benefits, related services — that the page-level composition, not a
-  shared component, is what changed).
+  shared component, is what changed). Scholarships (Phase 9) are not a
+  fourth page — they extend `.../schemes/page.tsx`'s filter row (one
+  more `<select>`, reusing `Pagination`) and `.../schemes/[slug]/
+  page.tsx`'s existing `styles.section`/`styles.factItemList` pattern
+  with one more conditional section, reusing `LastVerified`'s `label`
+  prop for the application-window dates rather than a new date-display
+  component.
 - Choice of a client-side data-fetching library (SWR/React Query/etc.)
   beyond the constraints in §5 — every real page built so far (search,
   jobs, services, schemes) fetches server-side in a Server Component via
@@ -357,10 +363,11 @@ endpoints for the current user:
   OpenAPI-generation step named here is a future investment once enough
   domains exist to justify it.
 - Real translations reviewed by a professional Telugu editor (§7) — the
-  Schemes namespace's Telugu strings are a good-faith machine/manual
-  translation, not yet professionally reviewed, same caveat as every
-  other namespace so far.
+  Schemes namespace's Telugu strings (including the Phase 9 education-
+  level/scholarship-detail keys added to the same namespace) are a
+  good-faith machine/manual translation, not yet professionally
+  reviewed, same caveat as every other namespace so far.
 
 This document now reflects the realized Phase 4 design system/shell and
-Phase 5–8's real pages built on it; it is extended, not rewritten, as
+Phase 5–9's real pages built on it; it is extended, not rewritten, as
 further real content pages land.

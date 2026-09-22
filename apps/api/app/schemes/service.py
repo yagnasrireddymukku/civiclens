@@ -30,8 +30,8 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.geography.models import District, State
 from app.institutions.models import Department, Organization
-from app.schemes.enums import SchemeCategory, SchemePublicationStatus
-from app.schemes.models import Scheme, SchemeRelatedService
+from app.schemes.enums import EducationLevel, SchemeCategory, SchemePublicationStatus
+from app.schemes.models import Scheme, SchemeRelatedService, ScholarshipDetail
 from app.search import service as search_service
 from app.sources.enums import VerificationStatus
 from app.sources.models import Source
@@ -127,6 +127,7 @@ def _apply_filters(
     organization_id: uuid.UUID | None,
     department_id: uuid.UUID | None,
     category: SchemeCategory | None,
+    education_level: EducationLevel | None,
     status: str | None,
     date_from: datetime | None,
     date_to: datetime | None,
@@ -141,6 +142,14 @@ def _apply_filters(
         stmt = stmt.where(Scheme.department_id == department_id)
     if category is not None:
         stmt = stmt.where(Scheme.category == category)
+    if education_level is not None:
+        # Only joined when this (rarely-used, scholarship-specific)
+        # filter is actually supplied — every other filter above applies
+        # to every scheme, so an unconditional join here would cost
+        # every list/count query for a filter most callers never pass.
+        stmt = stmt.join(ScholarshipDetail, Scheme.id == ScholarshipDetail.scheme_id).where(
+            ScholarshipDetail.education_level == education_level
+        )
     if status is not None:
         stmt = stmt.where(Scheme.status == status)
     if date_from is not None:
@@ -158,6 +167,7 @@ def list_schemes(
     organization_id: uuid.UUID | None = None,
     department_id: uuid.UUID | None = None,
     category: SchemeCategory | None = None,
+    education_level: EducationLevel | None = None,
     status: str | None = None,
     date_from: datetime | None = None,
     date_to: datetime | None = None,
@@ -174,6 +184,7 @@ def list_schemes(
         organization_id=organization_id,
         department_id=department_id,
         category=category,
+        education_level=education_level,
         status=status,
         date_from=date_from,
         date_to=date_to,
@@ -218,6 +229,7 @@ def get_scheme_by_slug(session: Session, slug: str) -> SchemeRow | None:
             selectinload(Scheme.required_documents),
             selectinload(Scheme.application_methods),
             selectinload(Scheme.related_services).selectinload(SchemeRelatedService.service),
+            selectinload(Scheme.scholarship_detail),
         )
     )
     result = session.execute(stmt).first()

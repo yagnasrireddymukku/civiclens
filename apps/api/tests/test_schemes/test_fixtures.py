@@ -3,6 +3,7 @@ fixture can't silently pass every downstream test against empty data."
 Mirrors tests/test_services/test_fixtures.py.
 """
 
+from decimal import Decimal
 from unittest.mock import patch
 
 import pytest
@@ -10,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.jobs.fixtures import load_fixtures as load_job_fixtures
+from app.schemes.enums import EducationLevel
 from app.schemes.fixtures import load_fixtures
 from app.schemes.models import Scheme
 from app.search.service import search_documents
@@ -28,6 +30,10 @@ def test_load_fixtures_creates_three_findable_published_schemes(db_session: Sess
 
     scholarship = db_session.query(Scheme).filter_by(slug="test-civiclens-scheme-002").one()
     assert scholarship.name == "Test Merit Scholarship Scheme (Fixture)"
+    assert scholarship.scholarship_detail is not None
+    assert scholarship.scholarship_detail.education_level == EducationLevel.UNDERGRADUATE
+    assert scholarship.scholarship_detail.minimum_percentage == Decimal("60.00")
+    assert scholarship.scholarship_detail.renewable is True
 
     linked = db_session.query(Scheme).filter_by(slug="test-civiclens-scheme-003").one()
     assert linked.name == "Test Income Support Scheme (Fixture)"
