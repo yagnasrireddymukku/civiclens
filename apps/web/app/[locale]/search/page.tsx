@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import type { VerificationStatus } from "@civiclens/types";
 import { Alert } from "@/components/feedback";
-import { SearchResultCard, type SourceBadgeKind } from "@/components/civic";
+import { SearchResultCard } from "@/components/civic";
 import { Container } from "@/components/layout";
 import type { AppLocale } from "@/i18n/routing";
+import { humanizeEnumValue } from "@/lib/format";
 import { getSearchResults } from "@/lib/search";
 import { buildLocaleAwareMetadata } from "@/lib/seo";
+import { toSourceBadgeKind } from "@/lib/verificationBadge";
 import { SearchControls } from "./SearchControls";
 import styles from "./page.module.css";
 
@@ -25,25 +26,6 @@ export async function generateMetadata({ params }: SearchPageProps): Promise<Met
     title: t("title"),
     description: t("promptBody"),
   });
-}
-
-// Only VERIFIED/NEEDS_REVIEW documents are ever indexed
-// (apps/api/app/search/service.py's `_INDEXABLE_STATUSES`), but the type
-// is the full four-value enum, so this stays total rather than partial.
-function toSourceBadgeKind(status: VerificationStatus): SourceBadgeKind {
-  return status === "VERIFIED" ? "verified" : "available";
-}
-
-// entity_type is a generic, future-module-defined label (this phase
-// intentionally creates no real domain tables) — humanized rather than
-// mapped through a hardcoded, fixture-specific lookup.
-function humanizeEntityType(entityType: string): string {
-  return entityType
-    .toLowerCase()
-    .split("_")
-    .filter(Boolean)
-    .map((word) => word[0].toUpperCase() + word.slice(1))
-    .join(" ");
 }
 
 export default async function SearchPage({ params, searchParams }: SearchPageProps) {
@@ -109,7 +91,7 @@ export default async function SearchPage({ params, searchParams }: SearchPagePro
                 {result.data.results.map((item) => (
                   <li key={item.id}>
                     <SearchResultCard
-                      domain={humanizeEntityType(item.entity_type)}
+                      domain={humanizeEnumValue(item.entity_type)}
                       title={item.title}
                       snippet={item.summary ?? ""}
                       sourceKind={toSourceBadgeKind(item.verification_status)}

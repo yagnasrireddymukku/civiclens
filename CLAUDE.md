@@ -6,13 +6,15 @@ enforcement summary. When in doubt, the linked document is authoritative.
 
 ## Current Phase
 
-Phases 0–4 are complete and approved (architecture/governance, monorepo
-foundation, database + core data model, frontend design system). The
-project is now in **Phase 5 — Search Infrastructure**
-(see [docs/ROADMAP.md](docs/ROADMAP.md)). Real government data still does
-not exist and must not be added until the project explicitly enters a
-real-data phase — search infrastructure work uses clearly-synthetic
-fixtures only (see [docs/DATA_GOVERNANCE.md](docs/DATA_GOVERNANCE.md) §7).
+Phases 0–5 are complete and approved (architecture/governance, monorepo
+foundation, database + core data model, frontend design system, search
+infrastructure). The project is now in **Phase 6 — Government Jobs**
+(see [docs/ROADMAP.md](docs/ROADMAP.md)), the first real domain module.
+Real government data still does not exist and must not be added until
+the project explicitly enters a real-data phase (Phase 13, per
+[docs/DATA_SOURCES.md](docs/DATA_SOURCES.md)) — Phase 6 uses a single,
+clearly-synthetic fixture job only
+(see [docs/DATA_GOVERNANCE.md](docs/DATA_GOVERNANCE.md) §7).
 
 ## Non-Negotiable Rules
 

@@ -4,9 +4,9 @@
 `gin_trgm_ops` index.
 
 Runs against its own throwaway database (via `scratch_database`) rather
-than the shared `search_migrated_engine` fixture, since this test's whole
-point is a destructive upgrade/downgrade/upgrade cycle that would
-interfere with every other test sharing that session-scoped database.
+than the shared `migrated_engine` fixture, since this test's whole point
+is a destructive upgrade/downgrade/upgrade cycle that would interfere
+with every other test sharing that session-scoped database.
 """
 
 import sqlalchemy as sa
@@ -14,7 +14,7 @@ from alembic.config import Config
 
 from alembic import command
 from tests._full_pg_utils import scratch_database
-from tests.test_search.conftest import ALEMBIC_INI_PATH
+from tests.conftest import ALEMBIC_INI_PATH
 
 
 def test_search_documents_migration_applies_and_reverses_cleanly(
@@ -39,18 +39,27 @@ def test_search_documents_migration_applies_and_reverses_cleanly(
         finally:
             engine.dispose()
 
-        # Downgrade one revision (this migration only) and confirm
-        # the table disappears without disturbing Phase 3's tables.
-        command.downgrade(config, "-1")
+        # Downgrade past whatever now sits on top of this migration in
+        # the chain (Phase 6's jobs domain, as of this writing) one
+        # revision at a time, until search_documents itself is gone —
+        # "-1" alone no longer isolates this migration once a later
+        # phase adds its own migration on top, so this walks down
+        # instead of assuming a fixed distance from head. Bounded so a
+        # real bug (the table never disappearing) fails loudly instead
+        # of downgrading all the way to base.
+        for _ in range(5):
+            command.downgrade(config, "-1")
+            engine = sa.create_engine(db_url, future=True)
+            try:
+                tables = set(sa.inspect(engine).get_table_names())
+            finally:
+                engine.dispose()
+            if "search_documents" not in tables:
+                break
+        else:
+            raise AssertionError("search_documents was still present after 5 downgrades")
 
-        engine = sa.create_engine(db_url, future=True)
-        try:
-            inspector = sa.inspect(engine)
-            tables = set(inspector.get_table_names())
-            assert "search_documents" not in tables
-            assert "states" in tables  # Phase 3 tables untouched
-        finally:
-            engine.dispose()
+        assert "states" in tables  # Phase 3 tables untouched
 
         # And upgrading again must succeed. This migration's
         # upgrade() re-declares the existing verification_status

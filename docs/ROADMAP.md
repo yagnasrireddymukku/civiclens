@@ -215,26 +215,63 @@ until the prior phase's acceptance criteria are met and, per
   affect source-of-truth data.
 
 ## Phase 6 — Government Jobs
-- **Objective**: First real domain: jobs, notifications, exams, deadlines.
+- **Objective**: First real domain: organizations, departments, jobs, job
+  notifications, and vacancies (initial geographic scope: Andhra Pradesh
+  + Telangana, architecture state-agnostic throughout).
 - **Dependencies**: Phases 2–5.
-- **Files/modules**: `apps/api/app/jobs/`, `apps/api/app/exams/`,
-  `apps/web/app/jobs/`.
-- **Technical work**: Domain tables + migrations, CRUD/read API per
-  [API.md](API.md), job listing/detail pages, source/verification display.
-- **Tests**: API contract tests, provenance-field-required tests (a job
-  cannot be created without a `source_id`), frontend rendering tests.
-- **Documentation**: [DATABASE.md](DATABASE.md), [API.md](API.md) updated
-  with realized job/exam schema and endpoints.
-- **Acceptance criteria**: A manually-entered, clearly-marked test job
-  notification (fictional) renders end-to-end with source/verification
-  status visible; no real government data entered yet (that begins only
-  once [DATA_SOURCES.md](DATA_SOURCES.md) ingestion tooling and editorial
-  review exist, Phase 13).
+- **Files/modules**: `apps/api/app/jobs/` (models, enums, schemas,
+  service, fixtures), `apps/api/app/api/v1/jobs.py`,
+  `apps/api/scripts/seed_job_fixtures.py`, `apps/web/app/[locale]/jobs/`
+  (list + `[slug]` detail), `apps/web/lib/jobs.ts`. Exams were named in
+  this document's original Phase 6 scope line but not in this phase's
+  actual kickoff instructions — deferred to whichever later phase
+  introduces them, a disclosed scope correction, not an oversight.
+- **Technical work**: `organizations`/`departments` treated as reference
+  data like geography (no `source_id`); `jobs`/`job_notifications` each
+  carry independent `source_id`+denormalized `verification_status` (the
+  `search_documents` Phase 5 pattern); `job_vacancies` inherit their
+  parent notification's provenance. `GET /api/v1/jobs` (filtered, paged)
+  and `GET /api/v1/jobs/{slug}` (notifications+vacancies nested inline)
+  per [API.md](API.md) §13. Jobs integrate with `search_documents` as
+  `entity_type="job"` (`sync_job_search_index()`,
+  [SEARCH.md](SEARCH.md) §14) — the first real domain module to call the
+  Phase 5 search abstraction. Frontend list/detail pages reuse Phase 4's
+  `InformationCard`/`SourceBadge`/`VerificationStatus`/`LastVerified`/
+  `Breadcrumb` rather than introducing a bespoke `JobCard`; `JobPosting`
+  + `BreadcrumbList` JSON-LD on the detail page (Phase 6 realized
+  [SEO.md](SEO.md)'s Jobs pattern ahead of Phase 14's full rollout, since
+  Jobs is the first phase with real page content to attach it to).
+- **Tests**: 34 new backend tests (models/constraints, service-layer
+  visibility rules and search-index sync, API contract, migration
+  up/down/up-again, fixture loading) plus 14 new frontend tests (list,
+  detail, and filter/pagination controls) — 86 backend / 40 frontend
+  tests passing in total, including full Phase 0–5 regression.
+- **Documentation**: [DATABASE.md](DATABASE.md) §9,
+  [API.md](API.md) §13, [SEARCH.md](SEARCH.md) §14, and
+  [SEO.md](SEO.md) §12 updated with the realized schema, endpoints,
+  search integration, and Jobs-specific SEO implementation.
+- **Acceptance criteria**: A single, clearly-marked synthetic test job
+  (`TEST_CIVICLENS_JOB_001`) renders end-to-end — list page, detail page
+  with nested notification/vacancies, source/verification status
+  visible, findable via `/search` — verified directly against a live
+  backend and frontend, not only via automated tests. No real government
+  data entered (that begins only once [DATA_SOURCES.md](DATA_SOURCES.md)
+  ingestion tooling and editorial review exist, Phase 13).
 - **Risks**: Temptation to seed "realistic-looking" data before ingestion
   tooling exists — explicitly prohibited
-  ([DATA_GOVERNANCE.md](DATA_GOVERNANCE.md) §7).
-- **Rollback**: Domain tables are additive; feature-flag the `/jobs` route
-  if rollback needed.
+  ([DATA_GOVERNANCE.md](DATA_GOVERNANCE.md) §7); avoided. One real
+  regression found and fixed by hand: `app/search/fixtures.py` and
+  `app/jobs/fixtures.py` each independently created their own
+  "Testland"/`ZZ` fictional state, so seeding both into the same
+  database collided on `states.code`'s uniqueness constraint — fixed by
+  making both loaders get-or-create that shared canonical fixture state
+  instead of blindly inserting it. Separately, a known, already-disclosed
+  Next.js limitation from Phase 4 (`notFound()` not reliably producing a
+  404 HTTP status under this project's `[locale]` routing) recurred for
+  the dynamic job-slug case; mitigated with a `noindex, nofollow` robots
+  tag rather than solved outright — see [SEO.md](SEO.md) §12.
+- **Rollback**: Domain tables are additive; feature-flag the `/jobs`
+  route if rollback needed.
 
 ## Phase 7 — Government Services
 - **Objective**: Services domain (documents/certificates, service pages).

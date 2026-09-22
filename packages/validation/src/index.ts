@@ -69,3 +69,102 @@ export const searchResponseSchema = z.object({
 });
 
 export type SearchResponseInput = z.infer<typeof searchResponseSchema>;
+
+/**
+ * Mirrors `apps/api/app/jobs/schemas.py` exactly (Phase 6). Reuses
+ * `sourceSummarySchema`/`paginationMetaSchema` above rather than
+ * redeclaring them — no module-boundary reason to duplicate within this
+ * single shared package.
+ */
+export const employmentTypeSchema = z.enum(["PERMANENT", "CONTRACT", "TEMPORARY"]);
+
+export const jobNotificationStatusSchema = z.enum([
+  "DRAFT",
+  "REVIEW",
+  "PUBLISHED",
+  "APPLICATION_OPEN",
+  "APPLICATION_CLOSED",
+  "EXAMINATION",
+  "RESULT",
+  "ARCHIVED",
+]);
+
+export const organizationSummarySchema = z.object({
+  name: z.string(),
+  org_type: z.string(),
+});
+
+export const departmentSummarySchema = z.object({
+  name: z.string(),
+});
+
+export const jobListItemSchema = z.object({
+  slug: z.string(),
+  title: z.string(),
+  organization: organizationSummarySchema,
+  department: departmentSummarySchema.nullable(),
+  summary: z.string().nullable(),
+  employment_type: employmentTypeSchema,
+  category: z.string().nullable(),
+  state: z.string(),
+  district: z.string().nullable(),
+  status: z.string().nullable(),
+  verification_status: verificationStatusSchema,
+  last_verified: z.string().nullable(),
+  source: sourceSummarySchema,
+});
+
+export const vacancySummarySchema = z.object({
+  post_name: z.string(),
+  vacancy_count: z.number().nullable(),
+  category: z.string().nullable(),
+  location: z.string().nullable(),
+});
+
+export const notificationSummarySchema = z.object({
+  notification_number: z.string().nullable(),
+  status: jobNotificationStatusSchema,
+  published_date: z.string().nullable(),
+  application_start: z.string().nullable(),
+  application_end: z.string().nullable(),
+  correction_window_end: z.string().nullable(),
+  exam_date: z.string().nullable(),
+  total_vacancies: z.number().nullable(),
+  official_notification_url: z.string().nullable(),
+  official_application_url: z.string().nullable(),
+  verification_status: verificationStatusSchema,
+  last_verified: z.string().nullable(),
+  source: sourceSummarySchema,
+  vacancies: z.array(vacancySummarySchema),
+});
+
+export const jobDetailSchema = z.object({
+  slug: z.string(),
+  title: z.string(),
+  organization: organizationSummarySchema,
+  department: departmentSummarySchema.nullable(),
+  summary: z.string().nullable(),
+  description: z.string().nullable(),
+  employment_type: employmentTypeSchema,
+  category: z.string().nullable(),
+  state: z.string(),
+  district: z.string().nullable(),
+  min_age: z.number().nullable(),
+  max_age: z.number().nullable(),
+  qualification_summary: z.string().nullable(),
+  experience_summary: z.string().nullable(),
+  salary_summary: z.string().nullable(),
+  status: z.string().nullable(),
+  verification_status: verificationStatusSchema,
+  last_verified: z.string().nullable(),
+  source: sourceSummarySchema,
+  notifications: z.array(notificationSummarySchema),
+});
+
+export const jobListResponseSchema = z.object({
+  results: z.array(jobListItemSchema),
+  pagination: paginationMetaSchema,
+});
+
+export type JobDetailInput = z.infer<typeof jobDetailSchema>;
+export type JobListResponseInput = z.infer<typeof jobListResponseSchema>;

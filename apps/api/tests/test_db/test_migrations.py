@@ -13,7 +13,7 @@ from alembic.config import Config
 
 from alembic import command
 from tests._full_pg_utils import scratch_database
-from tests.test_db.conftest import ALEMBIC_INI_PATH
+from tests.conftest import ALEMBIC_INI_PATH
 
 EXPECTED_TABLES = {
     "states",

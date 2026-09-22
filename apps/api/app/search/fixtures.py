@@ -43,12 +43,29 @@ class FixtureDocument:
     verification_status: VerificationStatus
 
 
-def _fixture_state() -> State:
-    return State(name="Testland", code="ZZ", slug="testland", status=StateStatus.PLANNED)
+def _fixture_state(session: Session) -> State:
+    # get-or-create: docs/TESTING.md §15's "ZZ"/"Testland" is the one
+    # canonical fictional state every domain's fixtures share, not a
+    # value each module recreates — verified by hand that seeding both
+    # search and job fixtures into the same database previously failed
+    # with a duplicate-state-code error when each blindly inserted it.
+    existing = session.query(State).filter_by(code="ZZ").one_or_none()
+    if existing is not None:
+        return existing
+    state = State(name="Testland", code="ZZ", slug="testland", status=StateStatus.PLANNED)
+    session.add(state)
+    session.flush()
+    return state
 
 
-def _fixture_district(state: State) -> District:
-    return District(state_id=state.id, name="Sampleburg", code="SB", slug="sampleburg")
+def _fixture_district(session: Session, state: State) -> District:
+    existing = session.query(District).filter_by(state_id=state.id, code="SB").one_or_none()
+    if existing is not None:
+        return existing
+    district = District(state_id=state.id, name="Sampleburg", code="SB", slug="sampleburg")
+    session.add(district)
+    session.flush()
+    return district
 
 
 def _fixture_source() -> Source:
@@ -125,12 +142,8 @@ def load_fixtures(session: Session) -> None:
             f"{_ALLOWED_ENVIRONMENTS}. Fixtures must never reach a staging/production database."
         )
 
-    state = _fixture_state()
-    session.add(state)
-    session.flush()
-
-    district = _fixture_district(state)
-    session.add(district)
+    state = _fixture_state(session)
+    district = _fixture_district(session, state)
 
     source = _fixture_source()
     session.add(source)

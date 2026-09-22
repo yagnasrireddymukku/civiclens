@@ -331,20 +331,24 @@ endpoints for the current user:
 
 ## 12. Explicitly Not Built Yet
 
-- Any real domain content page (jobs/schemes/services/representatives/
-  etc.) — those land incrementally starting Phase 6 against this
-  foundation.
+- Any real domain content page beyond Jobs (schemes/services/
+  representatives/etc.) — Jobs (Phase 6, `apps/web/app/[locale]/jobs/`)
+  is the first; the rest land incrementally against the same foundation.
 - Choice of a client-side data-fetching library (SWR/React Query/etc.)
-  beyond the constraints in §5 — no page has real data-fetching needs
-  yet beyond the existing `lib/api.ts` health-check pattern; decided when
-  a real page needs it.
+  beyond the constraints in §5 — every real page built so far (search,
+  jobs) fetches server-side in a Server Component via a `lib/*.ts`
+  wrapper following `lib/api.ts`'s original health-check pattern; no
+  page has needed client-side data fetching yet.
 - A component library published as a standalone package — components live
   in `apps/web` until (if ever) a documented reuse need (a second
   consuming app) justifies extraction.
-- OpenAPI-generated types in `packages/types` (Phase 6+, once real
-  endpoints exist) — hand-written types are used where needed today.
+- OpenAPI-generated types in `packages/types` — still hand-written as of
+  Phase 6 (`SearchResponse`/`JobDetail`/etc.), matching each domain's
+  backend Pydantic schemas by hand rather than through generation
+  tooling, which remains unbuilt; the OpenAPI-generation step named here
+  is a future investment once enough domains exist to justify it.
 - Real translations reviewed by a professional Telugu editor (§7).
 
-This document now reflects the realized Phase 4 design system and shell;
-it is extended, not rewritten, as real content pages land starting
-Phase 6.
+This document now reflects the realized Phase 4 design system/shell and
+Phase 5–6's real pages built on it; it is extended, not rewritten, as
+further real content pages land.

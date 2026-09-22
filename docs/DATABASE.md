@@ -8,11 +8,15 @@ user/profile identity foundation (§2.8, minus `saved_items`/
 `tracking_items`/`notifications`, which are Phase 12) are implemented —
 one Alembic migration (`apps/api/alembic/versions/`), SQLAlchemy models
 under `apps/api/app/geography/`, `apps/api/app/sources/`, and
-`apps/api/app/users/`. Institutions (§2.2), opportunities (§2.3),
-requirements/eligibility (§2.4), time (§2.5), and people/elections (§2.6)
-remain design-only, implemented incrementally in
-[ROADMAP.md](ROADMAP.md) Phases 6–9 against real domain content — see §7
-below for what Phase 3 deliberately deferred and why.
+`apps/api/app/users/`.
+
+**Phase 6 status**: institutions (§2.2) and the Jobs slice of
+opportunities (§2.3) are implemented — see §9. Exams, schemes,
+scholarships, and services (the rest of §2.3) remain design-only,
+implemented incrementally against real domain content in
+[ROADMAP.md](ROADMAP.md) Phases 6–8. Requirements/eligibility (§2.4),
+time (§2.5), and people/elections (§2.6) also remain design-only — see §7
+for what Phase 3 deliberately deferred and why.
 
 ## 0. Design Rules
 
@@ -59,18 +63,44 @@ None of the three carry a direct `source_id`: geography is treated as
 administrative reference data, not an evolving fact requiring
 per-row provenance (contrast with §2.3's `source_id` columns).
 
-### 2.2 Institutions — deferred (see §7)
+### 2.2 Institutions — **implemented, Phase 6** (see §9)
 - **organizations** — recruiting boards, universities, corporations (e.g.,
-  APPSC, TSPSC) — id, name, type, state_id (nullable for national bodies)
-- **departments** — government departments issuing schemes/services — id,
-  name, organization_id (nullable), state_id
+  APPSC, TSPSC) — id, name, org_type (`CENTRAL`/`STATE`/`AUTONOMOUS_BODY`),
+  state_id (nullable for national bodies), website_url. Treated as
+  administrative reference data like geography (§2.1) — no `source_id`.
+- **departments** — government departments issuing recruitment (and, in
+  future phases, schemes/services) — id, name, organization_id (nullable
+  — not every department sits under a recruiting board), state_id
+  (nullable). Same reference-data treatment as organizations.
 
-### 2.3 Opportunities — deferred to Phases 6–8
-- **jobs** — id, organization_id, title, description, department_id,
-  state_id, category, status, source_id
-- **job_notifications** — id, job_id, notification_number, published_date,
-  total_vacancies, source_id (a job may have multiple notifications over
-  time — amendments, corrigenda)
+### 2.3 Opportunities — Jobs slice **implemented, Phase 6** (see §9); exams/schemes/scholarships/services deferred to Phases 6–8
+- **jobs** — id, slug (public identifier), locale, title, organization_id,
+  department_id (nullable), summary, description, employment_type
+  (`PERMANENT`/`CONTRACT`/`TEMPORARY`), category (free text), state_id,
+  district_id (nullable), min_age/max_age (nullable — eligibility-relevant
+  structured fields per [ELIGIBILITY_ENGINE.md](ELIGIBILITY_ENGINE.md),
+  not an eligibility rule itself), qualification_summary/
+  experience_summary (prose — real notification wording rarely reduces to
+  one structured value), salary_summary (text, never a fabricated number),
+  status (free text, browse-friendly), publication_status
+  (`DRAFT`/`PUBLISHED`/`ARCHIVED` — the public-visibility gate),
+  source_id, verification_status, last_verified_at, deleted_at (soft
+  delete, per §0 rule 3)
+- **job_notifications** — id, job_id, notification_number (nullable),
+  status (`DRAFT`/`REVIEW`/`PUBLISHED`/`APPLICATION_OPEN`/
+  `APPLICATION_CLOSED`/`EXAMINATION`/`RESULT`/`ARCHIVED` — the detailed
+  recruitment-cycle lifecycle a job's own `status` free-text field
+  doesn't attempt to replicate), published_date, application_start/end,
+  correction_window_end, exam_date, total_vacancies,
+  official_notification_url, official_application_url, source_id,
+  verification_status, last_verified_at (a job may have multiple
+  notifications over time — amendments, corrigenda, or a wholly new
+  recruitment cycle)
+- **job_vacancies** — id, job_notification_id, post_name, vacancy_count
+  (nullable), category (free text — reservation categories vary by
+  state/organization and are deliberately not a hardcoded enum),
+  location. Carries no provenance of its own — it inherits its parent
+  notification's `source_id`.
 - **exams** — id, job_notification_id (nullable — some exams aren't
   job-linked, e.g. academic entrance exams), name, conducting_body_id,
   source_id
@@ -248,3 +278,51 @@ since no domain table exists yet for it to project from. It is not a
 system of record (§1) and carries its own `source_id`/
 `verification_status` columns so provenance survives into search
 results even before a domain table exists to look them up from.
+
+## 9. Phase 6 Implementation Notes: Jobs Domain
+
+The first real domain module — `organizations`, `departments`, `jobs`,
+`job_notifications`, `job_vacancies` (§2.2, §2.3) — landed largely as
+originally sketched, with these realized-implementation details worth
+recording:
+
+**Provenance is denormalized onto the fact rows themselves.**
+`jobs.verification_status`/`last_verified_at` and
+`job_notifications.verification_status`/`last_verified_at` mirror
+`search_documents`'s Phase 5 pattern (§8) rather than requiring a join to
+`verification_records` for the common "is this displayable, and since
+when" check. `verification_records` remains the authoritative audit
+trail of verification *events*; these columns are a display-convenience
+cache of current state, not a second source of truth. `jobs`/
+`job_notifications` each carry their own independent `source_id` (an
+amendment can cite a different official document than the original
+notification) — both `RESTRICT` on delete, matching every other
+fact-bearing table's FK-to-`sources` convention.
+
+**Three distinct "status" concepts, deliberately not collapsed into
+one**: `jobs.publication_status` (`DRAFT`/`PUBLISHED`/`ARCHIVED`) is the
+one hard visibility gate — nothing reaches the public API or the search
+index unless `PUBLISHED` and `VERIFIED`/`NEEDS_REVIEW`. `jobs.status` is
+a free-text, browse-friendly label mirroring `search_documents.status`'s
+existing convention (no fixed taxonomy for a still-forming domain).
+`job_notifications.status` is the detailed 8-value recruitment-cycle
+lifecycle this phase's kickoff named — it lives on the notification, not
+the job, because the same job concept recurs across cycles with
+independent lifecycles.
+
+**No bilingual content model.** `jobs.locale` tags the language a row's
+content is actually written in; it is not a translation pairing. Machine
+translation of official text is prohibited
+([DATA_GOVERNANCE.md](DATA_GOVERNANCE.md)), and human-translated
+summaries are out of this phase's scope, so `/te/jobs` honestly shows
+only `locale="te"` rows (none exist yet from fixtures) rather than a
+fabricated translation of the English fixture — mirroring
+[SEARCH.md](SEARCH.md) §7's Telugu-limitation disclosure.
+
+**Fixture geography is shared, not duplicated.** Both
+`app/search/fixtures.py` and `app/jobs/fixtures.py` reference
+docs/TESTING.md §15's canonical fictional state ("Testland"/`ZZ`) — a
+real bug, found by hand (seeding both fixture sets into the same
+database failed with a duplicate-state-code error), was fixed by making
+each loader get-or-create that row instead of blindly inserting it, so
+either loader can now run first, or both, without collision.

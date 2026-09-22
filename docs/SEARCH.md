@@ -4,12 +4,14 @@ This document defines the architecture for Engine A, Civic Search, per
 [ADR-005](ADR/ADR-005-search-architecture.md). **Phase 5 ("Search
 Infrastructure" — [ROADMAP.md](ROADMAP.md)) implemented the search
 infrastructure itself** — the `search_documents` projection, the
-`GET /api/v1/search` endpoint, and the frontend search page — **using
-synthetic fixtures only.** No real domain module (jobs, exams, schemes,
-services, scholarships, representatives, elections, documents) exists
-yet, so nothing real is indexed yet either; §3 and §12–13 describe what
-was actually built, and are updated again as each real domain module
-starts calling `upsert_search_document` (§12).
+`GET /api/v1/search` endpoint, and the frontend search page. **Phase 6
+made Jobs the first real domain module to call `upsert_search_document`**
+(§14) — every result is still a synthetic fixture (no real government
+data exists yet), but the indexing pipeline itself is exercised by real
+domain code now, not only by `app/search/fixtures.py`. Exams, schemes,
+services, scholarships, representatives, elections, and documents remain
+unindexed; §3 and §12–14 describe what's actually built and are updated
+again as each of those lands.
 
 ## 1. Core Principle: Search Is a Projection, Not a System of Record
 
@@ -213,11 +215,14 @@ anything but the disposable index itself.
 
 ## 11. Explicitly Not Built Yet
 
-- Any real domain module indexing anything — every row in the database
-  today comes from `app/search/fixtures.py`'s synthetic fixtures
-  (`TEST_JOB`/`TEST_SERVICE`/`TEST_SCHEME`, gated to `local`/`test`
-  environments only), never real government data
-  ([DATA_GOVERNANCE.md](DATA_GOVERNANCE.md) §7).
+- Any *real* domain data — every row in the database today is a
+  clearly-fictional fixture, gated to `local`/`test` environments only
+  ([DATA_GOVERNANCE.md](DATA_GOVERNANCE.md) §7): `app/search/fixtures.py`
+  (`TEST_JOB`/`TEST_SERVICE`/`TEST_SCHEME`) and, as of Phase 6,
+  `app/jobs/fixtures.py`'s one synthetic job (§14).
+- Exams, schemes, services, scholarships, representatives, elections, and
+  documents indexing anything — Jobs (Phase 6) is the only real domain
+  module calling `upsert_search_document` so far.
 - Autocomplete (§4) and any dedicated as-you-type endpoint.
 - Any Meilisearch (or other dedicated search engine) infrastructure — not
   provisioned until a §10 trigger is met and documented.
@@ -237,9 +242,8 @@ anything but the disposable index itself.
   that contrib module (see [TESTING.md](TESTING.md) §3).
 - **Write path**: `upsert_search_document()` / `remove_search_document()`
   (`app/search/service.py`) — the only functions that ever write to this
-  table. A future domain module calls these from wherever it currently
-  persists an entity; this phase does not add a hook for that (no domain
-  module exists yet).
+  table. A domain module calls these from wherever it manages its own
+  entities' lifecycle — see §14 for Jobs, the first real caller.
 - **Read path**: `search_documents()` (`app/search/service.py`) — see §5,
   §6, §8 for its query flow, filters, and ranking.
 - **Endpoint**: `GET /api/v1/search` (`app/api/v1/search.py`), query
@@ -284,6 +288,38 @@ anything but the disposable index itself.
   (never a crash), matching `apps/web/lib/api.ts`'s existing
   `getApiHealth` contract — see `apps/web/lib/search.ts`.
 
-This document is updated again with real query patterns once a real
+## 14. Jobs Domain Integration (Phase 6)
+
+Jobs is the first real domain module to index into `search_documents` —
+the pattern every future domain module (schemes, services, scholarships)
+follows:
+
+- `entity_type="job"`, `entity_id=<jobs.id>` (not the raw slug — the
+  search abstraction stays domain-agnostic and never assumes a domain
+  table has a `slug` column).
+- `sync_job_search_index()` (`app/jobs/service.py`) is the one place
+  that decides indexability: it calls `upsert_search_document` when a
+  job is `publication_status="PUBLISHED"` and
+  `verification_status` is `VERIFIED`/`NEEDS_REVIEW` (the same rule
+  `app/jobs/service.py`'s own read path enforces, so a job is never
+  visible in search but 404 on its own detail page or vice versa), and
+  `remove_search_document` otherwise — never both, never left stale.
+- `route="/jobs/{slug}"`, `locale=job.locale` (§9's "no bilingual content
+  model" — a Telugu-tagged job would index into and surface from a
+  Telugu search, never a machine-translated English one),
+  `searchable_text` combines `qualification_summary`/
+  `experience_summary`/`category` (fields not otherwise weighted into
+  `title`/`summary`).
+- This phase calls `sync_job_search_index()` only from
+  `app/jobs/fixtures.py` (no admin/editing UI exists yet to change a
+  job's publication state after creation) — a future ingestion/admin
+  phase calls it again whenever a job's publication or verification
+  state changes.
+- Verified directly: a job indexed this way is findable via
+  `GET /api/v1/search?q=...` with `entity_type: "job"` and the job's own
+  `route` in the result (`tests/test_jobs/test_api.py::
+  test_indexed_job_is_findable_via_the_generic_search_endpoint`).
+
+This document is updated again with real query patterns as each further
 domain module starts calling `upsert_search_document`, per
 [ROADMAP.md](ROADMAP.md)'s documentation requirement.

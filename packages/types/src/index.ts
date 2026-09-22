@@ -61,3 +61,99 @@ export interface SearchResponse {
   pagination: PaginationMeta;
   query: QueryMeta;
 }
+
+/**
+ * Mirrors `apps/api/app/jobs/schemas.py` and `apps/api/app/jobs/enums.py`
+ * exactly (Phase 6, the first real domain module). `SourceSummary` and
+ * `PaginationMeta` above are reused as-is — unlike the backend's
+ * per-module Python files, this package has no module-boundary reason
+ * to redeclare them.
+ */
+export type EmploymentType = "PERMANENT" | "CONTRACT" | "TEMPORARY";
+
+export type JobNotificationStatus =
+  | "DRAFT"
+  | "REVIEW"
+  | "PUBLISHED"
+  | "APPLICATION_OPEN"
+  | "APPLICATION_CLOSED"
+  | "EXAMINATION"
+  | "RESULT"
+  | "ARCHIVED";
+
+export interface OrganizationSummary {
+  name: string;
+  org_type: string;
+}
+
+export interface DepartmentSummary {
+  name: string;
+}
+
+export interface JobListItem {
+  slug: string;
+  title: string;
+  organization: OrganizationSummary;
+  department: DepartmentSummary | null;
+  summary: string | null;
+  employment_type: EmploymentType;
+  category: string | null;
+  state: string;
+  district: string | null;
+  status: string | null;
+  verification_status: VerificationStatus;
+  last_verified: string | null;
+  source: SourceSummary;
+}
+
+export interface VacancySummary {
+  post_name: string;
+  vacancy_count: number | null;
+  category: string | null;
+  location: string | null;
+}
+
+export interface NotificationSummary {
+  notification_number: string | null;
+  status: JobNotificationStatus;
+  published_date: string | null;
+  application_start: string | null;
+  application_end: string | null;
+  correction_window_end: string | null;
+  exam_date: string | null;
+  total_vacancies: number | null;
+  official_notification_url: string | null;
+  official_application_url: string | null;
+  verification_status: VerificationStatus;
+  last_verified: string | null;
+  source: SourceSummary;
+  vacancies: VacancySummary[];
+}
+
+export interface JobDetail {
+  slug: string;
+  title: string;
+  organization: OrganizationSummary;
+  department: DepartmentSummary | null;
+  summary: string | null;
+  description: string | null;
+  employment_type: EmploymentType;
+  category: string | null;
+  state: string;
+  district: string | null;
+  min_age: number | null;
+  max_age: number | null;
+  qualification_summary: string | null;
+  experience_summary: string | null;
+  salary_summary: string | null;
+  status: string | null;
+  verification_status: VerificationStatus;
+  last_verified: string | null;
+  source: SourceSummary;
+  notifications: NotificationSummary[];
+}
+
+export interface JobListResponse {
+  results: JobListItem[];
+  pagination: PaginationMeta;
+}

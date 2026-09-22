@@ -228,17 +228,46 @@ request → get_db dependency (opens a Session) → route/service function
 
 ## 12. Explicitly Not Built Yet
 
-- Any domain-content business route (jobs, exams, schemes, services,
-  scholarships, representatives, elections, eligibility, tracking, AI) or
-  its request/response models — only `health`/`health/ready` (§11) and
-  `/search` (Phase 5, [SEARCH.md](SEARCH.md) §12) exist so far, and
-  `/search` has nothing real to index yet (no domain route has published
-  anything into it).
+- Any domain-content business route beyond Jobs (exams, schemes,
+  services, scholarships, representatives, elections, eligibility,
+  tracking, AI) or its request/response models — `health`/`health/ready`
+  (§11), `/search` (Phase 5, [SEARCH.md](SEARCH.md) §12), and `/jobs`
+  (Phase 6, §13) exist so far.
 - Concrete rate-limit thresholds, cache headers, or CDN interaction rules
   (deferred to [SECURITY.md](SECURITY.md) / [ARCHITECTURE.md](ARCHITECTURE.md)
   performance work in later phases).
 - GraphQL or any query language beyond the filter/sort conventions in §6 —
   not needed at MVP scope and not planned without a documented reason.
+
+## 13. Jobs Domain (Phase 6)
+
+The first real domain module, following every convention above:
+
+- `GET /api/v1/jobs` — filters: `state_id`, `district_id`,
+  `organization_id`, `department_id`, `status` (free text, exact match),
+  `employment_type` (enum), `date_from`/`date_to` (against
+  `last_verified_at`); `page`/`page_size` (§6); `sort` (a `Literal` with
+  one value, `"recent"`, today — an explicit allow-list, never a
+  popularity/salary-based sort, per this phase's scope). Deliberately has
+  **no free-text `q` parameter** — that already exists at `/search` with
+  `entity_type=job`, and duplicating relevance ranking inside a second
+  endpoint was judged unnecessary complexity, not an oversight.
+- `GET /api/v1/jobs/{slug}` — `slug`, not a database id, is the public
+  identifier (§12's "don't expose internal database IDs" convention).
+  Returns the job with its notifications nested inline (each with its
+  vacancies nested inline) rather than a separate
+  `/jobs/{id}/notifications` endpoint — the kickoff named that endpoint
+  as a *potential* shape, and one response with everything a detail page
+  needs was simpler than two round trips for data that's always rendered
+  together.
+- Both endpoints apply the same visibility rule: a job is returned only
+  when `publication_status="PUBLISHED"` and `verification_status` is
+  `VERIFIED`/`NEEDS_REVIEW` — an unpublished or not-yet-verified job 404s
+  identically to a nonexistent slug, never distinguishing the two to an
+  unauthenticated caller.
+- See [DATABASE.md](DATABASE.md) §9 for the schema and
+  [SEARCH.md](SEARCH.md) for how a published job also becomes a search
+  result (`entity_type="job"`).
 
 This document defines the target API conventions for Phase 2 onward; each
 domain phase (6–9, 10–12) implements against it and updates this document

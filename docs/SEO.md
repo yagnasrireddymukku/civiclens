@@ -196,13 +196,49 @@ stating "closed" is genuine user value, not thin content.
 
 ## 11. Explicitly Not Built Yet
 
-- Any actual `sitemap.ts`/`robots.ts`, metadata component, or JSON-LD
-  template.
+- Any `sitemap.ts`/`robots.ts` — the full sitemap-generation
+  infrastructure (§4) remains Phase 14 scope.
+- JSON-LD/metadata for any domain besides Jobs (§12) — Phase 6
+  implemented the `/jobs` and `/jobs/{slug}` metadata/canonical/
+  breadcrumb/`JobPosting` pattern this document sketches, ahead of
+  Phase 14's full rollout, specifically because Jobs is the first phase
+  with real page content to attach it to; exams/schemes/services/
+  scholarships/representatives get the equivalent treatment as each
+  lands.
 - Analytics/Search Console integration and reporting
   ([OBSERVABILITY.md](OBSERVABILITY.md) territory, not this document).
 - Any paid search/SEM strategy — out of scope; this document covers
   organic discoverability only.
 
+## 12. Phase 6 Implementation Note: Jobs
+
+`apps/web/app/[locale]/jobs/page.tsx` and `.../jobs/[slug]/page.tsx`
+realize §1–§3, §6, and §8 for the Jobs domain specifically:
+
+- Canonical + hreflang alternates via the existing
+  `buildLocaleAwareMetadata` helper (`apps/web/lib/seo.ts`, built Phase
+  5) — no new metadata-building code needed.
+- `JobPosting` JSON-LD on the detail page: `title`, `hiringOrganization`,
+  and, only when the job has a notification with real dates,
+  `datePosted`/`validThrough`; `qualifications` only when
+  `qualification_summary` is set. No field is filled with a guessed or
+  placeholder value (§6's "omitted, not guessed" rule).
+- `BreadcrumbList` JSON-LD plus the visible `Breadcrumb` component
+  (`apps/web/components/navigation`) — CivicLens → Government Jobs →
+  job title, matching §8's hierarchy.
+- **Known limitation, disclosed rather than silently accepted**: the
+  detail page calls `notFound()` for a nonexistent/unpublished slug, but
+  — matching the exact limitation [ROADMAP.md](ROADMAP.md) Phase 4
+  already documented for this project's `[locale]` routing — this does
+  not reliably produce an HTTP 404 status, verified directly against a
+  production build (`next build` + `next start`), only 200 with the
+  correct "not found" content. The mitigation applied at this layer is a
+  `noindex, nofollow` robots meta tag on that response, so a crawler
+  never indexes it as real content even though the status code itself is
+  wrong — the status-code fix (likely a proxy/middleware-level guard,
+  per Phase 4's precedent for a static path) is out of this phase's
+  scope and is a good candidate for Phase 14 or a dedicated fix.
+
 This document defines the target SEO architecture for Phase 14; it is
 finalized against real, live URL patterns once indexable content exists
-from Phases 6–9.
+from all of Phases 6–9, per Phase 6's Jobs-specific head start above.
