@@ -198,13 +198,13 @@ stating "closed" is genuine user value, not thin content.
 
 - Any `sitemap.ts`/`robots.ts` — the full sitemap-generation
   infrastructure (§4) remains Phase 14 scope.
-- JSON-LD/metadata for any domain besides Jobs (§12) — Phase 6
-  implemented the `/jobs` and `/jobs/{slug}` metadata/canonical/
-  breadcrumb/`JobPosting` pattern this document sketches, ahead of
-  Phase 14's full rollout, specifically because Jobs is the first phase
-  with real page content to attach it to; exams/schemes/services/
-  scholarships/representatives get the equivalent treatment as each
-  lands.
+- JSON-LD/metadata for any domain besides Jobs (§12) and Services
+  (§13) — Phase 6/7 implemented the `/jobs`, `/services`, and their
+  `{slug}` metadata/canonical/breadcrumb/structured-data patterns this
+  document sketches, ahead of Phase 14's full rollout, specifically
+  because they're the first phases with real page content to attach it
+  to; exams/schemes/scholarships/representatives get the equivalent
+  treatment as each lands.
 - Analytics/Search Console integration and reporting
   ([OBSERVABILITY.md](OBSERVABILITY.md) territory, not this document).
 - Any paid search/SEM strategy — out of scope; this document covers
@@ -239,6 +239,33 @@ realize §1–§3, §6, and §8 for the Jobs domain specifically:
   per Phase 4's precedent for a static path) is out of this phase's
   scope and is a good candidate for Phase 14 or a dedicated fix.
 
+## 13. Phase 7 Implementation Note: Services
+
+`apps/web/app/[locale]/services/page.tsx` and `.../services/[slug]/page.tsx`
+realize the same §1–§3, §6, and §8 pattern §12 documents for Jobs:
+
+- Canonical + hreflang alternates via the same `buildLocaleAwareMetadata`
+  helper — no new metadata-building code, matching §12's precedent.
+- `GovernmentService` JSON-LD on the detail page — chosen over `Service`
+  after checking schema.org's actual documented properties against this
+  domain's real fields, per §6's "fit judged type-by-type, never forced"
+  rule: `provider` (the organization), `serviceType`, `areaServed` (only
+  when the service has a `state`), `audience` (only when
+  `target_audience` is set), `availableChannel` (one `ServiceChannel` per
+  application method that has a real URL). No field is filled with a
+  guessed or placeholder value.
+- `BreadcrumbList` JSON-LD plus the visible `Breadcrumb` component —
+  CivicLens → Government Services → service name, matching §8's
+  hierarchy exactly.
+- **Same known, disclosed `notFound()`/404-status limitation §12
+  documents for Jobs** (traced to [ROADMAP.md](ROADMAP.md) Phase 4's
+  `[locale]`-routing finding) — mitigated identically, with a `noindex,
+  nofollow` robots meta tag on the not-found response.
+- No `Service` schema.org rating/review fields are used anywhere —
+  CivicLens never fabricates or aggregates ratings (this phase's
+  explicit "no fake ratings or aggregate review data" rule).
+
 This document defines the target SEO architecture for Phase 14; it is
 finalized against real, live URL patterns once indexable content exists
-from all of Phases 6–9, per Phase 6's Jobs-specific head start above.
+from all of Phases 6–9, per Phase 6 and 7's domain-specific head starts
+above.

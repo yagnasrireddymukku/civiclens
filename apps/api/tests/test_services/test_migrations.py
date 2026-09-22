@@ -1,4 +1,4 @@
-"""Migration test for the jobs domain — needs a real Postgres (see
+"""Migration test for the services domain — needs a real Postgres (see
 tests/conftest.py's `full_pg_database_url` fixture) since the migration
 chain now unconditionally includes Phase 5's `CREATE EXTENSION pg_trgm`.
 
@@ -15,10 +15,17 @@ from alembic import command
 from tests._full_pg_utils import scratch_database
 from tests.conftest import ALEMBIC_INI_PATH
 
-JOB_TABLES = {"organizations", "departments", "jobs", "job_notifications", "job_vacancies"}
+SERVICE_TABLES = {
+    "services",
+    "service_requirements",
+    "service_required_documents",
+    "service_application_methods",
+}
 
 
-def test_jobs_domain_migration_applies_and_reverses_cleanly(full_pg_database_url: str) -> None:
+def test_services_domain_migration_applies_and_reverses_cleanly(
+    full_pg_database_url: str,
+) -> None:
     with scratch_database(full_pg_database_url) as db_url:
         config = Config(str(ALEMBIC_INI_PATH))
         config.set_main_option("sqlalchemy.url", db_url)
@@ -28,34 +35,22 @@ def test_jobs_domain_migration_applies_and_reverses_cleanly(full_pg_database_url
         engine = sa.create_engine(db_url, future=True)
         try:
             tables = set(sa.inspect(engine).get_table_names())
-            assert JOB_TABLES <= tables
+            assert SERVICE_TABLES <= tables
         finally:
             engine.dispose()
 
-        # Downgrade past whatever now sits on top of this migration in
-        # the chain (Phase 7's services domain, as of this writing) one
-        # revision at a time, until the jobs tables themselves are gone
-        # — mirrors test_search/test_migrations.py's identical walk-down,
-        # needed for the same reason: "-1" alone no longer isolates this
-        # migration once a later phase adds its own on top.
-        for _ in range(5):
-            command.downgrade(config, "-1")
-            engine = sa.create_engine(db_url, future=True)
-            try:
-                tables = set(sa.inspect(engine).get_table_names())
-            finally:
-                engine.dispose()
-            if JOB_TABLES.isdisjoint(tables):
-                break
-        else:
-            raise AssertionError("job tables were still present after 5 downgrades")
+        # This migration is the current head, so "-1" isolates it
+        # cleanly (see tests/test_jobs/test_migrations.py for the
+        # walk-down pattern needed once a later phase adds its own
+        # migration on top of this one).
+        command.downgrade(config, "-1")
 
         engine = sa.create_engine(db_url, future=True)
         try:
             inspector = sa.inspect(engine)
             tables = set(inspector.get_table_names())
-            assert JOB_TABLES.isdisjoint(tables)
-            assert "search_documents" in tables  # Phase 5's table untouched
+            assert SERVICE_TABLES.isdisjoint(tables)
+            assert "jobs" in tables  # Phase 6's tables untouched
             assert "states" in tables  # Phase 3's tables untouched
 
             # The known Alembic autogenerate gap (docs/DATABASE.md §7):
@@ -68,15 +63,23 @@ def test_jobs_domain_migration_applies_and_reverses_cleanly(full_pg_database_url
                 enum_count = connection.execute(
                     sa.text(
                         "SELECT COUNT(*) FROM pg_type WHERE typname IN "
-                        "('organization_type', 'employment_type', "
-                        "'job_publication_status', 'job_notification_status')"
+                        "('service_category', 'delivery_mode', "
+                        "'service_publication_status', 'requirement_type', "
+                        "'application_channel_type')"
                     )
                 ).scalar()
                 verification_status_still_exists = connection.execute(
                     sa.text("SELECT COUNT(*) FROM pg_type WHERE typname = 'verification_status'")
                 ).scalar()
-            assert enum_count == 0, "downgrade left orphaned jobs-domain enum types behind"
+                # organization_type is Phase 6's enum (app.institutions),
+                # not this migration's — must survive too, since
+                # organizations/departments still exist.
+                organization_type_still_exists = connection.execute(
+                    sa.text("SELECT COUNT(*) FROM pg_type WHERE typname = 'organization_type'")
+                ).scalar()
+            assert enum_count == 0, "downgrade left orphaned services-domain enum types behind"
             assert verification_status_still_exists == 1
+            assert organization_type_still_exists == 1
         finally:
             engine.dispose()
 
@@ -85,6 +88,6 @@ def test_jobs_domain_migration_applies_and_reverses_cleanly(full_pg_database_url
         command.upgrade(config, "head")
         engine = sa.create_engine(db_url, future=True)
         try:
-            assert JOB_TABLES <= set(sa.inspect(engine).get_table_names())
+            assert SERVICE_TABLES <= set(sa.inspect(engine).get_table_names())
         finally:
             engine.dispose()

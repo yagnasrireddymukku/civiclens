@@ -157,3 +157,108 @@ export interface JobListResponse {
   results: JobListItem[];
   pagination: PaginationMeta;
 }
+
+/**
+ * Mirrors `apps/api/app/services/schemas.py` and
+ * `apps/api/app/services/enums.py` exactly (Phase 7, the second real
+ * domain module). `OrganizationSummary`/`DepartmentSummary`/
+ * `SourceSummary`/`PaginationMeta` above are reused as-is.
+ */
+export type ServiceCategory =
+  | "CERTIFICATES"
+  | "DOCUMENTS"
+  | "WELFARE"
+  | "EDUCATION"
+  | "HEALTHCARE"
+  | "AGRICULTURE"
+  | "EMPLOYMENT"
+  | "BUSINESS"
+  | "TRANSPORT"
+  | "MUNICIPAL"
+  | "REVENUE"
+  | "SOCIAL_SECURITY"
+  | "IDENTITY"
+  | "UTILITIES"
+  | "OTHER";
+
+export type DeliveryMode = "ONLINE" | "OFFLINE" | "BOTH";
+
+export type RequirementType = "AGE" | "RESIDENCY" | "INCOME" | "OCCUPATION" | "OTHER";
+
+export type ApplicationChannelType =
+  | "ONLINE"
+  | "OFFLINE"
+  | "MOBILE_APP"
+  | "MEESEVA"
+  | "DEPARTMENT_PORTAL"
+  | "SERVICE_CENTER"
+  | "IN_PERSON"
+  | "OTHER";
+
+export interface ServiceListItem {
+  slug: string;
+  name: string;
+  organization: OrganizationSummary;
+  department: DepartmentSummary | null;
+  short_description: string | null;
+  category: ServiceCategory;
+  service_type: string | null;
+  delivery_mode: DeliveryMode;
+  state: string | null;
+  district: string | null;
+  status: string | null;
+  verification_status: VerificationStatus;
+  last_verified: string | null;
+  source: SourceSummary;
+}
+
+export interface RequirementSummary {
+  requirement_type: RequirementType;
+  description: string;
+  min_value: number | null;
+  max_value: number | null;
+}
+
+export interface RequiredDocumentSummary {
+  name: string;
+  description: string | null;
+  is_mandatory: boolean;
+}
+
+export interface ApplicationMethodSummary {
+  channel_type: ApplicationChannelType;
+  url: string | null;
+  instructions: string | null;
+}
+
+export interface ServiceDetail {
+  slug: string;
+  name: string;
+  organization: OrganizationSummary;
+  department: DepartmentSummary | null;
+  short_description: string | null;
+  description: string | null;
+  category: ServiceCategory;
+  service_type: string | null;
+  target_audience: string | null;
+  delivery_mode: DeliveryMode;
+  state: string | null;
+  district: string | null;
+  official_service_url: string | null;
+  application_url: string | null;
+  fee_summary: string | null;
+  processing_time_summary: string | null;
+  location_summary: string | null;
+  status: string | null;
+  verification_status: VerificationStatus;
+  last_verified: string | null;
+  source: SourceSummary;
+  requirements: RequirementSummary[];
+  required_documents: RequiredDocumentSummary[];
+  application_methods: ApplicationMethodSummary[];
+}
+
+export interface ServiceListResponse {
+  results: ServiceListItem[];
+  pagination: PaginationMeta;
+}

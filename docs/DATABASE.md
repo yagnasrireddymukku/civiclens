@@ -11,12 +11,16 @@ under `apps/api/app/geography/`, `apps/api/app/sources/`, and
 `apps/api/app/users/`.
 
 **Phase 6 status**: institutions (§2.2) and the Jobs slice of
-opportunities (§2.3) are implemented — see §9. Exams, schemes,
-scholarships, and services (the rest of §2.3) remain design-only,
-implemented incrementally against real domain content in
-[ROADMAP.md](ROADMAP.md) Phases 6–8. Requirements/eligibility (§2.4),
-time (§2.5), and people/elections (§2.6) also remain design-only — see §7
-for what Phase 3 deliberately deferred and why.
+opportunities (§2.3) are implemented — see §9.
+
+**Phase 7 status**: the Services slice of opportunities (§2.3) is
+implemented — see §10, which also covers institutions (§2.2) moving to
+its own module (`app.institutions`) now that a second domain depends on
+it. Exams, schemes, and scholarships (the rest of §2.3) remain
+design-only, implemented incrementally against real domain content in
+[ROADMAP.md](ROADMAP.md) Phase 8 onward. Requirements/eligibility
+(§2.4), time (§2.5), and people/elections (§2.6) also remain
+design-only — see §7 for what Phase 3 deliberately deferred and why.
 
 ## 0. Design Rules
 
@@ -63,17 +67,17 @@ None of the three carry a direct `source_id`: geography is treated as
 administrative reference data, not an evolving fact requiring
 per-row provenance (contrast with §2.3's `source_id` columns).
 
-### 2.2 Institutions — **implemented, Phase 6** (see §9)
+### 2.2 Institutions — **implemented, Phase 6; its own module, Phase 7** (see §9, §10)
 - **organizations** — recruiting boards, universities, corporations (e.g.,
   APPSC, TSPSC) — id, name, org_type (`CENTRAL`/`STATE`/`AUTONOMOUS_BODY`),
   state_id (nullable for national bodies), website_url. Treated as
   administrative reference data like geography (§2.1) — no `source_id`.
-- **departments** — government departments issuing recruitment (and, in
-  future phases, schemes/services) — id, name, organization_id (nullable
+- **departments** — government departments issuing recruitment/services
+  (and, in future phases, schemes) — id, name, organization_id (nullable
   — not every department sits under a recruiting board), state_id
   (nullable). Same reference-data treatment as organizations.
 
-### 2.3 Opportunities — Jobs slice **implemented, Phase 6** (see §9); exams/schemes/scholarships/services deferred to Phases 6–8
+### 2.3 Opportunities — Jobs (Phase 6) and Services (Phase 7) slices **implemented** (see §9, §10); exams/schemes/scholarships deferred to Phase 8 onward
 - **jobs** — id, slug (public identifier), locale, title, organization_id,
   department_id (nullable), summary, description, employment_type
   (`PERMANENT`/`CONTRACT`/`TEMPORARY`), category (free text), state_id,
@@ -108,8 +112,35 @@ per-row provenance (contrast with §2.3's `source_id` columns).
   beneficiary summary, source_id
 - **scholarships** — id, department_id/organization_id, state_id, name,
   award_amount, education_level, source_id
-- **services** — id, department_id, state_id, name, description, channel
-  (online/offline/both), source_id
+- **services** — id, slug (public identifier), locale, organization_id,
+  department_id (nullable), name, short_description, description,
+  category (`ServiceCategory` — a controlled, bounded enum, unlike
+  `jobs.category`'s free text: services form a citizen-facing set worth
+  filtering by), service_type (free text), target_audience (prose),
+  delivery_mode (`ONLINE`/`OFFLINE`/`BOTH`), state_id/district_id (both
+  nullable — a service may be available statewide/nationally, unlike a
+  job's required `state_id`), official_service_url, application_url,
+  fee_summary/processing_time_summary/location_summary (text, never a
+  fabricated figure), status (free text), publication_status
+  (`DRAFT`/`PUBLISHED`/`ARCHIVED`), source_id, verification_status,
+  last_verified_at, deleted_at — same provenance/visibility pattern as
+  `jobs` (§9's denormalized-column rationale, unchanged for Phase 7)
+  - **service_requirements** — id, service_id, requirement_type
+    (`AGE`/`RESIDENCY`/`INCOME`/`OCCUPATION`/`OTHER`), description
+    (prose), min_value/max_value (nullable numeric range) — structured
+    just enough for a future Eligibility Engine
+    ([ELIGIBILITY_ENGINE.md](ELIGIBILITY_ENGINE.md), Phase 10) to read
+    without a migration; not that engine's own
+    `attribute`/`operator`/`value` model
+  - **service_required_documents** — id, service_id, name, description
+    (nullable), is_mandatory
+  - **service_application_methods** — id, service_id, channel_type
+    (`ONLINE`/`OFFLINE`/`MOBILE_APP`/`MEESEVA`/`DEPARTMENT_PORTAL`/
+    `SERVICE_CENTER`/`IN_PERSON`/`OTHER`), url (nullable, never
+    fabricated), instructions (nullable prose)
+
+  The three child tables carry no provenance of their own — like
+  `job_vacancies`, each inherits its parent `services` row's `source_id`.
 
 ### 2.4 Requirements & Eligibility — deferred to Phase 10
 - **documents** — id, name, description, issuing_authority_id
@@ -326,3 +357,63 @@ real bug, found by hand (seeding both fixture sets into the same
 database failed with a duplicate-state-code error), was fixed by making
 each loader get-or-create that row instead of blindly inserting it, so
 either loader can now run first, or both, without collision.
+
+## 10. Phase 7 Implementation Notes: Services Domain & Institutions Extraction
+
+**Institutions moved to their own module.** `Organization`/`Department`
+lived inside `app/jobs/models.py` from Phase 6 (§2.2's tables, always
+conceptually distinct from §2.3's Jobs, just implemented together since
+Jobs was the only consumer). Phase 7's Services domain needs the same
+two tables, and importing them from `app.jobs.models` would be exactly
+the cross-module reach-around CLAUDE.md rule 10 prohibits — so they
+moved to `app.institutions.models`, the same role `app.geography`
+already plays for every domain module. This was a model-layer move
+only: `alembic check` showed zero schema diff after the move (same
+table/column names, same constraints) — no migration needed for the
+move itself, only for the new `services*` tables Phase 7 added on top.
+
+**The `Organization`/`Department` ↔ `Job`/`Service` relationships are
+resolved by name, not import**, to avoid a real circular import
+(`app.jobs`/`app.services` import `app.institutions`, so the reverse
+can't be a normal top-level import). SQLAlchemy resolves
+`Mapped[list["Job"]]`/`Mapped[list["Service"]]` lazily against its
+shared declarative registry the first time any mapper configures — which
+requires every model module to have been imported by then. A real bug,
+found by hand: a standalone script importing only `app.jobs.fixtures`
+(not `app.services.models`) crashed with "expression 'Service' failed to
+locate a name" the first time it touched `Organization`. Fixed by having
+every `scripts/seed_*.py` entry point import `app.core.db.model_registry`
+(this side-effect import registers every model module) before doing
+anything else — the running API server was never affected, since
+`app.main` already imports every domain's router, which transitively
+imports every domain's models together.
+
+**Services reuses Jobs' exact provenance/visibility/status pattern**
+(§9) — denormalized `verification_status`/`last_verified_at`,
+`publication_status` as the one hard visibility gate, a free-text
+`status` for browse convenience, no bilingual content model
+(`services.locale` tags actual content language, not a translation
+pair). `service_category` is the one deliberate schema difference from
+Jobs: a controlled, bounded enum (this phase's §5 requirement) rather
+than `jobs.category`'s free text, since Services form a bounded,
+citizen-facing taxonomy worth filtering by, unlike Jobs' open-ended
+recruitment classification.
+
+**`service_requirements` is deliberately not the eligibility engine.**
+It stores a `requirement_type` (a small closed enum) plus an optional
+numeric range plus prose — enough for a future Eligibility Engine
+([ELIGIBILITY_ENGINE.md](ELIGIBILITY_ENGINE.md), Phase 10) to find "does
+this service have an age requirement" without parsing prose, but no
+`attribute`/`operator`/`value` predicate model, no evaluation logic, and
+no `eligibility_rules`/`eligibility_conditions` rows are created —
+Phase 10's domain, entirely.
+
+**Fixture organizations/departments are shared across domains, not
+duplicated**, extending §9's "shared fixture geography" fix: since
+`organizations.name` is globally unique, `app/services/fixtures.py`
+get-or-creates the same "Test Recruitment Board — Not Real" row
+`app/jobs/fixtures.py` creates, rather than risking the same
+duplicate-key collision found and fixed for the shared fictional state.
+`app/jobs/fixtures.py`'s department creation was also changed to
+get-or-create (and to link `organization_id`, previously left null) for
+the same reason.

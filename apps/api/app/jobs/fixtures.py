@@ -20,13 +20,10 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.geography.enums import StateStatus
 from app.geography.models import District, State
-from app.jobs.enums import (
-    EmploymentType,
-    JobNotificationStatus,
-    JobPublicationStatus,
-    OrganizationType,
-)
-from app.jobs.models import Department, Job, JobNotification, JobVacancy, Organization
+from app.institutions.enums import OrganizationType
+from app.institutions.models import Department, Organization
+from app.jobs.enums import EmploymentType, JobNotificationStatus, JobPublicationStatus
+from app.jobs.models import Job, JobNotification, JobVacancy
 from app.jobs.service import sync_job_search_index
 from app.sources.enums import VerificationStatus
 from app.sources.models import Source
@@ -60,6 +57,44 @@ def _fixture_district(session: Session, state: State) -> District:
     return district
 
 
+def _fixture_organization(session: Session, state: State) -> Organization:
+    # get-or-create, same reasoning as state/district: `organizations.name`
+    # is globally unique, and this is the same fictional board Services'
+    # fixtures create (app/services/fixtures.py) — seeding both without
+    # get-or-create would collide exactly like the state-code bug did.
+    existing = (
+        session.query(Organization)
+        .filter_by(name="Test Recruitment Board — Not Real")
+        .one_or_none()
+    )
+    if existing is not None:
+        return existing
+    organization = Organization(
+        name="Test Recruitment Board — Not Real",
+        org_type=OrganizationType.AUTONOMOUS_BODY,
+        state_id=state.id,
+    )
+    session.add(organization)
+    session.flush()
+    return organization
+
+
+def _fixture_department(session: Session, state: State, organization: Organization) -> Department:
+    existing = (
+        session.query(Department)
+        .filter_by(organization_id=organization.id, name="Test Department — Not Real")
+        .one_or_none()
+    )
+    if existing is not None:
+        return existing
+    department = Department(
+        name="Test Department — Not Real", organization_id=organization.id, state_id=state.id
+    )
+    session.add(department)
+    session.flush()
+    return department
+
+
 def _fixture_source() -> Source:
     return Source(
         url="https://example-test.invalid/notice/jobs-fixtures",
@@ -91,18 +126,8 @@ def load_fixtures(session: Session) -> None:
     session.add(source)
     session.flush()
 
-    organization = Organization(
-        name="Test Recruitment Board — Not Real",
-        org_type=OrganizationType.AUTONOMOUS_BODY,
-        state_id=state.id,
-    )
-    session.add(organization)
-
-    department = Department(
-        name="Test Department — Not Real", organization_id=None, state_id=state.id
-    )
-    session.add(department)
-    session.flush()
+    organization = _fixture_organization(session, state)
+    department = _fixture_department(session, state, organization)
 
     last_verified_at = datetime.datetime(2026, 8, 1, tzinfo=datetime.UTC)
 

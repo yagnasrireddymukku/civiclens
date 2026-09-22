@@ -22,8 +22,9 @@ from sqlalchemy import Select, and_, func, select
 from sqlalchemy.orm import Session
 
 from app.geography.models import District, State
+from app.institutions.models import Department, Organization
 from app.jobs.enums import EmploymentType, JobPublicationStatus
-from app.jobs.models import Department, Job, JobNotification, JobVacancy, Organization
+from app.jobs.models import Job, JobNotification, JobVacancy
 from app.search import service as search_service
 from app.sources.enums import VerificationStatus
 from app.sources.models import Source

@@ -274,19 +274,76 @@ until the prior phase's acceptance criteria are met and, per
   route if rollback needed.
 
 ## Phase 7 — Government Services
-- **Objective**: Services domain (documents/certificates, service pages).
+- **Objective**: Services domain (second real domain module, following
+  Jobs' Phase 6 pattern exactly) — organizations/departments moved to a
+  shared `app.institutions` module now that Services needs them too.
 - **Dependencies**: Phase 6 pattern established.
-- **Files/modules**: `apps/api/app/services/`, `apps/api/app/documents/`,
-  `apps/web/app/services/`.
-- **Technical work**: Services + documents schema, API, pages, document
-  checklist linkage (Document Intelligence engine, read-only checklist
-  form at this phase).
-- **Tests**: As Phase 6, plus document-checklist correctness tests.
-- **Documentation**: [DATABASE.md](DATABASE.md), [API.md](API.md) updates.
-- **Acceptance criteria**: Fictional test service renders with its document
-  checklist and source; no real data yet.
-- **Risks**: Document taxonomy sprawl — mitigated by starting with the
-  documents actually referenced by real services once ingestion begins.
+- **Files/modules**: `apps/api/app/institutions/` (extracted from
+  `app.jobs`), `apps/api/app/services/` (models, enums, schemas,
+  service, fixtures), `apps/api/app/api/v1/services.py`,
+  `apps/api/scripts/seed_service_fixtures.py`,
+  `apps/web/app/[locale]/services/` (list + `[slug]` detail),
+  `apps/web/lib/services.ts`. A standalone `app/documents/` module was
+  named in this document's original Phase 7 scope line but not built —
+  the document-checklist requirement is satisfied by
+  `service_required_documents`, a child table of `Service` itself
+  (simpler than a separate module, and matches the actual kickoff
+  instructions, which described document requirements as part of the
+  Services domain rather than a standalone one); a general-purpose
+  Document Intelligence capability remains future scope, undisturbed.
+- **Technical work**: `services` carries the same denormalized
+  provenance/visibility pattern as `jobs` (independent `source_id` +
+  `verification_status`/`last_verified_at`, `publication_status` as the
+  one hard visibility gate); `service_category` is a controlled enum
+  (unlike `jobs.category`'s free text — this phase's explicit
+  requirement) plus `service_requirements` (light eligibility-relevant
+  structure: type + optional numeric range + prose, not the eligibility
+  engine itself), `service_required_documents`, and
+  `service_application_methods` as provenance-free child tables.
+  `GET /api/v1/services` (filtered, paged) and
+  `GET /api/v1/services/{slug}` (requirements/documents/methods nested
+  inline) per [API.md](API.md) §14. Services is the *second* real
+  domain to integrate with `search_documents`
+  (`entity_type="service"`, [SEARCH.md](SEARCH.md) §15), proving the
+  Phase 5 search abstraction generalizes rather than being Jobs-specific
+  — verified with a live cross-domain query returning both a job and a
+  service. Frontend list/detail pages reuse the same Phase 4 components
+  Jobs' pages do, plus `GovernmentService` + `BreadcrumbList` JSON-LD
+  (schema.org fit checked against real documented properties, not
+  guessed — [SEO.md](SEO.md) §13).
+- **Tests**: 36 new backend tests (models/constraints, service-layer
+  visibility and search-index sync including cross-domain search, API
+  contract, migration up/down/up-again, fixture loading) plus 15 new
+  frontend tests (list, detail, and filter/pagination controls) — 122
+  backend / 55 frontend tests passing in total, including full Phase
+  0–6 regression.
+- **Documentation**: [DATABASE.md](DATABASE.md) §10, [API.md](API.md)
+  §14, [SEARCH.md](SEARCH.md) §15, [SEO.md](SEO.md) §13,
+  [FRONTEND.md](FRONTEND.md) §12, and [ARCHITECTURE.md](ARCHITECTURE.md)
+  updated with the realized schema, endpoints, search integration, SEO
+  implementation, and the institutions-module extraction.
+- **Acceptance criteria**: A single, clearly-marked synthetic test
+  service (`test-civiclens-service-001`) renders end-to-end — list page,
+  detail page with requirements/documents/application methods, source/
+  verification status visible, findable via `/search` alongside the
+  Phase 6 test job in the same query — verified directly against a live
+  backend and frontend. No real government data entered.
+- **Risks**: Document taxonomy sprawl — mitigated by keeping
+  `service_required_documents` a simple name+description+mandatory
+  list rather than a controlled taxonomy this phase would have to
+  guess at; a real taxonomy is deferred until real services exist to
+  derive one from (Phase 13). Two real problems found and fixed by
+  hand: (1) `Organization`/`Department`'s relationships to `Job`/
+  `Service` are resolved by name against SQLAlchemy's shared registry,
+  which requires every model module to be imported first — a standalone
+  script importing only `app.jobs.fixtures` crashed until every
+  `scripts/seed_*.py` was fixed to import `app.core.db.model_registry`
+  first (the running API server was never affected, since it already
+  imports every domain together). (2) Extending Phase 6's shared-fixture-
+  geography fix: `app/services/fixtures.py` and `app/jobs/fixtures.py`
+  both reference the same fictional organization by name, so both were
+  made to get-or-create it (`organizations.name` is globally unique) —
+  the same class of bug Phase 6 already found and fixed for state.
 - **Rollback**: Additive; feature-flaggable.
 
 ## Phase 8 — Schemes + Scholarships

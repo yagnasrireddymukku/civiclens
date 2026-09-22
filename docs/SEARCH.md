@@ -5,13 +5,14 @@ This document defines the architecture for Engine A, Civic Search, per
 Infrastructure" — [ROADMAP.md](ROADMAP.md)) implemented the search
 infrastructure itself** — the `search_documents` projection, the
 `GET /api/v1/search` endpoint, and the frontend search page. **Phase 6
-made Jobs the first real domain module to call `upsert_search_document`**
-(§14) — every result is still a synthetic fixture (no real government
-data exists yet), but the indexing pipeline itself is exercised by real
-domain code now, not only by `app/search/fixtures.py`. Exams, schemes,
-services, scholarships, representatives, elections, and documents remain
-unindexed; §3 and §12–14 describe what's actually built and are updated
-again as each of those lands.
+made Jobs the first real domain module to call `upsert_search_document`
+(§14), and Phase 7 made Services the second (§15)** — proving the
+abstraction generalizes across domains, not something built once and
+never exercised again. Every result is still a synthetic fixture (no
+real government data exists yet). Exams, schemes, scholarships,
+representatives, elections, and documents remain unindexed; §3 and
+§12–15 describe what's actually built and are updated again as each of
+those lands.
 
 ## 1. Core Principle: Search Is a Projection, Not a System of Record
 
@@ -218,11 +219,13 @@ anything but the disposable index itself.
 - Any *real* domain data — every row in the database today is a
   clearly-fictional fixture, gated to `local`/`test` environments only
   ([DATA_GOVERNANCE.md](DATA_GOVERNANCE.md) §7): `app/search/fixtures.py`
-  (`TEST_JOB`/`TEST_SERVICE`/`TEST_SCHEME`) and, as of Phase 6,
-  `app/jobs/fixtures.py`'s one synthetic job (§14).
-- Exams, schemes, services, scholarships, representatives, elections, and
-  documents indexing anything — Jobs (Phase 6) is the only real domain
-  module calling `upsert_search_document` so far.
+  (`TEST_JOB`/`TEST_SERVICE`/`TEST_SCHEME`), `app/jobs/fixtures.py`'s one
+  synthetic job (§14), and `app/services/fixtures.py`'s one synthetic
+  service (§15).
+- Exams, schemes, scholarships, representatives, elections, and
+  documents indexing anything — Jobs (Phase 6) and Services (Phase 7)
+  are the only real domain modules calling `upsert_search_document` so
+  far.
 - Autocomplete (§4) and any dedicated as-you-type endpoint.
 - Any Meilisearch (or other dedicated search engine) infrastructure — not
   provisioned until a §10 trigger is met and documented.
@@ -291,8 +294,8 @@ anything but the disposable index itself.
 ## 14. Jobs Domain Integration (Phase 6)
 
 Jobs is the first real domain module to index into `search_documents` —
-the pattern every future domain module (schemes, services, scholarships)
-follows:
+the pattern Services (§15) and every future domain module (schemes,
+scholarships) follows:
 
 - `entity_type="job"`, `entity_id=<jobs.id>` (not the raw slug — the
   search abstraction stays domain-agnostic and never assumes a domain
@@ -319,6 +322,34 @@ follows:
   `GET /api/v1/search?q=...` with `entity_type: "job"` and the job's own
   `route` in the result (`tests/test_jobs/test_api.py::
   test_indexed_job_is_findable_via_the_generic_search_endpoint`).
+
+## 15. Services Domain Integration (Phase 7)
+
+Services is the second real domain module to index into
+`search_documents`, and the first proof that §14's pattern actually
+generalizes rather than being Jobs-specific:
+
+- `entity_type="service"`, `entity_id=<services.id>` — same
+  domain-agnostic shape as Jobs, no special-casing.
+- `sync_service_search_index()` (`app/services/service.py`) mirrors
+  `sync_job_search_index()` exactly: indexes when
+  `publication_status="PUBLISHED"` and `verification_status` is
+  `VERIFIED`/`NEEDS_REVIEW` (the identical rule
+  `app/services/service.py`'s own read path enforces), removes
+  otherwise.
+- `route="/services/{slug}"`, `locale=service.locale`,
+  `searchable_text` combines `target_audience`/`service_type` (fields
+  not otherwise weighted into `title`/`summary`), `category` is the
+  enum's string value (`service.category.value`) since
+  `search_documents.category` is a plain text column.
+- Verified directly: a service indexed this way is findable via
+  `GET /api/v1/search?q=...` with `entity_type: "service"` and the
+  service's own `route` in the result
+  (`tests/test_services/test_api.py::
+  test_indexed_service_is_findable_via_the_generic_search_endpoint`),
+  and a single query can return both a job and a service result
+  together (`test_cross_domain_search_returns_both_jobs_and_services`)
+  — verified live end-to-end as well as via automated tests.
 
 This document is updated again with real query patterns as each further
 domain module starts calling `upsert_search_document`, per

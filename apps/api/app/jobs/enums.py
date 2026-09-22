@@ -1,4 +1,5 @@
-"""Government Jobs domain enums — see docs/DATABASE.md §2.2-§2.3.
+"""Government Jobs domain enums — see docs/DATABASE.md §2.3.
+`OrganizationType` moved to `app.institutions.enums` in Phase 7.
 
 Three distinct "status"-shaped concepts exist across this module,
 deliberately kept separate rather than collapsed into one:
@@ -17,12 +18,6 @@ deliberately kept separate rather than collapsed into one:
 """
 
 import enum
-
-
-class OrganizationType(enum.StrEnum):
-    CENTRAL = "CENTRAL"
-    STATE = "STATE"
-    AUTONOMOUS_BODY = "AUTONOMOUS_BODY"
 
 
 class EmploymentType(enum.StrEnum):

@@ -8,7 +8,8 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.jobs.models import Job, JobNotification, JobVacancy, Organization
+from app.institutions.models import Organization
+from app.jobs.models import Job, JobNotification, JobVacancy
 from tests.test_jobs._helpers import (
     make_department,
     make_district,

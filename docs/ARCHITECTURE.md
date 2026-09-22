@@ -101,10 +101,14 @@ civiclens/
 │       ├── alembic/         # migrations (Phase 3+)
 │       └── app/
 │           ├── geography/    # states/districts/constituencies (Phase 3+)
-│           ├── jobs/ exams/ schemes/ services/ scholarships/
+│           ├── institutions/ # organizations/departments (Phase 6+) —
+│           │                 # shared by jobs/services/future domains,
+│           │                 # the same role geography/ plays
+│           ├── jobs/ (Phase 6+) exams/ schemes/ services/ (Phase 7+)
+│           │   scholarships/
 │           ├── representatives/ elections/
 │           ├── eligibility/ documents/
-│           ├── search/ ai/ tracking/ notifications/
+│           ├── search/ (Phase 5+) ai/ tracking/ notifications/
 │           ├── sources/            # source & verification records (Phase 3+)
 │           ├── users/ auth/          # identity Phase 3+, auth flows later
 │           └── core/               # settings, db/ (engine, session, base,
@@ -117,8 +121,10 @@ civiclens/
 │   │                        # component-reuse need exists (FRONTEND.md §12)
 │   └── config/              # shared tsconfig base
 ├── scripts/                  # repo-level dev scripts
-├── services/
-│   └── ingestion/            # data ingestion & change-detection (Phase 13+)
+├── services/                 # not to be confused with apps/api/app/services/
+│   └── ingestion/            # (the Government Services *domain*, Phase 7+)
+│                              # — this is the data ingestion &
+│                              # change-detection *microservice* (Phase 13+)
 ├── infra/                    # Docker, IaC, deployment config
 ├── docs/                      # this documentation
 └── CLAUDE.md, README.md

@@ -1,13 +1,12 @@
-"""Government Jobs domain — see docs/DATABASE.md §2.2-§2.3, docs/ROADMAP.md
+"""Government Jobs domain — see docs/DATABASE.md §2.3, docs/ROADMAP.md
 Phase 6. The first real CivicLens domain module; its shape is the pattern
-future domains (Services, Schemes, Scholarships) follow.
+Services (Phase 7) and future domains (Schemes, Scholarships) follow.
 
-Organization/Department are treated as administrative reference data, the
-same way geography (`app/geography/models.py`) is — no `source_id`, per
-the existing precedent that non-evolving institutional facts don't need
-per-row provenance. Job/JobNotification are the evolving facts: each
-carries its own `source_id` (`NOT NULL`, `RESTRICT` — a source can't be
-deleted out from under a fact that cites it) and a denormalized
+`Organization`/`Department` (docs/DATABASE.md §2.2) moved to
+`app.institutions.models` in Phase 7, once Services needed them too —
+see that module's docstring. Job/JobNotification are the evolving facts:
+each carries its own `source_id` (`NOT NULL`, `RESTRICT` — a source
+can't be deleted out from under a fact that cites it) and a denormalized
 `verification_status`/`last_verified_at` pair, mirroring
 `search_documents`'s Phase 5 pattern, so "Last verified: DATE" (a hard
 product requirement, docs/DATA_GOVERNANCE.md §4) never needs a join. The
@@ -26,60 +25,14 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, Enum, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Date, DateTime, Enum, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
-from app.jobs.enums import (
-    EmploymentType,
-    JobNotificationStatus,
-    JobPublicationStatus,
-    OrganizationType,
-)
+from app.institutions.models import Department, Organization
+from app.jobs.enums import EmploymentType, JobNotificationStatus, JobPublicationStatus
 from app.sources.enums import VerificationStatus
-
-
-class Organization(UUIDPrimaryKeyMixin, TimestampMixin, Base):
-    """A recruiting board, university, or corporation (e.g. APPSC, TSPSC).
-    Reference data, not a fact needing its own provenance — see module
-    docstring."""
-
-    __tablename__ = "organizations"
-
-    name: Mapped[str] = mapped_column(String(200), nullable=False, unique=True)
-    org_type: Mapped[OrganizationType] = mapped_column(
-        Enum(OrganizationType, name="organization_type", native_enum=True), nullable=False
-    )
-    # Nullable: a central/national body isn't scoped to one state.
-    state_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("states.id", ondelete="SET NULL"), nullable=True, index=True
-    )
-    website_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
-
-    jobs: Mapped[list[Job]] = relationship(back_populates="organization")
-
-
-class Department(UUIDPrimaryKeyMixin, TimestampMixin, Base):
-    """A government department issuing recruitment (or, in future phases,
-    schemes/services) — may or may not sit under a parent `Organization`
-    (e.g. a state's "Home Department" often issues its own notices
-    directly)."""
-
-    __tablename__ = "departments"
-    __table_args__ = (
-        UniqueConstraint("organization_id", "name", name="uq_departments_organization_name"),
-    )
-
-    name: Mapped[str] = mapped_column(String(200), nullable=False)
-    organization_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True, index=True
-    )
-    state_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("states.id", ondelete="SET NULL"), nullable=True, index=True
-    )
-
-    jobs: Mapped[list[Job]] = relationship(back_populates="department")
 
 
 class Job(UUIDPrimaryKeyMixin, TimestampMixin, Base):

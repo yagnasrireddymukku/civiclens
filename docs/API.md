@@ -228,11 +228,11 @@ request → get_db dependency (opens a Session) → route/service function
 
 ## 12. Explicitly Not Built Yet
 
-- Any domain-content business route beyond Jobs (exams, schemes,
-  services, scholarships, representatives, elections, eligibility,
+- Any domain-content business route beyond Jobs and Services (exams,
+  schemes, scholarships, representatives, elections, eligibility,
   tracking, AI) or its request/response models — `health`/`health/ready`
-  (§11), `/search` (Phase 5, [SEARCH.md](SEARCH.md) §12), and `/jobs`
-  (Phase 6, §13) exist so far.
+  (§11), `/search` (Phase 5, [SEARCH.md](SEARCH.md) §12), `/jobs`
+  (Phase 6, §13), and `/services` (Phase 7, §14) exist so far.
 - Concrete rate-limit thresholds, cache headers, or CDN interaction rules
   (deferred to [SECURITY.md](SECURITY.md) / [ARCHITECTURE.md](ARCHITECTURE.md)
   performance work in later phases).
@@ -268,6 +268,34 @@ The first real domain module, following every convention above:
 - See [DATABASE.md](DATABASE.md) §9 for the schema and
   [SEARCH.md](SEARCH.md) for how a published job also becomes a search
   result (`entity_type="job"`).
+
+## 14. Services Domain (Phase 7)
+
+The second real domain module, mirroring §13's Jobs conventions exactly:
+
+- `GET /api/v1/services` — filters: `state_id`, `district_id`,
+  `organization_id`, `department_id`, `category` (enum, unlike Jobs'
+  free-text `category` — Services uses a controlled taxonomy),
+  `delivery_mode` (enum), `status` (free text, exact match),
+  `date_from`/`date_to` (against `last_verified_at`); `page`/`page_size`
+  (§6); `sort` (a `Literal` with one value, `"recent"`, matching §13's
+  identical no-popularity-ranking rationale). Deliberately has **no
+  free-text `q` parameter**, for the same reason as `/jobs` — full-text
+  search already exists at `/search` with `entity_type=service`.
+- `GET /api/v1/services/{slug}` — `slug` is the public identifier.
+  Returns `requirements`/`required_documents`/`application_methods`
+  nested inline (each a small, provenance-free child list — see
+  [DATABASE.md](DATABASE.md) §10) rather than separate sub-resource
+  endpoints, for the same "one response, no extra round trips" reasoning
+  as `/jobs/{slug}`'s nested notifications.
+- Same visibility rule as Jobs (§13): `publication_status="PUBLISHED"`
+  and `verification_status` `VERIFIED`/`NEEDS_REVIEW`, or an identical
+  404 — never distinguishing "doesn't exist" from "not yet published."
+- See [DATABASE.md](DATABASE.md) §10 for the schema and
+  [SEARCH.md](SEARCH.md) for how a published service also becomes a
+  search result (`entity_type="service"`), the second real domain to do
+  so (proving the Phase 5 search abstraction generalizes across domains,
+  not just for Jobs).
 
 This document defines the target API conventions for Phase 2 onward; each
 domain phase (6–9, 10–12) implements against it and updates this document

@@ -168,3 +168,112 @@ export const jobListResponseSchema = z.object({
 
 export type JobDetailInput = z.infer<typeof jobDetailSchema>;
 export type JobListResponseInput = z.infer<typeof jobListResponseSchema>;
+
+/**
+ * Mirrors `apps/api/app/services/schemas.py` exactly (Phase 7). Reuses
+ * `sourceSummarySchema`/`organizationSummarySchema`/
+ * `departmentSummarySchema`/`paginationMetaSchema` above.
+ */
+export const serviceCategorySchema = z.enum([
+  "CERTIFICATES",
+  "DOCUMENTS",
+  "WELFARE",
+  "EDUCATION",
+  "HEALTHCARE",
+  "AGRICULTURE",
+  "EMPLOYMENT",
+  "BUSINESS",
+  "TRANSPORT",
+  "MUNICIPAL",
+  "REVENUE",
+  "SOCIAL_SECURITY",
+  "IDENTITY",
+  "UTILITIES",
+  "OTHER",
+]);
+
+export const deliveryModeSchema = z.enum(["ONLINE", "OFFLINE", "BOTH"]);
+
+export const requirementTypeSchema = z.enum(["AGE", "RESIDENCY", "INCOME", "OCCUPATION", "OTHER"]);
+
+export const applicationChannelTypeSchema = z.enum([
+  "ONLINE",
+  "OFFLINE",
+  "MOBILE_APP",
+  "MEESEVA",
+  "DEPARTMENT_PORTAL",
+  "SERVICE_CENTER",
+  "IN_PERSON",
+  "OTHER",
+]);
+
+export const serviceListItemSchema = z.object({
+  slug: z.string(),
+  name: z.string(),
+  organization: organizationSummarySchema,
+  department: departmentSummarySchema.nullable(),
+  short_description: z.string().nullable(),
+  category: serviceCategorySchema,
+  service_type: z.string().nullable(),
+  delivery_mode: deliveryModeSchema,
+  state: z.string().nullable(),
+  district: z.string().nullable(),
+  status: z.string().nullable(),
+  verification_status: verificationStatusSchema,
+  last_verified: z.string().nullable(),
+  source: sourceSummarySchema,
+});
+
+export const requirementSummarySchema = z.object({
+  requirement_type: requirementTypeSchema,
+  description: z.string(),
+  min_value: z.number().nullable(),
+  max_value: z.number().nullable(),
+});
+
+export const requiredDocumentSummarySchema = z.object({
+  name: z.string(),
+  description: z.string().nullable(),
+  is_mandatory: z.boolean(),
+});
+
+export const applicationMethodSummarySchema = z.object({
+  channel_type: applicationChannelTypeSchema,
+  url: z.string().nullable(),
+  instructions: z.string().nullable(),
+});
+
+export const serviceDetailSchema = z.object({
+  slug: z.string(),
+  name: z.string(),
+  organization: organizationSummarySchema,
+  department: departmentSummarySchema.nullable(),
+  short_description: z.string().nullable(),
+  description: z.string().nullable(),
+  category: serviceCategorySchema,
+  service_type: z.string().nullable(),
+  target_audience: z.string().nullable(),
+  delivery_mode: deliveryModeSchema,
+  state: z.string().nullable(),
+  district: z.string().nullable(),
+  official_service_url: z.string().nullable(),
+  application_url: z.string().nullable(),
+  fee_summary: z.string().nullable(),
+  processing_time_summary: z.string().nullable(),
+  location_summary: z.string().nullable(),
+  status: z.string().nullable(),
+  verification_status: verificationStatusSchema,
+  last_verified: z.string().nullable(),
+  source: sourceSummarySchema,
+  requirements: z.array(requirementSummarySchema),
+  required_documents: z.array(requiredDocumentSummarySchema),
+  application_methods: z.array(applicationMethodSummarySchema),
+});
+
+export const serviceListResponseSchema = z.object({
+  results: z.array(serviceListItemSchema),
+  pagination: paginationMetaSchema,
+});
+
+export type ServiceDetailInput = z.infer<typeof serviceDetailSchema>;
+export type ServiceListResponseInput = z.infer<typeof serviceListResponseSchema>;
