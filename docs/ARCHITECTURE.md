@@ -127,7 +127,7 @@ civiclens/
 │   │                        # land (API.md §10); shared TS types
 │   ├── validation/          # shared Zod validation schemas
 │   ├── ui/                  # reserved — empty until a real cross-app
-│   │                        # component-reuse need exists (FRONTEND.md §12)
+│   │                        # component-reuse need exists (FRONTEND.md §13)
 │   └── config/              # shared tsconfig base
 ├── scripts/                  # repo-level dev scripts
 ├── services/                 # not to be confused with apps/api/app/services/

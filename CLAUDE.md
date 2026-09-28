@@ -32,23 +32,38 @@ after Phase 12, still without its own phase number: this document does
 not guess at a sequencing decision that belongs to explicit
 product-owner approval) and [docs/DATABASE.md](docs/DATABASE.md)
 §17-18. Its commits use a `tracking-notifications:` prefix rather than
-a `phase-N:` one for the same reason. Change-detected notifications are
-wired and tested but gated on `ChangeRecord.review_status ==
-APPROVED`, which nothing in this codebase can set yet outside a test —
-that capability is Phase 13's job (below), not a bug in this work. One
-feature, originally planned as Phase 9 (Public Representatives +
+a `phase-N:` one for the same reason.
+
+**Phase 13 — Admin Intelligence Center — is now partially realized.**
+Change-detected notifications, wired and tested by Tracking +
+Notifications but previously gated on a `ChangeRecord.review_status`
+nothing could set, can now actually be set: `app.admin` adds a
+`require_role`-gated (`app.auth.dependencies`) review console —
+listing and approving/rejecting `ChangeRecord`s (which then calls the
+existing notification generator), and submitting `VerificationRecord`
+decisions that update an entity's own `verification_status` and
+re-sync its search-index membership. **This is only half of this
+phase's original sketch.** The other half — `services/ingestion/`,
+live source fetching, and per-source legal-checklist onboarding —
+remains entirely unbuilt, per this phase's own explicit exclusion of
+"uncontrolled web scraping or automatic publication." See
+[docs/ROADMAP.md](docs/ROADMAP.md)'s Phase 13 entry for the full
+scope-difference note and [docs/DATABASE.md](docs/DATABASE.md) §19.
+
+One feature, originally planned as Phase 9 (Public Representatives +
 Elections), remains rescheduled — its scope is unchanged but it has no
 new phase number yet; see the rescheduling note in
 [docs/ROADMAP.md](docs/ROADMAP.md) after the Phase 9 entry (the Civic
 AI + RAG feature's own earlier "rescheduled from Phase 11" placeholder
 is likewise resolved — it is Phase 12, realized). The project is now
-awaiting approval to begin its next phase (Phase 13, Admin Intelligence
-Center, or Representatives + Elections). Real government data still
-does not exist and must not be added
-until the project explicitly enters a real-data phase (Phase 13, per
-[docs/DATA_SOURCES.md](docs/DATA_SOURCES.md)) — every domain module
-built so far uses clearly-synthetic fixtures only, gated to `local`/
-`test` environments (see
+awaiting approval to begin its next phase (the ingestion-pipeline half
+of Phase 13, or Representatives + Elections). Real government data
+still does not exist and must not be added until the project explicitly
+completes that ingestion-pipeline half (still Phase 13, per
+[docs/DATA_SOURCES.md](docs/DATA_SOURCES.md) — the review console
+alone does not satisfy that gate, since it has no fetch step to gate)
+— every domain module built so far uses clearly-synthetic fixtures
+only, gated to `local`/`test` environments (see
 [docs/DATA_GOVERNANCE.md](docs/DATA_GOVERNANCE.md) §7).
 
 ## Non-Negotiable Rules

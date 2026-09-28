@@ -731,3 +731,130 @@ export interface NotificationListResponse {
   pagination: PaginationMeta;
   unread_count: number;
 }
+
+/**
+ * Mirrors `apps/api/app/admin/schemas.py`, `apps/api/app/admin/enums.py`,
+ * and `apps/api/app/sources/enums.py` exactly (Phase 13, Admin
+ * Intelligence Center — see docs/ROADMAP.md's Phase 13 entry for this
+ * phase's narrower-than-originally-sketched scope: review/approval of
+ * already-detected changes and entity verification, not a live
+ * ingestion pipeline). `AdminEntityType` deliberately does NOT reuse
+ * `TrackedEntityType` above even though the string values are
+ * identical — matching that type's own precedent (each module that
+ * needs this small vocabulary defines its own copy, CLAUDE.md rule 12).
+ */
+export type AdminEntityType = "job" | "service" | "scheme" | "document";
+
+export type ChangeReviewStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+export interface EntityDisplaySummary {
+  title: string | null;
+  route: string | null;
+  verification_status: VerificationStatus | null;
+  source_organization: string | null;
+}
+
+export interface ChangeRecordItem {
+  id: string;
+  entity_type: string;
+  entity_id: string;
+  field: string;
+  old_value: string | null;
+  new_value: string | null;
+  detected_at: string;
+  review_status: ChangeReviewStatus;
+  reviewed_by: string | null;
+  applied_at: string | null;
+  entity: EntityDisplaySummary;
+}
+
+export interface ChangeRecordListResponse {
+  results: ChangeRecordItem[];
+  pagination: PaginationMeta;
+}
+
+export interface VerificationQueueItem {
+  entity_type: AdminEntityType;
+  entity_id: string;
+  title: string;
+  route: string;
+  verification_status: VerificationStatus;
+  last_verified: string | null;
+  source_organization: string | null;
+}
+
+export interface VerificationQueueResponse {
+  results: VerificationQueueItem[];
+  pagination: PaginationMeta;
+}
+
+export interface VerificationRecordItem {
+  id: string;
+  entity_type: string;
+  entity_id: string;
+  source_id: string;
+  status: VerificationStatus;
+  verified_by: string | null;
+  verified_at: string | null;
+  review_due_at: string | null;
+}
+
+export interface AdminSourceSummary {
+  id: string;
+  url: string;
+  title: string;
+  organization: string;
+  source_type: string;
+  published_date: string | null;
+  retrieved_date: string;
+  version_count: number;
+}
+
+export interface AdminSourceListResponse {
+  results: AdminSourceSummary[];
+  pagination: PaginationMeta;
+}
+
+export interface AdminSourceVersionSummary {
+  id: string;
+  content_hash: string;
+  snapshot_ref: string | null;
+  captured_at: string;
+}
+
+export interface AdminSourceDetailResponse {
+  id: string;
+  url: string;
+  title: string;
+  organization: string;
+  source_type: string;
+  published_date: string | null;
+  retrieved_date: string;
+  versions: AdminSourceVersionSummary[];
+}
+
+export interface RecentChangeDecision {
+  id: string;
+  entity_type: string;
+  entity_id: string;
+  field: string;
+  review_status: ChangeReviewStatus;
+  reviewed_by: string | null;
+  applied_at: string | null;
+}
+
+export interface RecentVerification {
+  id: string;
+  entity_type: string;
+  entity_id: string;
+  status: VerificationStatus;
+  verified_by: string | null;
+  verified_at: string | null;
+}
+
+export interface AdminDashboardResponse {
+  pending_change_records: number;
+  verification_status_counts: Partial<Record<VerificationStatus, number>>;
+  recent_change_decisions: RecentChangeDecision[];
+  recent_verifications: RecentVerification[];
+}

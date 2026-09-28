@@ -6,6 +6,17 @@ is the target architecture for Phase 13 (Admin Intelligence Center) onward,
 though the `sources`/`verification_records` schema exists from Phase 3
 because every domain table depends on it.
 
+**Phase 13 shipped its review/approval console (§4's human-in-the-loop
+requirement, `apps/api/app/admin/`, `apps/web/app/[locale]/admin/`)
+without shipping this document's ingestion pipeline (§3) — that
+remains exactly as unbuilt as this paragraph already said.** An
+`editor`/`admin` can now review a `ChangeRecord` (produced by Tracking
++ Notifications' `detect_changes`, not by any fetch step) and record a
+`VerificationRecord` decision with real evidence; nothing here fetches
+from an external source, onboards one, or runs any pipeline stage
+below. See [ROADMAP.md](ROADMAP.md)'s Phase 13 entry for the full
+scope-difference note.
+
 ## 1. Potential Future Sources
 
 - Official government websites and department portals

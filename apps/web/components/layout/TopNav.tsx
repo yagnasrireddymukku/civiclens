@@ -79,6 +79,11 @@ export function TopNav() {
           <LanguageSwitcher />
           {!loading && user ? (
             <div className={styles.userArea}>
+              {(user.role === "editor" || user.role === "admin") && (
+                <Link href="/admin" className={styles.userAreaLink}>
+                  {t("Shell.adminLink")}
+                </Link>
+              )}
               <Link href="/dashboard/tracking" className={styles.userAreaLink}>
                 {t("Shell.dashboardLink")}
               </Link>

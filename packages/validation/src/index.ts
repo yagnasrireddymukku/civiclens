@@ -753,3 +753,137 @@ export const notificationListResponseSchema = z.object({
 });
 
 export type NotificationListResponseInput = z.infer<typeof notificationListResponseSchema>;
+
+/**
+ * Mirrors `apps/api/app/admin/schemas.py`, `apps/api/app/admin/enums.py`,
+ * and `apps/api/app/sources/enums.py` exactly (Phase 13, Admin
+ * Intelligence Center). `paginationMetaSchema`/`verificationStatusSchema`
+ * above are reused as-is.
+ */
+export const adminEntityTypeSchema = z.enum(["job", "service", "scheme", "document"]);
+
+export const changeReviewStatusSchema = z.enum(["PENDING", "APPROVED", "REJECTED"]);
+
+export const entityDisplaySummarySchema = z.object({
+  title: z.string().nullable(),
+  route: z.string().nullable(),
+  verification_status: verificationStatusSchema.nullable(),
+  source_organization: z.string().nullable(),
+});
+
+export const changeRecordItemSchema = z.object({
+  id: z.string(),
+  entity_type: z.string(),
+  entity_id: z.string(),
+  field: z.string(),
+  old_value: z.string().nullable(),
+  new_value: z.string().nullable(),
+  detected_at: z.string(),
+  review_status: changeReviewStatusSchema,
+  reviewed_by: z.string().nullable(),
+  applied_at: z.string().nullable(),
+  entity: entityDisplaySummarySchema,
+});
+
+export const changeRecordListResponseSchema = z.object({
+  results: z.array(changeRecordItemSchema),
+  pagination: paginationMetaSchema,
+});
+
+export type ChangeRecordListResponseInput = z.infer<typeof changeRecordListResponseSchema>;
+
+export const verificationQueueItemSchema = z.object({
+  entity_type: adminEntityTypeSchema,
+  entity_id: z.string(),
+  title: z.string(),
+  route: z.string(),
+  verification_status: verificationStatusSchema,
+  last_verified: z.string().nullable(),
+  source_organization: z.string().nullable(),
+});
+
+export const verificationQueueResponseSchema = z.object({
+  results: z.array(verificationQueueItemSchema),
+  pagination: paginationMetaSchema,
+});
+
+export type VerificationQueueResponseInput = z.infer<typeof verificationQueueResponseSchema>;
+
+export const verificationRecordItemSchema = z.object({
+  id: z.string(),
+  entity_type: z.string(),
+  entity_id: z.string(),
+  source_id: z.string(),
+  status: verificationStatusSchema,
+  verified_by: z.string().nullable(),
+  verified_at: z.string().nullable(),
+  review_due_at: z.string().nullable(),
+});
+
+export type VerificationRecordItemInput = z.infer<typeof verificationRecordItemSchema>;
+
+export const adminSourceSummarySchema = z.object({
+  id: z.string(),
+  url: z.string(),
+  title: z.string(),
+  organization: z.string(),
+  source_type: z.string(),
+  published_date: z.string().nullable(),
+  retrieved_date: z.string(),
+  version_count: z.number(),
+});
+
+export const adminSourceListResponseSchema = z.object({
+  results: z.array(adminSourceSummarySchema),
+  pagination: paginationMetaSchema,
+});
+
+export type AdminSourceListResponseInput = z.infer<typeof adminSourceListResponseSchema>;
+
+export const adminSourceVersionSummarySchema = z.object({
+  id: z.string(),
+  content_hash: z.string(),
+  snapshot_ref: z.string().nullable(),
+  captured_at: z.string(),
+});
+
+export const adminSourceDetailResponseSchema = z.object({
+  id: z.string(),
+  url: z.string(),
+  title: z.string(),
+  organization: z.string(),
+  source_type: z.string(),
+  published_date: z.string().nullable(),
+  retrieved_date: z.string(),
+  versions: z.array(adminSourceVersionSummarySchema),
+});
+
+export type AdminSourceDetailResponseInput = z.infer<typeof adminSourceDetailResponseSchema>;
+
+export const recentChangeDecisionSchema = z.object({
+  id: z.string(),
+  entity_type: z.string(),
+  entity_id: z.string(),
+  field: z.string(),
+  review_status: changeReviewStatusSchema,
+  reviewed_by: z.string().nullable(),
+  applied_at: z.string().nullable(),
+});
+
+export const recentVerificationSchema = z.object({
+  id: z.string(),
+  entity_type: z.string(),
+  entity_id: z.string(),
+  status: verificationStatusSchema,
+  verified_by: z.string().nullable(),
+  verified_at: z.string().nullable(),
+});
+
+export const adminDashboardResponseSchema = z.object({
+  pending_change_records: z.number(),
+  verification_status_counts: z.record(verificationStatusSchema, z.number()),
+  recent_change_decisions: z.array(recentChangeDecisionSchema),
+  recent_verifications: z.array(recentVerificationSchema),
+});
+
+export type AdminDashboardResponseInput = z.infer<typeof adminDashboardResponseSchema>;

@@ -2,13 +2,15 @@
 here as each lands, per docs/API.md §3 and docs/ROADMAP.md.
 `health` (Phase 1), `search` (Phase 5), `jobs` (Phase 6), `services`
 (Phase 7), `schemes` (Phase 8), `documents` (Phase 10), `eligibility`
-(Phase 11), `ai` (Phase 12), and `auth`/`tracking`/`notifications`
-(Tracking + Notifications, rescheduled from Phase 12) exist so far.
+(Phase 11), `ai` (Phase 12), `auth`/`tracking`/`notifications`
+(Tracking + Notifications, rescheduled from Phase 12), and `admin`
+(Phase 13, Admin Intelligence Center) exist so far.
 """
 
 from fastapi import APIRouter
 
 from app.api.v1 import (
+    admin,
     ai,
     auth,
     documents,
@@ -34,3 +36,4 @@ api_router.include_router(ai.router)
 api_router.include_router(auth.router)
 api_router.include_router(tracking.router)
 api_router.include_router(notifications.router)
+api_router.include_router(admin.router)

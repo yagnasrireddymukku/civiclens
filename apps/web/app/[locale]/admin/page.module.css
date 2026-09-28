@@ -1,0 +1,149 @@
+/* Shared across every /admin/* page (dashboard, change-records,
+   verification, sources) — one stylesheet for a set of pages that all
+   render the same section/list/card shapes, rather than four
+   near-identical copies. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding-block: var(--space-8);
+}
+
+.title {
+  font: var(--text-h1);
+  color: var(--color-text-primary);
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font: var(--text-body);
+  color: var(--color-text-secondary);
+}
+
+.errorText {
+  font: var(--text-body);
+  color: var(--color-error);
+}
+
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.sectionHeadingRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.sectionHeading {
+  font: var(--text-h3);
+  color: var(--color-text-primary);
+}
+
+.metricCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-width: 16rem;
+}
+
+.metricValue {
+  font: var(--text-h1);
+  color: var(--color-primary);
+}
+
+.metricLabel {
+  font: var(--text-body-small);
+  color: var(--color-text-secondary);
+}
+
+.distributionList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  list-style: none;
+}
+
+.distributionItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.distributionCount {
+  font: var(--text-h4);
+  color: var(--color-text-primary);
+}
+
+.emptyState {
+  font: var(--text-body);
+  color: var(--color-text-muted);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  list-style: none;
+}
+
+.listItem {
+  list-style: none;
+}
+
+.itemRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font: var(--text-body);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.itemMeta {
+  font: var(--text-body-small);
+  color: var(--color-text-secondary);
+}
+
+.itemBody {
+  font: var(--text-body-small);
+  color: var(--color-text-primary);
+}
+
+.itemActions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.filterRow {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 24rem;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+}

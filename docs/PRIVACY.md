@@ -199,6 +199,20 @@ end-to-end" as acceptance criteria:
   inactive-account/notification-retention pruning job — nothing prunes
   old read notifications automatically today, so §6's "eligible for
   deletion" is a stated policy, not yet an enforced one.
+- **Realized (Phase 13, review/approval half):** the admin console
+  (`app.admin`, `/api/v1/admin/*`) exposes no other user's personal
+  data to an `editor`/`admin` reviewer — it reads/writes
+  `ChangeRecord`/`VerificationRecord`/entity rows only (public facts
+  and their review metadata), never a `TrackedItem`, `Notification`,
+  or another user's `email`/preferences. `ChangeRecord.reviewed_by`/
+  `VerificationRecord.verified_by` record the *reviewer's* own id (an
+  `editor`/`admin`, acting in a work capacity, not a citizen using the
+  product) — the same distinction [SECURITY.md](SECURITY.md) §9 draws
+  between the data-change audit trail and personal user data. No
+  admin route accepts or returns request-body content that gets
+  logged beyond the standard request-id/status logging every route
+  already has (this phase's explicit "avoid logging ... unnecessary
+  review content").
 - No account settings UI, deletion flow, or export endpoint exists yet.
 - No consent-management UI or audit-log anonymization job exists yet.
 - No legal compliance review against a specific Indian data-protection

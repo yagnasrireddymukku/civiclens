@@ -96,6 +96,18 @@ class Settings(BaseSettings):
     email_base_url: str = "https://api.resend.com"
     email_timeout_seconds: float = 20.0
 
+    # Admin Intelligence Center. Same disclosed-MVP posture as
+    # `ai_rate_limit_*` above (docs/SECURITY.md §14): an in-process,
+    # single-instance sliding window, this time keyed by authenticated
+    # user id rather than IP (every admin route requires
+    # authentication, so the user id is always available and is a
+    # tighter key than a shared office/NAT IP). Not shared code with
+    # `app.ai.rate_limit` — a second small, disclosed MVP limiter
+    # rather than a shared abstraction extracted for two callers
+    # (CLAUDE.md rule 12).
+    admin_rate_limit_requests: int = 20
+    admin_rate_limit_window_seconds: float = 60.0
+
     @property
     def cookies_secure(self) -> bool:
         return self.app_env in ("staging", "production")

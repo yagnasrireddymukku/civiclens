@@ -364,7 +364,70 @@ mistakable for real civic information:
   Next.js dev server against a real running API — the live smoke test
   above is what stands in for that at the backend/HTTP-contract level.
 
-## 17. CI Requirements
+## 17. Admin Intelligence Center Tests — Realized (Phase 13, review/approval half only)
+
+- **Backend** (`apps/api/tests/test_admin` — 41 tests, part of 536
+  passing in the full backend suite): RBAC (401 signed-out/403 plain
+  `user`/200 `editor`/200 `admin`, across every route and via two
+  independent authenticated sessions confirming role never leaks
+  between them — the same two-`TestClient`-instances isolation pattern
+  §16 established); `ChangeRecord` listing/filtering with joined
+  entity display data, including the case where the referenced entity
+  has since been deleted; approve/reject with reviewer/timestamp
+  recording; invalid-transition rejection (approving an already-
+  rejected record and vice versa, `409`) distinguished from idempotent
+  re-decision (re-approving an already-approved record, `200`, no
+  duplicate notification — a dedicated test asserts exactly one
+  `Notification` row survives two approve calls); the approve ->
+  notification-generation integration, and its absence on reject;
+  the verification queue's default membership (`NEEDS_REVIEW`/
+  `UNVERIFIED`) and entity-type filtering; `submit_verification`
+  updating both the `VerificationRecord` and the entity's own
+  `verification_status` in one transaction, re-syncing its search-
+  index membership (asserted by checking `search_documents` directly,
+  both appearing and disappearing depending on the submitted status);
+  rejection of a nonexistent entity/source (evidence that doesn't
+  resolve to a real row is treated as no evidence); read-only source
+  listing/detail with version counts/history; dashboard metrics
+  reflecting real inserted data, never a fabricated number; the
+  admin-route rate limiter returning `429` with `Retry-After` after
+  the configured request count.
+- **Frontend** (`apps/web` — 22 new tests: 5 new Vitest files —
+  `AdminGate`, `AdminDashboard`, `ChangeRecordsReview`,
+  `VerificationQueue`, `AdminSources` — plus 2 tests added to the
+  existing `TopNav` suite; the full frontend suite grew from 139 to
+  161 passing tests):
+  the RBAC gate's three non-authorized states (loading, signed-out,
+  wrong role) never render the protected children, verified directly
+  by asserting the children's text is absent from the DOM, not merely
+  that a different message is present; the dashboard's real-metrics
+  rendering and empty/error states; the review queue's approve action
+  removing the now-stale action buttons once a record is decided, and
+  its "entity no longer available" fallback for a deleted entity's
+  change record; the verification form's evidence requirement (submit
+  disabled until a source is selected) and success confirmation; the
+  source browser's expandable version history; `TopNav`'s admin-link
+  visibility (present for `editor`/`admin`, absent for `user`).
+- **Live smoke test**: extends §16's pattern — the same self-contained
+  real-ad-hoc-PostgreSQL script now also registers an `editor` user
+  directly (never through the public registration endpoint, which
+  cannot grant a role — "never trust role information supplied by the
+  client" applies to test setup too, not just production code),
+  confirms an ordinary user is denied every admin route, walks a real
+  `ChangeRecord` through detection -> queue -> approve ->
+  notification -> idempotent-retry -> invalid-transition, then a real
+  `VerificationRecord` submission through entity-update ->
+  search-index-resync -> evidence-requirement-rejection ->
+  fabricated-evidence-rejection, and confirms source browsing and
+  cross-role denial. Every check passed.
+- **Not covered**: pipeline stage unit tests (this entry's kickoff
+  originally asked for these) — **not applicable**, no ingestion
+  pipeline exists to test (see [ROADMAP.md](ROADMAP.md)'s Phase 13
+  entry for the scope-difference note). No Playwright E2E test for the
+  sign-in -> review -> approve browser flow, for the same reason §16
+  gives.
+
+## 18. CI Requirements
 
 **Every pull request** (fast feedback, target: single-digit minutes):
 backend unit + integration tests, frontend unit/component tests
@@ -378,7 +441,7 @@ every PR); search relevance regression against a larger corpus (§7);
 accessibility manual-spot-check reminders (§12); performance/load tests
 (§14, once Phase 16 ships, plus on any PR touching a hot path).
 
-## 18. Explicitly Not Built Yet
+## 19. Explicitly Not Built Yet
 
 - Domain-table tests (jobs, schemes, representatives, ...) — those tables
   don't exist yet (Phases 6–9); only geography/provenance/users have
@@ -386,10 +449,12 @@ accessibility manual-spot-check reminders (§12); performance/load tests
 - A live-model AI evaluation harness against a real fixture corpus with
   a product-owner-set accuracy bar (§8) — the deterministic/mocked half
   of AI testing is realized, Phase 12.
-- The ingestion pipeline test suite (Phase 13).
+- The ingestion pipeline test suite (Phase 13's still-unbuilt half —
+  §17 above realizes the review/approval half's tests only).
 - The performance/load testing suite and its thresholds (Phase 16).
 - A rate-limiting test for `/api/v1/auth/login` specifically — no such
   limiter exists to test yet ([SECURITY.md](SECURITY.md) §14's disclosed
-  gap, Tracking + Notifications rescheduled from Phase 12).
+  gap, Tracking + Notifications rescheduled from Phase 12; `/admin/*`'s
+  own separate rate limiter is tested, §17 above).
 - Any real government data in any test path, ever — not deferred,
   permanent ([DATA_GOVERNANCE.md](DATA_GOVERNANCE.md) §7).

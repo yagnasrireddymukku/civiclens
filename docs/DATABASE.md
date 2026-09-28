@@ -1195,3 +1195,78 @@ turn a detected difference into a live notification. This is the same
 trust boundary [DATA_SOURCES.md](DATA_SOURCES.md) §4 describes for
 Phase 13's ingestion pipeline, applied here ahead of that pipeline
 existing.
+
+## 19. Admin Intelligence Center Implementation Notes (Phase 13, review/approval half only)
+
+**No new table, no new migration.** Every model this phase's
+`app.admin` module touches already existed: `ChangeRecord`/
+`VerificationRecord`/`Source`/`SourceVersion` (§7, Phase 3) and each
+domain's own `verification_status`/`last_verified_at` columns (§9-§14).
+`approve_change_record`/`reject_change_record` (§17-18, written by
+Tracking + Notifications as unexposed internal functions specifically
+anticipating this phase) are now wrapped by `app.admin.service` and
+exposed as routes behind RBAC. This phase adds exactly one new runtime
+concept — `require_role` (`app.auth.dependencies`) — and it needed no
+schema change: `users.role` (`UserRole`: `user`/`editor`/`admin`) has
+existed since ADR-009/Phase-13-of-Tracking-and-Notifications; nothing
+before this phase ever *checked* it beyond "is this a real
+authenticated user."
+
+**Approving a `ChangeRecord` means "notify trackers," not "publish" —
+worth stating precisely, since the word "approve" invites the wrong
+reading.** No staging table exists in this codebase (that is the
+unbuilt ingestion-pipeline half of this phase, §ROADMAP.md). By the
+time a `ChangeRecord` exists at all, `detect_changes` (§18) has already
+observed the entity's *current, live* database value — the fact
+already changed before any human looked at it. What `app.admin.
+approve_change_record` actually gates is solely whether
+`generate_change_notifications` (Tracking + Notifications) is allowed
+to notify trackers about that already-live change. This is a real,
+useful trust boundary (an editor confirms a detected diff is
+legitimate/worth surfacing before anyone is told about it) — it is
+just not the "nothing becomes public without approval" gate
+[DATA_SOURCES.md](DATA_SOURCES.md) describes for the full pipeline,
+and this document does not overstate it as such.
+
+**Valid-transition enforcement, with idempotent re-decision as the
+deliberate exception.** A `ChangeRecord` already `REJECTED` cannot be
+approved, and vice versa (`InvalidChangeRecordTransitionError`, mapped
+to `409 Conflict`) — a decision, once made, is not silently reversed by
+a second call. Re-issuing the *same* decision (approving an
+already-`APPROVED` record) is instead treated as an idempotent retry,
+not an error — the same "make approval and notification creation
+idempotent" requirement this phase's kickoff states explicitly,
+resolved by distinguishing "retry of the same decision" from "attempt
+to reverse a prior decision" rather than picking one blanket rule for
+both.
+
+**Verification writes span two rows in one transaction, and are never
+allowed to drift apart.** `submit_verification` creates a
+`VerificationRecord` (the evidence: `source_id`, `status`,
+`verified_by`, `verified_at` — `source_id` is `nullable=False` at the
+column level already, and this function additionally checks the id
+resolves to a real `Source` row before proceeding, rather than letting
+a bad id surface as an opaque FK-violation 500) *and* sets the target
+entity's own `verification_status`/`last_verified_at` to match, in the
+same function, then re-syncs that entity's search-index membership via
+its domain's own already-existing `sync_*_search_index` function
+(§9-§14) — the same visibility mechanism every other domain already
+relies on, not a new one invented for this phase.
+
+**The verification queue and per-entity-type dispatch are Python-side,
+not a UNION query — and dispatch uses explicit if/elif, not a dict of
+model types.** The four entity tables (`jobs`, `schemes`, `services`,
+`civic_documents`) have no common base table to query across in one
+statement, so `get_verification_queue` queries each in full (filtered
+by `verification_status`) and combines/sorts/paginates the results in
+Python — acceptable at this project's actual fixture-only scale
+(CLAUDE.md rule 12), not a claim of query efficiency at real-data
+volume. Every function that needs a concretely-typed ORM object
+(`session.get(SomeModel, id)`, `select(SomeModel).where(...)`)
+dispatches with explicit `if entity_type == ...: elif ...` branches
+rather than a `dict[AdminEntityType, type[...]]` lookup — the same fix
+this codebase already applied once before, in `app.ai.chunking`'s
+`_BUILDERS` table (Phase 12): a dict keyed by an enum whose values are
+themselves types (or callables with different per-branch signatures)
+loses its specific type information to mypy, which falls back to the
+ORM `Base` class and then every attribute access on it errors.

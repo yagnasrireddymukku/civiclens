@@ -43,6 +43,10 @@ per product surface, matching [PRODUCT.md](PRODUCT.md) §5's domains:
 /[locale]/dashboard/tracking        Tracking (authenticated)
 /[locale]/dashboard/profile         Profile (authenticated)
 /[locale]/login, /register          Sign in / create account
+/[locale]/admin                     Admin dashboard (editor/admin)
+/[locale]/admin/change-records      Change-record review queue (editor/admin)
+/[locale]/admin/verification        Verification queue (editor/admin)
+/[locale]/admin/sources             Source browser, read-only (editor/admin)
 /[locale]/about, /contact, /privacy, /terms, /disclaimer   Static/legal
 ```
 
@@ -50,6 +54,11 @@ per product surface, matching [PRODUCT.md](PRODUCT.md) §5's domains:
 inventory above — added when Tracking + Notifications (rescheduled from
 Phase 12) realized real authentication (§4/§11 below), following the
 same `app/[locale]/<name>/page.tsx` convention as every other route.
+`/admin/*` is likewise new — ROADMAP.md's original Phase 13 sketch
+named the folder `apps/web/app/admin/` without a `[locale]` segment;
+placed under `[locale]` here instead, for consistency with every other
+route and to satisfy this phase's explicit English/Telugu
+localization requirement, which an unlocalized folder couldn't.
 
 Exact slug/URL conventions (canonicalization, trailing structure) are
 defined in [SEO.md](SEO.md) §1 — this section defines page inventory and
@@ -68,11 +77,16 @@ Chosen per page type, not globally, per [ADR-002](ADR/ADR-002-nextjs-frontend.md
 | Calculators, Eligibility check | SSR shell + client-side interactivity | Public and SEO-indexable (the check itself is client-side once loaded), but the wrapping page must be crawlable |
 | Civic AI | Client-side (CSR) within an SSR shell | Conversational, stateful, not SEO-relevant content |
 | Dashboard (tracking, profile) | CSR, authenticated | Personalized, never publicly cached or indexed |
+| Admin console (dashboard, change-records, verification, sources) | CSR, `editor`/`admin`-only | Privileged, never publicly cached, indexed, or crawlable (`robots: {index: false}` on every `/admin/*` page) — same rationale as Dashboard, plus role, not just identity |
 
 On-demand ISR revalidation is triggered by the publish step of the
 ingestion review pipeline ([DATA_SOURCES.md](DATA_SOURCES.md) §4,
 Phase 13) — a change is never live in the CDN cache without having passed
-human review first.
+human review first. **Not yet real**: the admin console realized this
+phase (§12 below) reviews `ChangeRecord`s and submits verification
+decisions, but no ingestion pipeline or publish step exists to trigger
+an on-demand revalidation from — every domain detail page still relies
+on its own ISR interval, unchanged by this phase.
 
 ## 4. Component Architecture
 
@@ -369,7 +383,47 @@ naming rather than silently reinterpreting the sketch as fulfilled:
   [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md) §1.9) — it is a
   read-aggregation view, not a recommendation engine.
 
-## 12. Explicitly Not Built Yet
+## 12. Admin Console (Phase 13, review/approval half only)
+
+A `require_role`-gated composition layer (`app.auth.dependencies`,
+[API.md](API.md) §21), realized under `/admin` — narrower than
+ROADMAP.md's original Phase 13 sketch (no ingestion-pipeline UI, since
+no ingestion pipeline exists; see [DATA_SOURCES.md](DATA_SOURCES.md)
+and this phase's ROADMAP.md entry for the scope-difference note):
+
+- **`/admin`** — dashboard: pending-change-record count,
+  verification-status distribution across all four domains, recent
+  reviewed changes and verifications. Real, data-backed numbers only —
+  this phase's explicit "do not introduce fabricated dashboard
+  statistics or popularity-based rankings."
+- **`/admin/change-records`** — the `ChangeRecord` review queue,
+  filterable by status; approve/reject actions only render for a
+  `PENDING` record (a decided record shows its outcome, not a
+  now-meaningless action).
+- **`/admin/verification`** — entities with `verification_status`
+  `NEEDS_REVIEW`/`UNVERIFIED`, filterable by entity type; a submission
+  form requiring both a decision and an evidence source (the `Select`
+  is populated from `/admin/sources`, not a free-text id field — a
+  reviewer picks real evidence, never types an unchecked UUID).
+- **`/admin/sources`** — read-only source browsing with expandable
+  version history; no create/edit action exists (this phase's admin
+  console does not fabricate or accept unverified source evidence).
+- Client-side RBAC gating (`components/admin/AdminGate.tsx`) is a UX
+  convenience only, never the security boundary — every `/api/v1/
+  admin/*` call is independently `require_role`-checked server-side
+  regardless of what this component renders. A signed-out visitor sees
+  a real sign-in prompt; a signed-in `user` sees an explicit "not
+  authorized" message (`role="alert"`), never the admin content itself
+  and never a silent redirect that could be mistaken for a bug.
+  Reused across all four `/admin/*` pages rather than reimplemented
+  per page.
+- `components/admin/AdminNav.tsx` cross-links the four sections — a
+  plain nav, not the `Tabs` component, since these are four separate
+  routes, not panels of one page.
+- English/Telugu localization via a new `Admin` message namespace,
+  following every other namespace's flat-string convention.
+
+## 13. Explicitly Not Built Yet
 
 - Any real domain content page beyond Jobs, Services, Schemes,
   Documents, Eligibility, and Civic AI (representatives/exams/etc.) —

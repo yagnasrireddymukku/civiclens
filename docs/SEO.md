@@ -328,7 +328,7 @@ the scholarship-specific fields.**
 - The scholarship-specific fields (education level, academic
   requirements, application window, renewal) are visible page content
   (§14's detail page, extended this phase — see
-  [FRONTEND.md](FRONTEND.md) §12) but not structured data. If a later
+  [FRONTEND.md](FRONTEND.md) §13) but not structured data. If a later
   phase identifies a genuinely-fitting property or type, this section
   is where that addition belongs — not bolted onto `GovernmentService`
   speculatively now.

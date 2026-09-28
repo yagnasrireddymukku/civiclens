@@ -57,18 +57,43 @@ additive login method.
 
 ## 4. Authorization (RBAC)
 
-Roles: `user` (default), `editor` (ingestion review,
-[DATA_SOURCES.md](DATA_SOURCES.md) §4), `admin` (full access).
+Roles: `user` (default), `editor` (change-record review, entity
+verification — [DATA_SOURCES.md](DATA_SOURCES.md) §4), `admin` (full
+access — no capability exists yet that `editor` cannot also do; the two
+are already distinct roles so a future admin-only action has somewhere
+to attach without a schema change).
 
+- **Realized (Phase 13, review/approval half):**
+  `app.auth.dependencies.require_role(*allowed_roles)` is the RBAC
+  dependency every privileged route declares — no implicit
+  "authenticated ⇒ authorized." It composes with `get_current_user`
+  (never duplicates its cookie/token logic) and always reads
+  `current_user.role` fresh from the database, never from the JWT's
+  own claims — a revoked/changed role takes effect on the very next
+  request rather than waiting out the access token's TTL. Every
+  `/api/v1/admin/*` route (`app.api.v1.admin`,
+  [API.md](API.md) §21) uses it; a `user` gets `403`, verified by a
+  dedicated test that also confirms two independent sessions never
+  cross-contaminate roles.
 - Every authenticated route declares its minimum required role explicitly
   (e.g., a `require_role(...)` dependency) — no implicit "authenticated ⇒
   authorized."
 - **Resource ownership** is enforced alongside role: a `user` may only
   read/modify their own `profiles`, `saved_items`, `tracking_items`,
-  `notifications` ([DATABASE.md](DATABASE.md) §2.8).
+  `notifications` ([DATABASE.md](DATABASE.md) §2.8). `/admin/*` routes
+  are a role check, not an ownership check — `editor`/`admin` can see
+  every entity/record, so there is no per-object ownership to hide (no
+  404-for-both-cases IDOR pattern applies there; a role failure is a
+  plain `403`).
 - `editor`/`admin` actions are enforced at the API layer, not only hidden
   in the UI. No per-resource ACL system exists or is planned at this
   scale ([ADR-009](ADR/ADR-009-authentication-strategy.md)).
+- **No approval without evidence**: `app.admin.service.submit_verification`
+  requires a real `source_id` (`VerificationRecord.source_id` is
+  `nullable=False` at the column level, and the function additionally
+  checks it resolves to a real `Source` row) before recording any
+  verification decision — a fabricated or missing evidence reference is
+  rejected (`422`), never silently accepted.
 
 ## 5. Input Validation & Injection Prevention
 
@@ -219,30 +244,44 @@ findings are fixed forward, not rolled back.
 ## 14. Explicitly Not Built Yet
 
 - **Realized (Tracking + Notifications, rescheduled from Phase 12):**
-  §2-4's JWT/cookie/CSRF/RBAC design is now implemented
+  §2-4's JWT/cookie/CSRF design is now implemented
   (`app.auth`) exactly as specified above, verified by a real replay-
   attack test (§2's "replayed already-rotated token revokes its whole
   token family") and a live smoke test exercising the full cookie/CSRF
   flow end to end. Not yet real: OAuth login (still deferred, per
   ADR-009's own "secondary, additive" framing — email/password is the
-  only login method); any `editor`/`admin`-gated route (`UserRole`
-  already has both values, but no route declares `require_role(...)`
-  yet — see [API.md](API.md) §12); argon2 as a password-hash
-  alternative (bcrypt only, currently).
+  only login method); argon2 as a password-hash alternative (bcrypt
+  only, currently).
+- **Realized (Phase 13, review/approval half):** the RBAC piece §4
+  above describes — `require_role`, gating every `/api/v1/admin/*`
+  route. Still not real: any `editor`/`admin`-gated route outside
+  `/admin/*` (e.g. a re-indexing route for `/ai` — the dependency
+  exists and could gate one, but no route calls it there yet); the
+  ingestion-pipeline-specific privileged actions
+  [DATA_SOURCES.md](DATA_SOURCES.md) §4 describes (source onboarding,
+  fetch approval) — no ingestion pipeline exists for them to gate.
 - No secrets manager, WAF, or general rate-limiting infrastructure is
   provisioned. Phase 12 added one deliberately minimal exception: an
   in-process, single-instance, per-IP sliding-window limiter scoped only
   to `/api/v1/ai/*` (`app.ai.rate_limit`) — disclosed as an MVP, not a
   claim that rate-limiting infrastructure now exists generally (it does
   not coordinate across processes/instances and covers no other route).
+  Phase 13 added a second, deliberately separate instance of the same
+  pattern for mutating `/api/v1/admin/*` routes
+  (`app.admin.rate_limit.enforce_admin_rate_limit`) — per-*user* rather
+  than per-IP (every admin route is already authenticated, so the user
+  id is a tighter key than a shared office/NAT IP) — not shared code
+  with `app.ai.rate_limit`, a second small disclosed MVP rather than a
+  premature shared abstraction for two callers (CLAUDE.md rule 12).
   `/api/v1/auth/*`, `/api/v1/tracking/*`, and `/api/v1/notifications/*`
   have no dedicated rate limiter either — a real gap for `/auth/login`
   specifically (credential-stuffing/brute-force exposure), noted here
   rather than silently left undocumented; considered but out of this
-  work's scope (no rate-limiting infrastructure beyond the `/ai/*` MVP
-  exists to extend, and building a second bespoke limiter here would
-  duplicate rather than generalize it — a job for whichever future
-  phase builds real cross-route rate-limiting infrastructure).
+  work's scope (no rate-limiting infrastructure beyond the `/ai/*`/
+  `/admin/*` MVPs exists to extend, and building a third bespoke
+  limiter here would duplicate rather than generalize it — a job for
+  whichever future phase builds real cross-route rate-limiting
+  infrastructure).
 - No dependency-scanning CI job exists yet (arrives with CI, Phase 1).
 - No penetration test or formal security audit has been performed — that
   is Phase 15's deliverable, not something this document certifies.

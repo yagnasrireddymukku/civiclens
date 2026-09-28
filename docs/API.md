@@ -60,6 +60,7 @@ Each domain below is an isolated FastAPI router mounted under
 | `/notifications` | `notifications`, `notification_delivery_attempts` (§19) |
 | `/sources` | `sources`, `source_versions`, `verification_records` |
 | `/auth` | `users`, `refresh_tokens` (§19) |
+| `/admin` | `change_records`, `verification_records`, `sources`/`source_versions` (read-only), plus each domain's own `verification_status` column (§21) — review/approval half of Phase 13 only, RBAC-gated |
 
 A router never queries another domain's tables directly; cross-domain reads
 go through that domain's own module interface, per the modular-monolith
@@ -94,12 +95,19 @@ httpOnly cookies, not a Bearer `Authorization` header.** ADR-009's
   above — tracking, notifications, profile, dashboard; enforced by the
   `get_current_user` dependency, which 401s on any missing/invalid/
   expired access-token cookie), or **privileged** (`editor`/`admin` —
-  ingestion review, source management, per
-  [DATA_SOURCES.md](DATA_SOURCES.md) §4 — not yet built, Phase 13).
-- Role checks are declared as a FastAPI dependency at the route level
-  (e.g., `require_role("editor")`), never as an inline `if` inside handler
-  logic — this keeps authorization auditable and consistent across
-  routers.
+  change-record review, entity verification, per
+  [DATA_SOURCES.md](DATA_SOURCES.md) §4 and §21 below — **realized,
+  Phase 13's review/approval half**; ingestion-pipeline-specific
+  privileged actions, since no ingestion pipeline exists, remain
+  unbuilt).
+- **Realized:** role checks are declared as a FastAPI dependency at the
+  route level — `require_role(*allowed_roles)`
+  (`app.auth.dependencies`) returns a dependency 403ing unless
+  `current_user.role` is one of the given roles, composed with
+  `get_current_user` rather than duplicating its cookie/token logic.
+  Every `/admin/*` route (§21) uses it; never an inline `if` inside
+  handler logic — this keeps authorization auditable and consistent
+  across routers.
 - No endpoint infers a user's identity or role from anything other than
   the validated access-token cookie's claims — never from a
   client-supplied header, query parameter, or request body field.
@@ -253,29 +261,35 @@ request → get_db dependency (opens a Session) → route/service function
 ## 12. Explicitly Not Built Yet
 
 - Any domain-content business route beyond Jobs, Services, Schemes,
-  Documents, Eligibility, Civic AI, Auth, Tracking, and Notifications
-  (exams, representatives, elections) or its request/response models —
-  `health`/`health/ready` (§11), `/search` (Phase 5,
+  Documents, Eligibility, Civic AI, Auth, Tracking, Notifications, and
+  Admin (exams, representatives, elections) or its request/response
+  models — `health`/`health/ready` (§11), `/search` (Phase 5,
   [SEARCH.md](SEARCH.md) §12), `/jobs` (Phase 6, §13), `/services`
   (Phase 7, §14), `/schemes` (Phase 8, §15), `/documents` (Phase 10,
   §17), `/eligibility` (Phase 11, §18), `/auth`/`/tracking`/
   `/notifications` (Tracking + Notifications, rescheduled from Phase
-  12, §19), and `/ai` (Phase 12, §20) exist so far. Scholarships
-  (Phase 9, §16) are not a separate route — `category=SCHOLARSHIP`
-  schemes returned by the same `/schemes` endpoints.
+  12, §19), `/ai` (Phase 12, §20), and `/admin` (Phase 13, review/
+  approval half only, §21) exist so far. Scholarships (Phase 9, §16)
+  are not a separate route — `category=SCHOLARSHIP` schemes returned
+  by the same `/schemes` endpoints.
 - Concrete rate-limit thresholds/infrastructure for anything beyond
-  `/ai/*`'s own in-process MVP limiter (§20), cache headers, or CDN
-  interaction rules (deferred to [SECURITY.md](SECURITY.md) /
-  [ARCHITECTURE.md](ARCHITECTURE.md) performance work in later phases).
-- Any privileged (`editor`/`admin`) route — real user authentication
-  now exists (§4, §19) and `UserRole` already has `editor`/`admin`
-  values, but no route anywhere yet declares a `require_role(...)`
-  dependency or otherwise checks a role beyond "is this a real
-  authenticated user." A re-indexing/admin route for `/ai`, an
-  approve/reject route for a `ChangeRecord` (§19,
-  [DATABASE.md](DATABASE.md) §18), and the review-queue endpoints
-  [DATA_SOURCES.md](DATA_SOURCES.md) §4 describes are all Phase 13's
-  job (Admin Intelligence Center), not built here.
+  `/ai/*`'s own in-process MVP limiter (§20) and `/admin/*`'s own
+  separate per-user in-process MVP limiter (§21) — no cross-route,
+  cross-process, or general rate-limiting infrastructure exists; cache
+  headers or CDN interaction rules (deferred to
+  [SECURITY.md](SECURITY.md) / [ARCHITECTURE.md](ARCHITECTURE.md)
+  performance work in later phases).
+- **Realized (Phase 13, review/approval half):** `require_role`
+  (`app.auth.dependencies`) and the `/admin/*` routes it gates (§21) —
+  an approve/reject route for a `ChangeRecord` and the verification-
+  submission route [DATABASE.md](DATABASE.md) §19 describes. **Still
+  not built:** a re-indexing/admin route for `/ai` (no route anywhere
+  calls `require_role` for it yet, even though the dependency now
+  exists), and the full ingestion-pipeline/review-queue architecture
+  [DATA_SOURCES.md](DATA_SOURCES.md) §3-4 describes (fetch/extract/
+  normalize/validate stages, source onboarding) — this phase's `/admin`
+  routes review already-detected changes and submit verification
+  decisions; they do not fetch, onboard, or publish anything.
 - GraphQL or any query language beyond the filter/sort conventions in §6 —
   not needed at MVP scope and not planned without a documented reason.
 
@@ -631,6 +645,73 @@ action, not a browsable resource:
   retrieval/prompting/citation-validation pipeline and
   [DATABASE.md](DATABASE.md) §16 for the schema and its deviations from
   the original `pgvector`/foreign-key sketches.
+
+## 21. Admin Intelligence Center (Phase 13, review/approval half only)
+
+**Every route below requires `editor` or `admin` role** — a plain
+`user` gets `403 Forbidden`, not `404` (this is a role check, not an
+IDOR-safety concern; there is no per-object ownership to hide here,
+unlike `/tracking`/`/notifications`). Role is read fresh from the
+database on every request (the `User` row `get_current_user` already
+loaded), never from the JWT's own claims — a role change takes effect
+on the very next request. See
+[SECURITY.md](SECURITY.md) §4 for the RBAC design and
+`app.admin.service`'s module docstring
+([DATABASE.md](DATABASE.md) §19) for this phase's narrower-than-
+originally-sketched scope (review/approval of already-detected
+changes and entity verification — no ingestion pipeline).
+
+- `GET /api/v1/admin/dashboard` — real, data-backed metrics only (this
+  phase's explicit "do not introduce fabricated dashboard statistics
+  or popularity-based rankings"): `pending_change_records` (count),
+  `verification_status_counts` (a count per `VerificationStatus`
+  across all four domains), `recent_change_decisions`/
+  `recent_verifications` (most recent, real rows — never a rolling
+  "trending" computation).
+- `GET /api/v1/admin/change-records?review_status=&page=&page_size=` —
+  the `ChangeRecord` review queue (§6's pagination conventions),
+  each with joined display data (`entity.title`/`route`/
+  `verification_status`/`source_organization`) resolved directly from
+  the entity's own domain table (not `search_documents`, since an
+  `UNVERIFIED`/`EXPIRED` entity is never indexed there — see
+  [DATABASE.md](DATABASE.md) §9's visibility rule); `entity.title`/
+  `route` are `null` when the entity no longer exists, never a broken
+  response.
+- `POST /api/v1/admin/change-records/{id}/approve` and `.../reject` —
+  require `X-CSRF-Token`, rate-limited
+  (`app.admin.rate_limit.enforce_admin_rate_limit`, a per-user
+  in-process sliding window — see [SECURITY.md](SECURITY.md) §14).
+  `404` if the record doesn't exist; `409 Conflict` if the record was
+  already decided the *other* way (approving an already-`REJECTED`
+  record or vice versa); re-issuing the *same* decision is a `200`
+  idempotent no-op, not an error. Approving also runs the existing
+  notification generator (Tracking + Notifications) — dedup-safe, so
+  retrying an approval never double-notifies a tracker.
+- `GET /api/v1/admin/verification/queue?entity_type=&page=&page_size=`
+  — entities with `verification_status` `NEEDS_REVIEW` or `UNVERIFIED`
+  (the default; not overridable via query param this phase) across
+  job/scheme/service/document, combined and paginated (§19 of
+  [DATABASE.md](DATABASE.md) explains why this is done in Python, not
+  one SQL query).
+- `POST /api/v1/admin/verification/{entity_type}/{entity_id}` — body
+  `{status, source_id, review_due_at?}`. Requires `X-CSRF-Token`,
+  rate-limited. `source_id` is **required, not optional** — Pydantic
+  rejects a missing one with `422` before the handler even runs (this
+  phase's explicit "no approval without evidence"); a `source_id` that
+  doesn't resolve to a real `Source` row is also `422` (evidence that
+  doesn't exist is treated the same as no evidence); a nonexistent
+  entity is `404`. On success (`201`): creates the `VerificationRecord`
+  and updates the entity's own `verification_status` in the same
+  transaction, then re-syncs its search-index membership.
+- `GET /api/v1/admin/sources?page=&page_size=` and
+  `GET /api/v1/admin/sources/{id}` — read-only browsing of existing
+  `Source`/`SourceVersion` rows (version history on the detail route).
+  No route creates a `Source` or `SourceVersion` this phase — see
+  [DATABASE.md](DATABASE.md) §19 and
+  [DATA_SOURCES.md](DATA_SOURCES.md) for why.
+- No route triggers a live fetch, publishes autonomously, or exposes
+  any ingestion-pipeline capability — none exists (§ROADMAP.md's Phase
+  13 scope-difference note).
 
 This document defines the target API conventions for Phase 2 onward; each
 domain phase (6–9, 10–12) implements against it and updates this document

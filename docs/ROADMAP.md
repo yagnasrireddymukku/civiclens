@@ -319,7 +319,7 @@ until the prior phase's acceptance criteria are met and, per
   0–6 regression.
 - **Documentation**: [DATABASE.md](DATABASE.md) §10, [API.md](API.md)
   §14, [SEARCH.md](SEARCH.md) §15, [SEO.md](SEO.md) §13,
-  [FRONTEND.md](FRONTEND.md) §12, and [ARCHITECTURE.md](ARCHITECTURE.md)
+  [FRONTEND.md](FRONTEND.md) §13, and [ARCHITECTURE.md](ARCHITECTURE.md)
   updated with the realized schema, endpoints, search integration, SEO
   implementation, and the institutions-module extraction.
 - **Acceptance criteria**: A single, clearly-marked synthetic test
@@ -694,7 +694,7 @@ rule 22 applies to code applies here to roadmap ordering):
 - **Documentation**: [DATABASE.md](DATABASE.md) §14 (plus corrections to
   §2.3/§2.4/§2.6's stale phase-number references this rescheduling
   exposed), [API.md](API.md) §17, [SEARCH.md](SEARCH.md) §18,
-  [SEO.md](SEO.md) §16, [FRONTEND.md](FRONTEND.md) §12,
+  [SEO.md](SEO.md) §16, [FRONTEND.md](FRONTEND.md) §13,
   [ARCHITECTURE.md](ARCHITECTURE.md) §6 (module tree — `app.documents`
   added, `app.eligibility`/`app.representatives`/`app.elections`
   annotated as rescheduled rather than simply absent), and this
@@ -895,7 +895,7 @@ unnumbered, immediately below.
   groundedness quality, since no live provider calls are made in the
   test suite and no real government content exists yet to evaluate
   against. A live-model eval harness with a product-owner-set accuracy
-  bar remains a named future task ([TESTING.md](TESTING.md) §8/§18).
+  bar remains a named future task ([TESTING.md](TESTING.md) §8/§19).
   Rate limiting is a single-process MVP (no cross-instance
   coordination).
 - **Rollback**: Both provider settings default to `"none"`; disabling
@@ -969,31 +969,104 @@ Commits use a `tracking-notifications:` prefix rather than a
   ADR-009; no SMS/WhatsApp/push notification channel.
 
 ## Phase 13 — Admin Intelligence Center
+
+**Partially realized — narrower than this entry's original sketch, and
+the scope difference is documented here rather than silently
+redefined** (per this phase's own kickoff instruction: "if the roadmap
+conflicts with this prompt, document the conflict... do not silently
+redefine the roadmap"). What shipped is the **review/approval console**
+half — RBAC, a `ChangeRecord` review queue wired to the existing
+change-detection/notification pipeline, and entity verification. What
+did **not** ship is the **ingestion pipeline** half — `services/
+ingestion/`, live source fetching, and per-source legal-checklist
+onboarding tooling remain entirely unbuilt, consistent with this
+phase's kickoff explicitly excluding "uncontrolled web scraping or
+automatic publication." The two original risk-bearing halves of this
+phase (data ingestion legal/compliance risk vs. review/approval
+correctness) are genuinely separable, and only the lower-risk half
+(no real external fetching, no real government data touched) was
+built this round.
+
 - **Objective**: Ingestion pipeline + human review tooling per
-  [DATA_SOURCES.md](DATA_SOURCES.md).
-- **Dependencies**: Phases 3, 6–9 (entities to ingest into), the
+  [DATA_SOURCES.md](DATA_SOURCES.md). **Met for the review/approval
+  half only** — see the scope note above.
+- **Dependencies**: Phases 3, 6–9 (entities to ingest into); the
   "Tracking + Notifications — rescheduled from Phase 12" entry above
-  (notification trigger on approved change) — not yet built; this
-  phase's own review-queue tooling does not require it to exist first.
-- **Files/modules**: `services/ingestion/`, `apps/api/app/admin/`
-  (review queue endpoints), `apps/web/app/admin/`.
-- **Technical work**: Source onboarding tooling (per-source legal
-  checklist record), fetch/extract/normalize/validate pipeline stages,
-  change-detection diffing, review queue UI, publish/index triggers.
-- **Tests**: Pipeline stage unit tests; end-to-end test of a fictional
-  source producing a reviewable change record; permission tests (only
-  `editor`/`admin` can approve).
-- **Documentation**: [DATA_SOURCES.md](DATA_SOURCES.md) updated with the
-  realized pipeline; first real source onboarding checklist recorded.
-- **Acceptance criteria**: A test source's detected change appears in the
-  review queue and only becomes live data after explicit approval; this is
-  the gate before any real government data enters the system.
-- **Risks**: This phase carries the highest legal/compliance risk (§2 of
-  [DATA_SOURCES.md](DATA_SOURCES.md)) — mitigated by requiring a completed
-  per-source legal checklist before enabling fetch for that source.
-- **Rollback**: Ingestion writes only to staging/change tables before
-  approval — rollback of a bad publish is a `change_record` revert, not a
-  destructive operation.
+  (notification trigger on approved change) — now built, and this
+  phase's review queue integrates with it directly (approving a
+  `ChangeRecord` calls the same idempotent, dedup-safe notification
+  generator that phase already shipped).
+- **Files/modules**: `apps/api/app/admin/` (RBAC-gated review/
+  verification/dashboard endpoints — realized), `apps/web/app/
+  [locale]/admin/` (realized; the original sketch omitted the
+  `[locale]` segment other routes use — added for consistency and to
+  satisfy this phase's explicit English/Telugu localization
+  requirement). `services/ingestion/` (repo root, the fetch/extract/
+  normalize/validate microservice) — **not built**.
+- **Technical work realized**: `require_role` RBAC dependency
+  (`app.auth.dependencies`, no new migration — reuses the existing
+  `UserRole.editor`/`admin` values); a `ChangeRecord` review queue
+  (list/approve/reject, valid-transition enforcement, idempotent
+  re-decision); an entity verification workflow (`VerificationRecord`
+  creation + the entity's own `verification_status` column update +
+  search-index re-sync, in one transaction, evidence — a real
+  `source_id` — required); read-only `Source`/`SourceVersion`
+  browsing; a dashboard (pending-review count, verification-status
+  distribution, recent activity); a per-user in-process rate limiter
+  on mutating admin routes (`app.admin.rate_limit`, mirroring `app.ai.
+  rate_limit`'s disclosed MVP posture).
+- **Technical work NOT realized (deferred, unbuilt)**: source
+  onboarding tooling (per-source legal checklist record); fetch/
+  extract/normalize/validate pipeline stages; any live/automated
+  change-detection diffing against a real external source (the
+  existing `detect_changes` producer, from Tracking + Notifications,
+  compares an entity's already-current database value against its own
+  prior recorded value — there is no staging table or fetch step this
+  phase adds); publish/index triggers beyond the search-re-sync this
+  phase's verification action already does.
+- **Tests**: Pipeline stage unit tests — **not applicable, no pipeline
+  exists**. Realized instead: 41 backend tests
+  (`apps/api/tests/test_admin`) covering RBAC (401/403/200 per role),
+  invalid transitions, idempotent re-approval, the approve ->
+  notification integration and its dedup guarantee, evidence
+  requirements, cross-role/cross-user isolation, and source browsing;
+  9 new frontend tests (Vitest) plus 2 added to the existing `TopNav`
+  suite; a live smoke test against a real ad-hoc PostgreSQL instance
+  exercising the full RBAC -> review -> approve -> notify ->
+  idempotent-retry -> invalid-transition -> verify -> evidence-
+  required -> cross-role-denied flow end to end with real cookies/
+  CSRF. Permission tests confirm only `editor`/`admin` can approve, as
+  this entry originally asked.
+- **Documentation**: [DATABASE.md](DATABASE.md) §19,
+  [API.md](API.md) §21, [SECURITY.md](SECURITY.md) §4/§14,
+  [PRIVACY.md](PRIVACY.md), [FRONTEND.md](FRONTEND.md),
+  [TESTING.md](TESTING.md) §19 updated against the realized
+  implementation. [DATA_SOURCES.md](DATA_SOURCES.md) is **not**
+  updated with "the realized pipeline" as originally planned, because
+  no pipeline was realized — its "no ingestion pipeline is built yet"
+  framing remains accurate and is left as-is, with one added note
+  pointing at what this phase actually shipped.
+- **Acceptance criteria**: "A test source's detected change appears in
+  the review queue and only becomes live data after explicit approval"
+  — **met, for the notification-worthiness decision this phase's
+  review queue actually gates** (see `app.admin.service`'s module
+  docstring: approving a `ChangeRecord` here means "notify trackers,"
+  not "publish," since the underlying entity already carries its
+  current value by construction of the existing `detect_changes`
+  producer). "This is the gate before any real government data enters
+  the system" — **not met**; that gate is the ingestion pipeline half,
+  which remains unbuilt, so real government data still must not be
+  added (CLAUDE.md rule 3, [DATA_SOURCES.md](DATA_SOURCES.md)).
+- **Risks**: This phase's highest legal/compliance risk (§2 of
+  [DATA_SOURCES.md](DATA_SOURCES.md)) attaches specifically to the
+  ingestion-pipeline half, which was not built — that risk has not
+  been taken on. The review/approval half's own risk (an
+  under-authorized or fabricated-evidence approval) is mitigated by
+  `require_role`, the mandatory `source_id` evidence field, and the
+  live smoke test's explicit coverage of both.
+- **Rollback**: Additive; no new migration. `require_role`/the review
+  routes/the verification routes can all be disabled by removing the
+  router registration with no data-model impact.
 
 ## Phase 14 — SEO + Content Infrastructure
 - **Objective**: Full SEO implementation per [SEO.md](SEO.md).
