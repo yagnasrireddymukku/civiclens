@@ -314,7 +314,57 @@ mistakable for real civic information:
 - The fixture-loading utility refuses to load against a non-test
   database connection string, as a second line of defense.
 
-## 16. CI Requirements
+## 16. Tracking + Notifications Tests — Realized (rescheduled from Phase 12)
+
+- **Backend** (`apps/api/tests/test_auth`, `test_tracking`,
+  `test_notifications` — 126 tests across the three packages, part of
+  495 passing in the full backend suite): password hashing/JWT round-
+  trip, refresh-token rotation including the replay-revokes-the-family
+  case (§10-adjacent, security-relevant); tracking creation/duplicate-
+  prevention (the `NULLS NOT DISTINCT` constraint, §5-style DB test)/
+  pause-resume/removal; ownership/cross-user denial for every
+  `{id}`-scoped tracking and notification route, via two independent
+  authenticated `TestClient` identities sharing one DB session; deadline
+  boundary/IST-timezone behavior as pure-function unit tests (§2); change
+  detection's stable-field-only comparison and idempotency (re-running
+  never re-triggers on an unrelated field); notification creation/dedup
+  at the database layer, read/unread state, and pagination; delivery
+  retries/failures/provider-disabled no-op with a fake in-process
+  `EmailProvider` (never a real network call); auth/CSRF enforcement on
+  every mutating route; migration upgrade/walk-down/re-upgrade for the
+  one new revision, and every pre-existing package's walk-down bound
+  updated for the new distance from head.
+- **Frontend** (`apps/web` — 7 new Vitest files: `AuthProvider`,
+  `TopNav`, `TrackButton`, `LoginForm`, `RegisterForm`,
+  `TrackingDashboard`, `ProfilePanel`, plus the 4 existing job/scheme/
+  service/document detail-page test files updated to stub `TrackButton`
+  the same way they already stub `next/navigation`'s `notFound`):
+  signed-out vs. signed-in states (never a disabled control pretending
+  auth doesn't exist); track/untrack toggling against a mocked
+  `lib/tracking.ts`; dashboard tracked-items/deadlines/notification-
+  inbox rendering, pause/remove/mark-read interactions; login/register
+  form submission, redirect-on-success, and accessible (`role="alert"`)
+  error states on failure; `AuthProvider`'s silent-refresh-on-expired-
+  session behavior.
+- **Live smoke test**: a self-contained script (real ad-hoc PostgreSQL,
+  migrated to head; real `TestClient` cookies/CSRF, not mocked)
+  exercising register → GET /me → track → duplicate-track-is-idempotent
+  → run the real `run_notification_sweep`/`deliver_notification_emails`
+  functions (no scheduler exists — §17 below) → GET /notifications
+  (the real reminder appears, re-running the sweep does not duplicate
+  it) → mark read → pause/resume → a second registered identity's
+  cross-user pause/read attempts both 404 (IDOR-safe) and its own
+  tracking list is empty → remove → logout → GET /me returns 401. Every
+  check in this script passed; see the Tracking + Notifications entry in
+  [ROADMAP.md](ROADMAP.md) for the checkpoint this was run for.
+- **Not covered**: no Playwright E2E test exists for the login → track →
+  see-notification browser flow (§13 remains Phase-16-scheduled,
+  unrelated to this work); the frontend test suite covers each new
+  component in isolation with mocked API clients, not a real running
+  Next.js dev server against a real running API — the live smoke test
+  above is what stands in for that at the backend/HTTP-contract level.
+
+## 17. CI Requirements
 
 **Every pull request** (fast feedback, target: single-digit minutes):
 backend unit + integration tests, frontend unit/component tests
@@ -328,7 +378,7 @@ every PR); search relevance regression against a larger corpus (§7);
 accessibility manual-spot-check reminders (§12); performance/load tests
 (§14, once Phase 16 ships, plus on any PR touching a hot path).
 
-## 17. Explicitly Not Built Yet
+## 18. Explicitly Not Built Yet
 
 - Domain-table tests (jobs, schemes, representatives, ...) — those tables
   don't exist yet (Phases 6–9); only geography/provenance/users have
@@ -338,5 +388,8 @@ accessibility manual-spot-check reminders (§12); performance/load tests
   of AI testing is realized, Phase 12.
 - The ingestion pipeline test suite (Phase 13).
 - The performance/load testing suite and its thresholds (Phase 16).
+- A rate-limiting test for `/api/v1/auth/login` specifically — no such
+  limiter exists to test yet ([SECURITY.md](SECURITY.md) §14's disclosed
+  gap, Tracking + Notifications rescheduled from Phase 12).
 - Any real government data in any test path, ever — not deferred,
   permanent ([DATA_GOVERNANCE.md](DATA_GOVERNANCE.md) §7).

@@ -56,10 +56,10 @@ Each domain below is an isolated FastAPI router mounted under
 | `/eligibility` | `eligibility_rules`, `eligibility_conditions` |
 | `/calculators` | none (pure functions — see §9) |
 | `/ai` | `ai_knowledge_chunks` (Phase 12); retrieves via `search_documents` + domain tables + `sources` ([AI_ARCHITECTURE.md](AI_ARCHITECTURE.md)) |
-| `/tracking` | `tracking_items` |
-| `/notifications` | `notifications` |
+| `/tracking` | `tracked_items` (§19) |
+| `/notifications` | `notifications`, `notification_delivery_attempts` (§19) |
 | `/sources` | `sources`, `source_versions`, `verification_records` |
-| `/users`, `/auth` | `users`, `profiles` |
+| `/auth` | `users`, `refresh_tokens` (§19) |
 
 A router never queries another domain's tables directly; cross-domain reads
 go through that domain's own module interface, per the modular-monolith
@@ -67,22 +67,46 @@ boundary rule ([ARCHITECTURE.md](ARCHITECTURE.md) §1, [CLAUDE.md](../CLAUDE.md)
 
 ## 4. Authentication & Authorization
 
-- Bearer JWT access tokens on the `Authorization` header for authenticated
-  routes; refresh via a dedicated `/api/v1/auth/refresh` endpoint. See
-  [ADR-009](ADR/ADR-009-authentication-strategy.md) for token lifetime and
-  storage guidance.
+**Realized (Tracking + Notifications, rescheduled from Phase 12) —
+httpOnly cookies, not a Bearer `Authorization` header.** ADR-009's
+"cookie vs. header" choice is now implemented, not aspirational:
+- JWT access token (~15 min TTL) and refresh token (~30 day TTL,
+  rotated on every use) are set as httpOnly, `Secure` (in
+  staging/production), `SameSite=Lax` cookies by `POST /api/v1/auth/
+  {register,login,refresh}` — never returned in a response body, never
+  read from an `Authorization` header. See
+  [ADR-009](ADR/ADR-009-authentication-strategy.md) and
+  [SECURITY.md](SECURITY.md) §2-3 for the full rationale (CSRF exposure
+  vs. XSS-exfiltration trade-off that motivated this over a header
+  token).
+- A third, deliberately non-httpOnly cookie (`civiclens_csrf`) pairs
+  with the double-submit pattern: every mutating request must also
+  send that same value in an `X-CSRF-Token` header, compared with
+  `hmac.compare_digest`. Enforced by the `verify_csrf` dependency on
+  every non-GET authenticated route.
+- Refresh-token rotation is family-scoped: replaying an
+  already-rotated (revoked) refresh token revokes every token sharing
+  its `family_id`, not just the one presented — [SECURITY.md](SECURITY.md)
+  §2's anti-theft design, verified by a dedicated replay test.
 - Every route is explicitly one of: **public** (no token required —
   default for all read-only domain/content endpoints, required for SEO
   crawlability per [SEO.md](SEO.md)), **authenticated** (`user` role or
-  above — tracking, saved items, profile, dashboard), or **privileged**
-  (`editor`/`admin` — ingestion review, source management, per
-  [DATA_SOURCES.md](DATA_SOURCES.md) §4).
+  above — tracking, notifications, profile, dashboard; enforced by the
+  `get_current_user` dependency, which 401s on any missing/invalid/
+  expired access-token cookie), or **privileged** (`editor`/`admin` —
+  ingestion review, source management, per
+  [DATA_SOURCES.md](DATA_SOURCES.md) §4 — not yet built, Phase 13).
 - Role checks are declared as a FastAPI dependency at the route level
   (e.g., `require_role("editor")`), never as an inline `if` inside handler
   logic — this keeps authorization auditable and consistent across
   routers.
 - No endpoint infers a user's identity or role from anything other than
-  the validated token claims.
+  the validated access-token cookie's claims — never from a
+  client-supplied header, query parameter, or request body field.
+- Ownership on every authenticated tracking/notification route is
+  IDOR-safe by construction: "doesn't exist" and "belongs to another
+  user" are raised as the identical internal error and mapped to the
+  identical 404, so a response never discloses which case applies.
 
 ## 5. Request Validation
 
@@ -229,21 +253,29 @@ request → get_db dependency (opens a Session) → route/service function
 ## 12. Explicitly Not Built Yet
 
 - Any domain-content business route beyond Jobs, Services, Schemes,
-  Documents, Eligibility, and Civic AI (exams, representatives,
-  elections, tracking) or its request/response models —
+  Documents, Eligibility, Civic AI, Auth, Tracking, and Notifications
+  (exams, representatives, elections) or its request/response models —
   `health`/`health/ready` (§11), `/search` (Phase 5,
   [SEARCH.md](SEARCH.md) §12), `/jobs` (Phase 6, §13), `/services`
   (Phase 7, §14), `/schemes` (Phase 8, §15), `/documents` (Phase 10,
-  §17), `/eligibility` (Phase 11, §18), and `/ai` (Phase 12, §20) exist
-  so far. Scholarships (Phase 9, §16) are not a separate route —
-  `category=SCHOLARSHIP` schemes returned by the same `/schemes`
-  endpoints.
+  §17), `/eligibility` (Phase 11, §18), `/auth`/`/tracking`/
+  `/notifications` (Tracking + Notifications, rescheduled from Phase
+  12, §19), and `/ai` (Phase 12, §20) exist so far. Scholarships
+  (Phase 9, §16) are not a separate route — `category=SCHOLARSHIP`
+  schemes returned by the same `/schemes` endpoints.
 - Concrete rate-limit thresholds/infrastructure for anything beyond
   `/ai/*`'s own in-process MVP limiter (§20), cache headers, or CDN
   interaction rules (deferred to [SECURITY.md](SECURITY.md) /
   [ARCHITECTURE.md](ARCHITECTURE.md) performance work in later phases).
-- Any re-indexing/admin route for `/ai` — no auth/role-check mechanism
-  exists anywhere in this codebase yet (§20).
+- Any privileged (`editor`/`admin`) route — real user authentication
+  now exists (§4, §19) and `UserRole` already has `editor`/`admin`
+  values, but no route anywhere yet declares a `require_role(...)`
+  dependency or otherwise checks a role beyond "is this a real
+  authenticated user." A re-indexing/admin route for `/ai`, an
+  approve/reject route for a `ChangeRecord` (§19,
+  [DATABASE.md](DATABASE.md) §18), and the review-queue endpoints
+  [DATA_SOURCES.md](DATA_SOURCES.md) §4 describes are all Phase 13's
+  job (Admin Intelligence Center), not built here.
 - GraphQL or any query language beyond the filter/sort conventions in §6 —
   not needed at MVP scope and not planned without a documented reason.
 
@@ -474,6 +506,79 @@ list/detail pair — an evaluation is an action, not a browsable resource:
 - See [ELIGIBILITY_ENGINE.md](ELIGIBILITY_ENGINE.md) for the underlying
   evaluation semantics and [DATABASE.md](DATABASE.md) §15 for the schema
   and its deviation from this document's original polymorphic sketch.
+
+## 19. Auth, Tracking & Notifications (rescheduled from Phase 12)
+
+**Auth** (`/api/v1/auth`) — see §4 for the cookie/CSRF mechanics:
+- `POST /register` — body `{email, password}` (`password` min 10 chars,
+  a floor not a full strength policy — entropy meters/breach-list
+  checks are Phase 15 hardening). 201, sets the three session cookies,
+  body `{user, csrf_token}`. 409 if the email (case-insensitively)
+  already exists.
+- `POST /login` — body `{email, password}`. 200, same cookie/body
+  shape as register. 401 for any failure (unknown email, wrong
+  password, or an OAuth-only account with no password set) — never
+  distinguishing which, the same non-disclosure convention as every
+  ownership check.
+- `POST /refresh` — no body; reads the refresh cookie, rotates it. 200
+  with fresh cookies on success; 401 (and clears all three cookies) on
+  an expired/revoked/replayed refresh token.
+- `POST /logout` — requires `X-CSRF-Token`. 204, clears all three
+  cookies and revokes the presented refresh token.
+- `GET /me` — the caller's own `{id, email, role,
+  email_notifications_enabled}`. 401 if not authenticated.
+- `PATCH /me` — requires `X-CSRF-Token`. Body
+  `{email_notifications_enabled}` — the only field a user can currently
+  self-update.
+
+**Tracking** (`/api/v1/tracking`) — every route requires
+authentication; ownership is enforced on every operation (§4):
+- `GET /tracking` — the caller's own tracked items, each with
+  display data joined from `search_documents`/`Source` (title, route,
+  `verification_status`, `last_verified`, `source_organization`), a
+  `still_available` flag (`false` when the entity has dropped out of
+  `search_documents` — expired, withdrawn, or unpublished, without
+  guessing why), and `deadline`/`deadline_expired` (computed from real
+  structured data only — [DATABASE.md](DATABASE.md) §18 — `null` when
+  the entity type or record has no deadline field).
+- `POST /tracking` — requires `X-CSRF-Token`. Body `{entity_type,
+  entity_slug, label?}` (`entity_type` is `job`/`service`/`scheme`/
+  `document`; scholarships are tracked via their parent scheme's
+  slug). 201. Idempotent: tracking an already-tracked (even paused)
+  entity reactivates the existing row rather than erroring or
+  duplicating. 404 if the entity doesn't exist or isn't publicly
+  visible — the same non-disclosing 404 every domain's detail route
+  uses.
+- `PATCH /tracking/{id}` — requires `X-CSRF-Token`. Body
+  `{label}` only.
+- `POST /tracking/{id}/pause`, `POST /tracking/{id}/resume` — require
+  `X-CSRF-Token`. A soft toggle (`is_active`), deliberately distinct
+  from removal — pausing stops generating notifications for that item
+  without losing the tracking record.
+- `DELETE /tracking/{id}` — requires `X-CSRF-Token`. 204, hard delete.
+- Every `{id}`-scoped route 404s identically for "doesn't exist" and
+  "belongs to another user" (§4's IDOR-safe convention) — verified by
+  a two-independent-authenticated-identities test.
+
+**Notifications** (`/api/v1/notifications`) — every route requires
+authentication; ownership enforced identically to Tracking:
+- `GET /notifications?page=&page_size=` — the caller's own inbox,
+  newest first, paginated (§6's conventions), plus `unread_count`.
+  Notifications are produced only by the trusted sweep described in
+  [DATABASE.md](DATABASE.md) §17-18 — no route here or anywhere else
+  lets a client create one directly.
+- `POST /notifications/{id}/read` — requires `X-CSRF-Token`. 200,
+  idempotent (marking an already-read notification read again is a
+  no-op, not an error).
+- `POST /notifications/read-all` — requires `X-CSRF-Token`. 204, marks
+  every one of the caller's unread notifications read in one bulk
+  update.
+- No route triggers the notification sweep or email delivery — those
+  are an internal service function plus a manual ops script
+  (`apps/api/scripts/run_notification_sweep.py`), never an HTTP
+  endpoint, since no admin/internal-auth boundary exists yet to gate
+  such a route safely ([DATABASE.md](DATABASE.md) §17's "no scheduler
+  exists" note).
 
 ## 20. Civic AI Domain (Phase 12)
 

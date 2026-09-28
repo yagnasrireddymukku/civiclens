@@ -673,3 +673,83 @@ export const aiProviderHealthSchema = z.object({
 
 export type AIAskResponseInput = z.infer<typeof aiAskResponseSchema>;
 export type AIExplainEligibilityResponseInput = z.infer<typeof aiExplainEligibilityResponseSchema>;
+
+/**
+ * Mirrors `apps/api/app/auth/schemas.py` and `apps/api/app/users/enums.py`
+ * exactly (Tracking + Notifications, rescheduled from Phase 12 — see
+ * docs/ROADMAP.md's rescheduling note).
+ */
+export const userRoleSchema = z.enum(["user", "editor", "admin"]);
+
+export const authUserSchema = z.object({
+  id: z.string(),
+  email: z.string(),
+  role: userRoleSchema,
+  email_notifications_enabled: z.boolean(),
+});
+
+export const authResponseSchema = z.object({
+  user: authUserSchema,
+  csrf_token: z.string(),
+});
+
+export type AuthResponseInput = z.infer<typeof authResponseSchema>;
+
+/**
+ * Mirrors `apps/api/app/tracking/schemas.py` and
+ * `apps/api/app/tracking/enums.py` exactly. `verificationStatusSchema`
+ * above is reused as-is.
+ */
+export const trackedEntityTypeSchema = z.enum(["job", "service", "scheme", "document"]);
+
+export const trackedItemSchema = z.object({
+  id: z.string(),
+  entity_type: trackedEntityTypeSchema,
+  title: z.string().nullable(),
+  route: z.string().nullable(),
+  verification_status: verificationStatusSchema.nullable(),
+  last_verified: z.string().nullable(),
+  source_organization: z.string().nullable(),
+  still_available: z.boolean(),
+  label: z.string().nullable(),
+  is_active: z.boolean(),
+  created_at: z.string(),
+  deadline: z.string().nullable(),
+  deadline_expired: z.boolean().nullable(),
+});
+
+export const trackedItemListResponseSchema = z.object({
+  results: z.array(trackedItemSchema),
+});
+
+export type TrackedItemListResponseInput = z.infer<typeof trackedItemListResponseSchema>;
+
+/**
+ * Mirrors `apps/api/app/notifications/schemas.py` and
+ * `apps/api/app/notifications/enums.py` exactly. `paginationMetaSchema`
+ * above is reused as-is.
+ */
+export const notificationTypeSchema = z.enum([
+  "DEADLINE_REMINDER",
+  "CHANGE_DETECTED",
+  "ENTITY_NO_LONGER_AVAILABLE",
+]);
+
+export const notificationItemSchema = z.object({
+  id: z.string(),
+  notification_type: notificationTypeSchema,
+  title: z.string(),
+  body: z.string(),
+  entity_type: z.string().nullable(),
+  entity_id: z.string().nullable(),
+  created_at: z.string(),
+  read_at: z.string().nullable(),
+});
+
+export const notificationListResponseSchema = z.object({
+  results: z.array(notificationItemSchema),
+  pagination: paginationMetaSchema,
+  unread_count: z.number(),
+});
+
+export type NotificationListResponseInput = z.infer<typeof notificationListResponseSchema>;

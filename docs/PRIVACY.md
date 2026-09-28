@@ -183,7 +183,22 @@ end-to-end" as acceptance criteria:
 
 ## 10. Explicitly Not Built Yet
 
-- No `users`/`profiles` tables exist yet (Phase 3).
+- **Realized (Tracking + Notifications, rescheduled from Phase 12):**
+  `users` exists (no separate `profiles` table — see
+  [DATABASE.md](DATABASE.md) §17's note that this phase added only
+  `email_notifications_enabled` to `users`, opt-in-only default, per
+  §3 above); `tracked_items`/`notifications` exist and are hard-deleted
+  by `ON DELETE CASCADE` the moment their owning `users` row is
+  deleted — verified by dedicated cascade-delete tests
+  (`tests/test_tracking/test_models.py`,
+  `tests/test_notifications/test_models.py`). This is the §4 hard-
+  delete *mechanism* for tracking/notification data, already correct
+  at the database layer; what remains unbuilt (still Phase 15, per §6)
+  is the user-facing account-deletion *flow* itself (a route/UI to
+  actually delete a `users` row), the export endpoint, and any
+  inactive-account/notification-retention pruning job — nothing prunes
+  old read notifications automatically today, so §6's "eligible for
+  deletion" is a stated policy, not yet an enforced one.
 - No account settings UI, deletion flow, or export endpoint exists yet.
 - No consent-management UI or audit-log anonymization job exists yet.
 - No legal compliance review against a specific Indian data-protection

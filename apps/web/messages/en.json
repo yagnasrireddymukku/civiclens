@@ -4,7 +4,9 @@
     "brand": "CivicLens",
     "tagline": "Search. Understand. Check. Act. Track.",
     "userAreaSignIn": "Sign in",
-    "userAreaPlaceholder": "Accounts aren't available yet"
+    "userAreaPlaceholder": "Accounts aren't available yet",
+    "dashboardLink": "Dashboard",
+    "userAreaSignOut": "Sign out"
   },
   "LanguageSwitcher": {
     "label": "Language",
@@ -371,5 +373,71 @@
     "civicHeading": "CivicLens components",
     "responsiveHeading": "Responsive behavior",
     "responsiveBody": "Resize the window, or use your browser's device toolbar, to see components adapt."
+  },
+  "Auth": {
+    "loginTitle": "Sign in",
+    "loginDescription": "Sign in to CivicLens to track jobs, schemes, services, and documents.",
+    "fieldEmail": "Email",
+    "fieldPassword": "Password",
+    "fieldPasswordHint": "At least 10 characters.",
+    "loginSubmit": "Sign in",
+    "loginRegisterPrompt": "Don't have an account?",
+    "loginRegisterLink": "Create one",
+    "registerTitle": "Create an account",
+    "registerDescription": "Create a CivicLens account to track jobs, schemes, services, and documents.",
+    "registerSubmit": "Create account",
+    "registerLoginPrompt": "Already have an account?",
+    "registerLoginLink": "Sign in"
+  },
+  "Tracking": {
+    "signInToTrack": "Sign in to track this",
+    "trackThis": "Track this",
+    "stopTracking": "Stop tracking",
+    "errorGeneric": "Something went wrong. Please try again.",
+    "emptyState": "You aren't tracking anything yet. Use \"Track this\" on a job, scheme, service, or document page.",
+    "statusActive": "Tracking",
+    "statusPaused": "Paused",
+    "pauseAction": "Pause",
+    "resumeAction": "Resume",
+    "removeAction": "Remove",
+    "deadlineLabel": "Deadline",
+    "unavailableNotice": "This item is no longer published on CivicLens. It may have expired, been withdrawn, or been removed."
+  },
+  "Notifications": {
+    "emptyState": "No notifications yet.",
+    "markAllRead": "Mark all as read",
+    "markRead": "Mark as read",
+    "unreadBadge": "unread",
+    "typeDeadlineReminder": "Deadline reminder",
+    "typeChangeDetected": "Update",
+    "typeEntityUnavailable": "No longer available"
+  },
+  "Dashboard": {
+    "title": "Your dashboard",
+    "metaDescription": "Track jobs, schemes, services, and documents, and see your notifications.",
+    "loading": "Loading your dashboard…",
+    "signInTitle": "Sign in to see your dashboard",
+    "signInBody": "Track jobs, schemes, services, and documents, and get notified about verified deadlines and changes.",
+    "signInCta": "Sign in",
+    "sectionDeadlines": "Upcoming deadlines",
+    "noDeadlines": "No upcoming deadlines among the items you're tracking.",
+    "sectionTrackedItems": "Tracked items",
+    "sectionNotifications": "Notifications",
+    "errorGeneric": "Something went wrong loading your dashboard. Please try again."
+  },
+  "Profile": {
+    "title": "Profile",
+    "metaDescription": "Manage your CivicLens account and notification preferences.",
+    "loading": "Loading your profile…",
+    "signInTitle": "Sign in to see your profile",
+    "signInCta": "Sign in",
+    "emailLabel": "Email",
+    "roleLabel": "Role",
+    "emailNotificationsLabel": "Email notifications",
+    "emailNotificationsHint": "When enabled, CivicLens may also email you about deadlines and verified changes for items you track, in addition to your in-app notifications.",
+    "saveButton": "Save",
+    "savedMessage": "Saved.",
+    "errorGeneric": "Something went wrong. Please try again.",
+    "signOutButton": "Sign out"
   }
 }

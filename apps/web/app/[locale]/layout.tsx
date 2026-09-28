@@ -5,6 +5,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/layout";
+import { AuthProvider } from "@/components/auth";
 import { ToastProvider } from "@/components/feedback";
 import { routing, type AppLocale } from "@/i18n/routing";
 import { buildLocaleAwareMetadata } from "@/lib/seo";
@@ -49,9 +50,11 @@ export default async function LocaleLayout({
     <html lang={locale}>
       <body>
         <NextIntlClientProvider>
-          <ToastProvider>
-            <AppShell>{children}</AppShell>
-          </ToastProvider>
+          <AuthProvider>
+            <ToastProvider>
+              <AppShell>{children}</AppShell>
+            </ToastProvider>
+          </AuthProvider>
         </NextIntlClientProvider>
       </body>
     </html>

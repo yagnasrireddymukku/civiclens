@@ -42,8 +42,14 @@ per product surface, matching [PRODUCT.md](PRODUCT.md) §5's domains:
 /[locale]/ai                        Civic AI
 /[locale]/dashboard/tracking        Tracking (authenticated)
 /[locale]/dashboard/profile         Profile (authenticated)
+/[locale]/login, /register          Sign in / create account
 /[locale]/about, /contact, /privacy, /terms, /disclaimer   Static/legal
 ```
+
+`/login` and `/register` were not in this document's original route
+inventory above — added when Tracking + Notifications (rescheduled from
+Phase 12) realized real authentication (§4/§11 below), following the
+same `app/[locale]/<name>/page.tsx` convention as every other route.
 
 Exact slug/URL conventions (canonicalization, trailing structure) are
 defined in [SEO.md](SEO.md) §1 — this section defines page inventory and
@@ -80,6 +86,8 @@ Realized as five folders under `apps/web/components/`, each with an
 | `navigation/` | Wayfinding | Tabs, Breadcrumb, Pagination, Dropdown |
 | `layout/` | App shell | AppShell, TopNav, Footer, Container, LanguageSwitcher |
 | `civic/` | CivicLens-specific, domain-shaped but not domain-data-owning | SourceBadge, VerificationStatus, LastVerified, OfficialSourceCard, EligibilityStatus, DeadlineBadge, SearchResultCard, InformationCard, SearchBar |
+| `auth/` | Session state (Tracking + Notifications, rescheduled from Phase 12) | `AuthProvider`/`useAuth` — a client Context mirroring the current user, mounted once in `app/[locale]/layout.tsx` alongside `ToastProvider` |
+| `tracking/` | Tracking + Notifications, rescheduled from Phase 12 | `TrackButton` — the real track/untrack control embedded on job/scheme/service/document detail pages |
 
 Conventions:
 - Each component is one `.tsx` + one co-located `.module.css` file (no
@@ -140,6 +148,20 @@ HTML behavior:
 - Authenticated session state (JWT) lives in an httpOnly cookie set by the
   backend per [ADR-009](ADR/ADR-009-authentication-strategy.md) and
   [SECURITY.md](SECURITY.md) — never in `localStorage`.
+- **Realized (Tracking + Notifications, rescheduled from Phase 12):**
+  no `swr`/`react-query`-class library was added — the dashboard,
+  `TrackButton`, and the login/register forms all use the same plain
+  `fetch`-in-a-`useState`-driven-handler pattern Eligibility/Civic AI
+  already established (§12), via new `lib/auth.ts`/`lib/tracking.ts`/
+  `lib/notifications.ts` wrappers following `lib/jobs.ts`'s tagged-
+  union-result convention exactly. `AuthProvider` (`components/auth/`)
+  is the one small exception worth naming here — a plain React Context
+  holding the current user + CSRF token, loaded once on mount via
+  `GET /api/v1/auth/me` (with a single silent `POST /api/v1/auth/
+  refresh` retry if the access-token cookie has simply expired) —
+  deliberately minimal, the same "just enough Context, not a general
+  state-management pattern" precedent `ToastProvider` already set
+  above, not a second one invented for a different reason.
 
 ## 6. Design System Specification
 
@@ -261,11 +283,12 @@ civic-trust product, not a consumer/marketing product. All tokens live in
 link, `TopNav`, the page content in a `<main>` landmark, and `Footer`.
 
 - **TopNav** (`components/layout/TopNav.tsx`): brand/logo, primary
-  navigation, language control, and a user-area placeholder. No
-  authentication is implemented (that's ADR-009/Phase 15) — the
-  "sign in" control is a disabled button with a tooltip explaining
-  accounts aren't available yet, never a functional-looking control that
-  does nothing.
+  navigation, language control, and a user area. **Realized (Tracking +
+  Notifications, rescheduled from Phase 12):** the placeholder described
+  below is gone — a real `useAuth()`-driven "Sign in" link (to `/login`)
+  when signed out, or a "Dashboard" link + working "Sign out" button
+  when signed in, matching the same "no functional-looking control that
+  does nothing" principle the placeholder itself was built to satisfy.
 - **Primary navigation's "coming soon" pattern**: every future section
   named in [PRODUCT.md](PRODUCT.md) §5 (Jobs, Schemes, Services,
   Representatives, Exams, Documents, Calculators, AI Assistant) has no
@@ -318,12 +341,29 @@ is realized as:
 ## 11. Personal Civic Dashboard (Engine H)
 
 Also a composition layer, authenticated, aggregating existing read
-endpoints for the current user:
+endpoints for the current user. **Realized as `/dashboard/tracking`
+(Tracking + Notifications, rescheduled from Phase 12)** — narrower
+than this section's original sketch, and the scope difference is worth
+naming rather than silently reinterpreting the sketch as fulfilled:
 
-- Saved items (`saved_items`), tracked items (`tracking_items`), upcoming
-  deadlines (from tracked entities' `deadlines`), and — only where the
-  user explicitly provided profile attributes — a document checklist
-  (from [ELIGIBILITY_ENGINE.md](ELIGIBILITY_ENGINE.md) §documents linkage).
+- Built: tracked items (`tracked_items`, [API.md](API.md) §19) with
+  pause/resume/remove controls; upcoming deadlines, derived from the
+  same tracked-items response rather than a separate fetch (real
+  structured `deadline`/`deadline_expired` fields only — never
+  inferred, [DATABASE.md](DATABASE.md) §18); the notification inbox
+  (unread count, mark-read, mark-all-read). A separate
+  `/dashboard/profile` page holds account info (email, role) and the
+  email-notification preference toggle.
+- Not built: `saved_items` (bookmarking without tracking — a distinct,
+  still-unbuilt feature, [DATABASE.md](DATABASE.md) §2) and any
+  document checklist derived from `profiles` attributes (`profiles`
+  itself remains unbuilt — [DATABASE.md](DATABASE.md) §17's note).
+- Every state is explicit and real, never inert: an unauthenticated
+  visit shows a real sign-in prompt (not a blank or fake-populated
+  dashboard); loading, error, and empty states are each rendered
+  distinctly per section; every tracking/notification action (track,
+  pause, resume, remove, mark read) only updates the UI after the
+  server confirms it, never optimistically.
 - The dashboard never infers or displays a personalization based on data
   the user did not explicitly provide (FR-P2,
   [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md) §1.9) — it is a

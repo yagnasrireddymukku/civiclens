@@ -6,13 +6,16 @@ rather than every future migration needing to remember every module.
 """
 
 from app.ai import models as ai_models  # noqa: F401
+from app.auth import models as auth_models  # noqa: F401
 from app.documents import models as documents_models  # noqa: F401
 from app.eligibility import models as eligibility_models  # noqa: F401
 from app.geography import models as geography_models  # noqa: F401
 from app.institutions import models as institutions_models  # noqa: F401
 from app.jobs import models as jobs_models  # noqa: F401
+from app.notifications import models as notifications_models  # noqa: F401
 from app.schemes import models as schemes_models  # noqa: F401
 from app.search import models as search_models  # noqa: F401
 from app.services import models as services_models  # noqa: F401
 from app.sources import models as sources_models  # noqa: F401
+from app.tracking import models as tracking_models  # noqa: F401
 from app.users import models as users_models  # noqa: F401

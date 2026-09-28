@@ -6,6 +6,11 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.20.0",
+    # Tracking + Notifications, rescheduled from Phase 12 (ADR-009):
+    # password hashing for the new auth module (app/auth/security.py) —
+    # the adaptive salted hash ADR-009/SECURITY.md §2 already specify,
+    # not a new decision.
+    "bcrypt>=5.0.0",
     "fastapi>=0.141.1",
     # Phase 12 (docs/AI_ARCHITECTURE.md): the one HTTP client the
     # provider-abstraction layer (app/ai/providers_*.py) uses to call an
@@ -16,6 +21,11 @@ dependencies = [
     "httpx>=0.28.1",
     "psycopg[binary]>=3.2",
     "pydantic-settings>=2.15.0",
+    # Tracking + Notifications, rescheduled from Phase 12 (ADR-009): JWT
+    # access/refresh token encode-decode for the new auth module — a
+    # small, single-purpose library rather than a full auth framework
+    # (CLAUDE.md rule 13).
+    "pyjwt>=2.15.0",
     "sqlalchemy>=2.0",
     "uvicorn[standard]>=0.53.0",
 ]

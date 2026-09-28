@@ -652,3 +652,82 @@ export interface AIProviderHealth {
   embedding_configured: boolean;
   embedding_provider: string;
 }
+
+/**
+ * Mirrors `apps/api/app/auth/schemas.py` and `apps/api/app/users/enums.py`
+ * exactly (Tracking + Notifications, rescheduled from Phase 12 per
+ * docs/ROADMAP.md — see that document's rescheduling note for why this
+ * work carries no phase number). Session state itself (the access/
+ * refresh/CSRF cookies) is never represented as a TS type — it lives
+ * only in httpOnly cookies the backend sets, per docs/FRONTEND.md §5.
+ */
+export type UserRole = "user" | "editor" | "admin";
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  role: UserRole;
+  email_notifications_enabled: boolean;
+}
+
+export interface AuthResponse {
+  user: AuthUser;
+  csrf_token: string;
+}
+
+/**
+ * Mirrors `apps/api/app/tracking/schemas.py` and
+ * `apps/api/app/tracking/enums.py` exactly. `TrackedEntityType`
+ * deliberately does NOT reuse `AIEntityType` above even though the
+ * string values are identical — the backend's own
+ * `app.tracking.enums.TrackedEntityType` makes the same choice for the
+ * same reason (each domain that needs this small vocabulary defines its
+ * own copy rather than manufacturing a shared module for a 4-value
+ * enum, CLAUDE.md rule 12).
+ */
+export type TrackedEntityType = "job" | "service" | "scheme" | "document";
+
+export interface TrackedItem {
+  id: string;
+  entity_type: TrackedEntityType;
+  title: string | null;
+  route: string | null;
+  verification_status: VerificationStatus | null;
+  last_verified: string | null;
+  source_organization: string | null;
+  still_available: boolean;
+  label: string | null;
+  is_active: boolean;
+  created_at: string;
+  deadline: string | null;
+  deadline_expired: boolean | null;
+}
+
+export interface TrackedItemListResponse {
+  results: TrackedItem[];
+}
+
+/**
+ * Mirrors `apps/api/app/notifications/schemas.py` and
+ * `apps/api/app/notifications/enums.py` exactly. `PaginationMeta` above
+ * is reused as-is.
+ */
+export type NotificationType =
+  "DEADLINE_REMINDER" | "CHANGE_DETECTED" | "ENTITY_NO_LONGER_AVAILABLE";
+
+export interface NotificationItem {
+  id: string;
+  notification_type: NotificationType;
+  title: string;
+  body: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  created_at: string;
+  read_at: string | null;
+}
+
+export interface NotificationListResponse {
+  results: NotificationItem[];
+  pagination: PaginationMeta;
+  unread_count: number;
+}

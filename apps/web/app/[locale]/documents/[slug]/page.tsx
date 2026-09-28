@@ -6,6 +6,7 @@ import { LastVerified, SourceBadge, VerificationStatus } from "@/components/civi
 import { Container } from "@/components/layout";
 import { Breadcrumb } from "@/components/navigation";
 import { ExternalLinkIcon } from "@/components/icons";
+import { TrackButton } from "@/components/tracking";
 import { Link } from "@/i18n/navigation";
 import type { AppLocale } from "@/i18n/routing";
 import { getDocumentBySlug } from "@/lib/documents";
@@ -155,6 +156,7 @@ export default async function DocumentDetailPage({ params }: DocumentDetailPageP
               <LastVerified date={new Date(document.last_verified)} locale={locale} />
             )}
           </div>
+          <TrackButton entityType="document" entitySlug={document.slug} />
         </header>
 
         <section className={styles.section} aria-labelledby="overview-heading">

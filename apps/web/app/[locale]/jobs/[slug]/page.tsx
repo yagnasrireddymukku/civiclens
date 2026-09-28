@@ -5,6 +5,7 @@ import type { NotificationSummary } from "@civiclens/types";
 import { LastVerified, SourceBadge, VerificationStatus } from "@/components/civic";
 import { Container } from "@/components/layout";
 import { Breadcrumb } from "@/components/navigation";
+import { TrackButton } from "@/components/tracking";
 import { ExternalLinkIcon } from "@/components/icons";
 import type { AppLocale } from "@/i18n/routing";
 import { getJobBySlug } from "@/lib/jobs";
@@ -148,6 +149,7 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
               <LastVerified date={new Date(job.last_verified)} locale={locale} />
             )}
           </div>
+          <TrackButton entityType="job" entitySlug={job.slug} />
         </header>
 
         <section className={styles.section} aria-labelledby="overview-heading">

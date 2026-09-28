@@ -11,6 +11,7 @@ import { LastVerified, SourceBadge, VerificationStatus } from "@/components/civi
 import { Container } from "@/components/layout";
 import { Breadcrumb } from "@/components/navigation";
 import { ExternalLinkIcon } from "@/components/icons";
+import { TrackButton } from "@/components/tracking";
 import type { AppLocale } from "@/i18n/routing";
 import { getSchemeBySlug } from "@/lib/schemes";
 import { buildLocaleAwareMetadata } from "@/lib/seo";
@@ -174,6 +175,7 @@ export default async function SchemeDetailPage({ params }: SchemeDetailPageProps
               <LastVerified date={new Date(scheme.last_verified)} locale={locale} />
             )}
           </div>
+          <TrackButton entityType="scheme" entitySlug={scheme.slug} />
         </header>
 
         <section className={styles.section} aria-labelledby="overview-heading">

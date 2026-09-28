@@ -35,7 +35,7 @@ def test_eligibility_domain_migration_applies_and_reverses_cleanly(
         # isolates this migration — walk down one revision at a time,
         # mirroring tests/test_documents/test_migrations.py's identical
         # pattern.
-        for _ in range(2):
+        for _ in range(3):
             command.downgrade(config, "-1")
             engine = sa.create_engine(db_url, future=True)
             try:
@@ -45,7 +45,7 @@ def test_eligibility_domain_migration_applies_and_reverses_cleanly(
             if ELIGIBILITY_TABLES.isdisjoint(tables):
                 break
         else:
-            raise AssertionError("eligibility tables were still present after 2 downgrades")
+            raise AssertionError("eligibility tables were still present after 3 downgrades")
 
         engine = sa.create_engine(db_url, future=True)
         try:

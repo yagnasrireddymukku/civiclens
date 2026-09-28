@@ -22,16 +22,29 @@ unavailable in this project's actual local/test Postgres distribution
 and development environment (no Docker); embeddings are stored as plain
 float arrays with Python-side cosine similarity instead, a disclosed
 deviation from ADR-006's aspiration (see
-[docs/DATABASE.md](docs/DATABASE.md) §16). One feature, originally
-planned as Phase 9 (Public Representatives + Elections), and one,
-originally planned as Phase 12 (Tracking + Notifications), remain
-rescheduled — their scope is unchanged but neither yet has a new phase
-number; see the rescheduling notes in
-[docs/ROADMAP.md](docs/ROADMAP.md) after the Phase 9 and Phase 12
-entries respectively (the Civic AI + RAG feature's own earlier
-"rescheduled from Phase 11" placeholder is now resolved — it is Phase
-12, realized). The project is now awaiting approval to begin its next
-phase. Real government data still does not exist and must not be added
+[docs/DATABASE.md](docs/DATABASE.md) §16). Tracking + Notifications
+(originally planned as Phase 12, rescheduled) is also now realized —
+real JWT cookie authentication (`app.auth`, ADR-009), a tracking module
+(`app.tracking`/`TrackedItem`), and a notifications module
+(`app.notifications`/`Notification`) — see the "Tracking +
+Notifications" entry in [docs/ROADMAP.md](docs/ROADMAP.md) (placed
+after Phase 12, still without its own phase number: this document does
+not guess at a sequencing decision that belongs to explicit
+product-owner approval) and [docs/DATABASE.md](docs/DATABASE.md)
+§17-18. Its commits use a `tracking-notifications:` prefix rather than
+a `phase-N:` one for the same reason. Change-detected notifications are
+wired and tested but gated on `ChangeRecord.review_status ==
+APPROVED`, which nothing in this codebase can set yet outside a test —
+that capability is Phase 13's job (below), not a bug in this work. One
+feature, originally planned as Phase 9 (Public Representatives +
+Elections), remains rescheduled — its scope is unchanged but it has no
+new phase number yet; see the rescheduling note in
+[docs/ROADMAP.md](docs/ROADMAP.md) after the Phase 9 entry (the Civic
+AI + RAG feature's own earlier "rescheduled from Phase 11" placeholder
+is likewise resolved — it is Phase 12, realized). The project is now
+awaiting approval to begin its next phase (Phase 13, Admin Intelligence
+Center, or Representatives + Elections). Real government data still
+does not exist and must not be added
 until the project explicitly enters a real-data phase (Phase 13, per
 [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md)) — every domain module
 built so far uses clearly-synthetic fixtures only, gated to `local`/

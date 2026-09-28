@@ -45,7 +45,7 @@ def test_services_domain_migration_applies_and_reverses_cleanly(
         # gone — mirrors tests/test_jobs/test_migrations.py's identical
         # walk-down, needed for the same reason: "-1" alone no longer
         # isolates this migration once a later phase adds its own on top.
-        for _ in range(7):
+        for _ in range(8):
             command.downgrade(config, "-1")
             engine = sa.create_engine(db_url, future=True)
             try:
@@ -55,7 +55,7 @@ def test_services_domain_migration_applies_and_reverses_cleanly(
             if SERVICE_TABLES.isdisjoint(tables):
                 break
         else:
-            raise AssertionError("service tables were still present after 7 downgrades")
+            raise AssertionError("service tables were still present after 8 downgrades")
 
         engine = sa.create_engine(db_url, future=True)
         try:

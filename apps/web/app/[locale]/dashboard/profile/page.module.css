@@ -1,0 +1,73 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding-block: var(--space-8);
+  max-width: 32rem;
+}
+
+.title {
+  font: var(--text-h1);
+  color: var(--color-text-primary);
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font: var(--text-body);
+  color: var(--color-text-secondary);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.signInTitle {
+  font: var(--text-h4);
+  color: var(--color-text-primary);
+}
+
+.factList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.fact {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font: var(--text-body);
+}
+
+.fact dt {
+  color: var(--color-text-secondary);
+}
+
+.fact dd {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.hint {
+  font: var(--text-body-small);
+  color: var(--color-text-muted);
+}
+
+.errorText {
+  font: var(--text-body-small);
+  color: var(--color-error);
+}
+
+.savedText {
+  font: var(--text-body-small);
+  color: var(--color-success);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-3);
+}

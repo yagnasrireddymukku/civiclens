@@ -1,0 +1,29 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-width: 28rem;
+  margin: 0 auto;
+  padding-block: var(--space-10);
+}
+
+.title {
+  font: var(--text-h2);
+  color: var(--color-text-primary);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.errorText {
+  font: var(--text-body-small);
+  color: var(--color-error);
+}
+
+.switchPrompt {
+  font: var(--text-body-small);
+  color: var(--color-text-secondary);
+}

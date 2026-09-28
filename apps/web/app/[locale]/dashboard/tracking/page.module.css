@@ -1,0 +1,130 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding-block: var(--space-8);
+}
+
+.title {
+  font: var(--text-h1);
+  color: var(--color-text-primary);
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font: var(--text-body);
+  color: var(--color-text-secondary);
+}
+
+.signInCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 32rem;
+}
+
+.signInTitle {
+  font: var(--text-h4);
+  color: var(--color-text-primary);
+}
+
+.errorText {
+  font: var(--text-body);
+  color: var(--color-error);
+}
+
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.sectionHeadingRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.sectionHeading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font: var(--text-h3);
+  color: var(--color-text-primary);
+}
+
+.unreadBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 var(--space-2);
+  font: var(--text-caption);
+  font-weight: 700;
+  color: var(--color-primary-foreground);
+  background: var(--color-primary);
+  border-radius: var(--radius-pill);
+}
+
+.emptyState {
+  font: var(--text-body);
+  color: var(--color-text-muted);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  list-style: none;
+}
+
+.listItem {
+  list-style: none;
+}
+
+.itemRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font: var(--text-body);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.itemMeta {
+  font: var(--text-body-small);
+  color: var(--color-text-secondary);
+}
+
+.unavailableNotice {
+  font: var(--text-body-small);
+  font-weight: 600;
+  color: var(--color-warning);
+}
+
+.itemActions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.unread {
+  border-left: 3px solid var(--color-primary);
+}
+
+.notificationTitle {
+  font: var(--text-body);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}

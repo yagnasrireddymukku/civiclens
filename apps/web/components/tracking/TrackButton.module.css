@@ -1,0 +1,17 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.signInPrompt {
+  font: var(--text-body-small);
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.errorText {
+  font: var(--text-body-small);
+  color: var(--color-error);
+}

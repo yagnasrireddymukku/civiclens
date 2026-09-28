@@ -337,7 +337,13 @@ documented tradeoff of the polymorphic-association pattern.
 - **saved_items**, **tracking_items**, **notifications** — deferred to
   [ROADMAP.md](ROADMAP.md) Phase 12 (Tracking + Notifications); out of
   Phase 3's explicit scope (identity only, no tracking/notification
-  features).
+  features). **Realized (rescheduled from Phase 12, §17-18): only
+  `tracked_items` and `notifications`/`notification_delivery_attempts`
+  — the kickoff's explicit scope.** `profiles` and `saved_items` remain
+  unbuilt; `users` gained one column
+  (`email_notifications_enabled`) rather than a separate `profiles`
+  table, since no eligibility/personalization attribute storage was in
+  scope for this work.
 
 ## 3. Relationships (summary)
 
@@ -1051,3 +1057,141 @@ identical finding). Per this phase's explicit "never expose an
 unauthenticated destructive indexing endpoint," `reindex_all` is exposed
 only as an internal service function and a manual ops script
 (`scripts/reindex_ai_knowledge.py`), never a route.
+
+## 17. Tracking + Notifications Implementation Notes (rescheduled from Phase 12)
+
+**Real authentication was built first — this work's actual prerequisite.**
+Phase 11's identical finding ("no auth/role-check mechanism exists
+anywhere") was still true at the start of this work. ADR-009 (JWT
+access+refresh, httpOnly cookies, email/password baseline) was already
+*accepted* but never implemented. Since every requirement below depends
+on real per-user ownership, implementing ADR-009 was executing an
+already-approved architecture, not inventing one. `app.auth` adds
+`users.email_notifications_enabled` (opt-in-only default, per
+[PRIVACY.md](PRIVACY.md) §3) and one new table, `refresh_tokens`
+(`user_id`, `token_hash` — SHA-256, not bcrypt, since a refresh token is
+already a random secret, not a human password — `family_id`,
+`expires_at`, `revoked_at`). Refresh rotation is family-scoped: replaying
+an already-rotated (revoked) token revokes every token in that
+`family_id`, the explicit anti-theft design in
+[SECURITY.md](SECURITY.md) §2.
+
+**`TrackedItem` uses four real nullable FKs + a `CHECK`, not a
+polymorphic key — the opposite choice from `ai_knowledge_chunks`
+(§16) for a deliberate reason.** The entity-reference design question
+was resolved by direct analogy to two existing precedents rather than
+picked arbitrarily: Phase 11's `EligibilityRule` (real FKs; small,
+fixed entity set; cascade-delete is a real correctness requirement —
+a dangling tracked item pointing at a deleted job is a dashboard bug,
+not an acceptable trade-off) versus `ai_knowledge_chunks`/
+`SearchDocument`/`ChangeRecord` (polymorphic; open-ended entity-type
+set; the record is audit-trail-like and should survive entity
+deletion). `TrackedItem`'s characteristics — four fixed entity types
+(job/service/scheme/document; scholarships are tracked via their
+parent `scheme_id`, not a fifth column, per Phase 9's scholarship-as-
+scheme-specialization decision, §13), and a real dashboard-correctness
+cost to a dangling reference — match the `EligibilityRule` precedent:
+`job_id`/`service_id`/`scheme_id`/`document_id` (all nullable FK
+`ON DELETE CASCADE`), `CHECK (num_nonnulls(...) = 1)`.
+
+**Preventing duplicate active tracking rows required
+`postgresql_nulls_not_distinct=True`, not a plain `UNIQUE`
+constraint.** A naive `UNIQUE(user_id, job_id, service_id, scheme_id,
+document_id)` would not actually prevent a user from tracking the same
+job twice: Postgres's *default* NULL semantics treat every `NULL` as
+distinct from every other `NULL`, so two rows both
+`(user=X, job=Y, NULL, NULL, NULL)` would not collide under the
+default constraint. Caught before implementing, not after a bug
+report. `postgresql_nulls_not_distinct=True` (a Postgres 15+ feature;
+confirmed available on this project's actual Postgres 16.2, and
+confirmed supported by the installed SQLAlchemy 2.0.51) closes this
+gap — verified directly by a dedicated duplicate-insert test, not
+assumed from the option's name.
+
+**`Notification` uses a polymorphic `(entity_type, entity_id)` pair,
+no FK — matching `ChangeRecord`/`ai_knowledge_chunks`, not
+`TrackedItem`.** A notification is an audit-trail-like record of an
+event that happened (a deadline approached, a change was detected, an
+entity disappeared) — it should remain readable in a user's inbox even
+after the underlying entity or `TrackedItem` is later deleted, the
+same reasoning that put `ai_knowledge_chunks` on the polymorphic side
+of this decision in §16. `source_id`/`change_record_id` are real
+nullable FKs with `ON DELETE SET NULL` (provenance links, safe to lose
+without losing the notification itself).
+
+**Notification deduplication is enforced at the database layer, not
+just in application logic** — this phase's explicit requirement.
+`UNIQUE(user_id, dedup_key)` (`uq_notifications_user_dedup_key`) is the
+actual guarantee; `app.notifications.service.create_notification` uses
+a Postgres `INSERT ... ON CONFLICT (user_id, dedup_key) DO NOTHING
+RETURNING *` so a sweep that runs twice, or is retried after a partial
+failure, silently no-ops on the second attempt (`None` return, not an
+error) rather than crashing or duplicating. Dedup keys are built from
+the triggering event's own stable identity — e.g.
+`DEADLINE_REMINDER:{entity_type}:{entity_id}:{deadline.isoformat()}`,
+`CHANGE_DETECTED:{change_record_id}:{user_id}` — never from a
+timestamp or a counter, so the same underlying event can never produce
+two rows no matter how many times the sweep re-runs.
+
+**`NotificationDeliveryAttempt` exists as its own table, separate from
+`Notification`, specifically so a crash between "we decided to try
+sending" and "the provider responded" leaves a durable, retryable
+record** — this phase's explicit "persist pending work before
+delivery" requirement. `IN_APP` delivery is instantaneous by
+construction (writing the `Notification` row *is* delivery for that
+channel), so `create_notification` also writes a `SENT` `IN_APP`
+attempt row at creation time, with nothing further to track. `EMAIL`
+delivery is different: `app.notifications.delivery.deliver_pending_emails`
+writes a `PENDING` attempt row and flushes it to the database *before*
+calling the email provider, so a crash mid-call is recoverable rather
+than silently lost. Retries are bounded by counting existing `EMAIL`
+attempts against `settings.notification_delivery_max_attempts`
+(default 3) — an exhausted notification simply stops being retried
+(stays `FAILED`), never retried forever.
+
+## 18. Deadline and Change-Detection Semantics (Tracking + Notifications)
+
+**Deadlines use a fixed IST (`Asia/Kolkata`) convention, not the
+server's local timezone.** `app.tracking.deadlines` treats a bare
+`Date` deadline field as ending at 23:59:59 IST on the stated day
+(inclusive of that day) — `deadline_end_instant`, `is_expired`, and
+`time_to_deadline` are pure functions taking an explicit `now`
+parameter rather than reading the wall clock internally, so their
+behavior is reproducible in tests and never silently depends on the
+machine's local timezone. `get_deadline_for_entity` never infers or
+generates a deadline: for a `Job` it is
+`max(n.application_end for n in job.notifications if
+n.application_end is not None)` (the furthest-future stated deadline
+across recruitment cycles — deliberately not "most recently created,"
+since two `JobNotification` rows inserted in the same transaction can
+share an identical `created_at` from Postgres's transaction-time
+`now()`, making creation order an unreliable tiebreaker); for a
+`Scheme` it is `scheme.scholarship_detail.application_closes` when
+present; `Service`/`Document` currently have no structured deadline
+field and always return `None` — never a guessed one.
+
+**Change detection compares a small, named set of fields per entity
+type against the most recent prior observation — never a full-row
+diff, and never triggers on an unrelated field edit, a re-index, or a
+reformat.** `app.tracking.change_detection.detect_changes` reuses the
+`ChangeRecord`/`ChangeReviewStatus` model defined in Phase 3 (§7) and
+never previously instantiated anywhere — the schema was already
+correct; this phase built the first producer for it. Only
+`publication_status` and `deadline` are watched (`_SUPPORTED_FIELDS`),
+each entity type's real current value is compared against that exact
+`(entity_type, entity_id, field)` triple's most recent prior
+`ChangeRecord.new_value` — a value equal to the last-recorded one
+never creates a new row, so repeated sweeps are idempotent and a field
+nobody watches can never trigger a spurious notification. A new
+`PENDING` `ChangeRecord` is created on any real difference, including
+the first-ever observation (no prior baseline). Critically, a
+`ChangeRecord` being created is *not* itself notifiable —
+`generate_change_notifications` only ever considers records with
+`review_status == APPROVED`. `approve_change_record`/
+`reject_change_record` exist as plain internal functions (the smallest
+capability a future admin-review UI would call) but are deliberately
+never exposed as routes — no unauthenticated or unreviewed path can
+turn a detected difference into a live notification. This is the same
+trust boundary [DATA_SOURCES.md](DATA_SOURCES.md) §4 describes for
+Phase 13's ingestion pipeline, applied here ahead of that pipeline
+existing.

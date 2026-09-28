@@ -218,13 +218,31 @@ findings are fixed forward, not rolled back.
 
 ## 14. Explicitly Not Built Yet
 
-- No authentication/authorization middleware or API exists yet.
+- **Realized (Tracking + Notifications, rescheduled from Phase 12):**
+  §2-4's JWT/cookie/CSRF/RBAC design is now implemented
+  (`app.auth`) exactly as specified above, verified by a real replay-
+  attack test (§2's "replayed already-rotated token revokes its whole
+  token family") and a live smoke test exercising the full cookie/CSRF
+  flow end to end. Not yet real: OAuth login (still deferred, per
+  ADR-009's own "secondary, additive" framing — email/password is the
+  only login method); any `editor`/`admin`-gated route (`UserRole`
+  already has both values, but no route declares `require_role(...)`
+  yet — see [API.md](API.md) §12); argon2 as a password-hash
+  alternative (bcrypt only, currently).
 - No secrets manager, WAF, or general rate-limiting infrastructure is
   provisioned. Phase 12 added one deliberately minimal exception: an
   in-process, single-instance, per-IP sliding-window limiter scoped only
   to `/api/v1/ai/*` (`app.ai.rate_limit`) — disclosed as an MVP, not a
   claim that rate-limiting infrastructure now exists generally (it does
   not coordinate across processes/instances and covers no other route).
+  `/api/v1/auth/*`, `/api/v1/tracking/*`, and `/api/v1/notifications/*`
+  have no dedicated rate limiter either — a real gap for `/auth/login`
+  specifically (credential-stuffing/brute-force exposure), noted here
+  rather than silently left undocumented; considered but out of this
+  work's scope (no rate-limiting infrastructure beyond the `/ai/*` MVP
+  exists to extend, and building a second bespoke limiter here would
+  duplicate rather than generalize it — a job for whichever future
+  phase builds real cross-route rate-limiting infrastructure).
 - No dependency-scanning CI job exists yet (arrives with CI, Phase 1).
 - No penetration test or formal security audit has been performed — that
   is Phase 15's deliverable, not something this document certifies.

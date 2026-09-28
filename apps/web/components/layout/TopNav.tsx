@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Link } from "@/i18n/navigation";
+import { useAuth } from "@/components/auth";
+import { Link, useRouter } from "@/i18n/navigation";
 import { Tooltip } from "../feedback/Tooltip";
 import { Container } from "./Container";
 import { LanguageSwitcher } from "./LanguageSwitcher";
@@ -28,6 +29,13 @@ const COMING_SOON_ITEMS = [
 export function TopNav() {
   const t = useTranslations();
   const [menuOpen, setMenuOpen] = useState(false);
+  const { user, loading, signOut } = useAuth();
+  const router = useRouter();
+
+  async function handleSignOut() {
+    await signOut();
+    router.push("/");
+  }
 
   return (
     <header className={styles.header}>
@@ -69,11 +77,22 @@ export function TopNav() {
 
         <div className={styles.actions}>
           <LanguageSwitcher />
-          <Tooltip content={t("Shell.userAreaPlaceholder")}>
-            <button type="button" className={styles.signIn} disabled aria-disabled="true">
+          {!loading && user ? (
+            <div className={styles.userArea}>
+              <Link href="/dashboard/tracking" className={styles.userAreaLink}>
+                {t("Shell.dashboardLink")}
+              </Link>
+              <button type="button" className={styles.signIn} onClick={handleSignOut}>
+                {t("Shell.userAreaSignOut")}
+              </button>
+            </div>
+          ) : !loading ? (
+            <Link href="/login" className={styles.signIn}>
               {t("Shell.userAreaSignIn")}
-            </button>
-          </Tooltip>
+            </Link>
+          ) : (
+            <span className={styles.signIn} aria-hidden="true" />
+          )}
         </div>
       </Container>
     </header>

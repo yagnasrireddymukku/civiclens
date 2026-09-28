@@ -6,6 +6,7 @@ import { LastVerified, SourceBadge, VerificationStatus } from "@/components/civi
 import { Container } from "@/components/layout";
 import { Breadcrumb } from "@/components/navigation";
 import { ExternalLinkIcon } from "@/components/icons";
+import { TrackButton } from "@/components/tracking";
 import type { AppLocale } from "@/i18n/routing";
 import { getServiceBySlug } from "@/lib/services";
 import { buildLocaleAwareMetadata } from "@/lib/seo";
@@ -146,6 +147,7 @@ export default async function ServiceDetailPage({ params }: ServiceDetailPagePro
               <LastVerified date={new Date(service.last_verified)} locale={locale} />
             )}
           </div>
+          <TrackButton entityType="service" entitySlug={service.slug} />
         </header>
 
         <section className={styles.section} aria-labelledby="overview-heading">

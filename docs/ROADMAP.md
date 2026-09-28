@@ -895,7 +895,7 @@ unnumbered, immediately below.
   groundedness quality, since no live provider calls are made in the
   test suite and no real government content exists yet to evaluate
   against. A live-model eval harness with a product-owner-set accuracy
-  bar remains a named future task ([TESTING.md](TESTING.md) §8/§17).
+  bar remains a named future task ([TESTING.md](TESTING.md) §8/§18).
   Rate limiting is a single-process MVP (no cross-instance
   coordination).
 - **Rollback**: Both provider settings default to `"none"`; disabling
@@ -905,28 +905,68 @@ unnumbered, immediately below.
 
 ---
 
-**Tracking + Notifications — rescheduled from Phase 12.** Original
-scope, unchanged from this document's earlier plan, kept here rather
-than assigned a new number for the same reason the Phase 9, 10, and 11
-rescheduling notes give — this document does not guess at a sequencing
-decision that belongs to explicit product-owner approval:
-- **Objective**: User tracking subscriptions and change notifications.
-- **Dependencies**: Phase 6–9 (trackable entities), Phase 3 (users).
-- **Files/modules**: `apps/api/app/tracking/`,
-  `apps/api/app/notifications/`.
-- **Technical work**: `tracking_items`/`notifications` schema (already
-  planned in Phase 3, implemented here), subscription API, in-app +
-  email notification delivery, dashboard integration.
-- **Tests**: Notification-trigger tests (a `change_record` on a tracked
-  entity produces exactly one notification).
-- **Documentation**: [DATABASE.md](DATABASE.md) confirmed against
-  implementation.
-- **Acceptance criteria**: Tracking a fictional test entity and simulating
-  a change record produces a visible in-app notification.
+**Tracking + Notifications — rescheduled from Phase 12, now realized.**
+Built without a new phase number, for the same reason the Phase 9, 10,
+and 11 rescheduling notes give — this document does not guess at a
+sequencing decision that belongs to explicit product-owner approval.
+Commits use a `tracking-notifications:` prefix rather than a
+`phase-N:` one for this same reason:
+- **Objective**: User tracking subscriptions and change notifications. Met.
+- **Dependencies**: Phase 6–9 (trackable entities), Phase 3 (users). Also
+  required real authentication (ADR-009 was accepted but not yet
+  implemented before this work) — see [SECURITY.md](SECURITY.md) §2-3,
+  now realized.
+- **Files/modules**: `apps/api/app/auth/`, `apps/api/app/tracking/`,
+  `apps/api/app/notifications/`, `apps/web/components/auth/`,
+  `apps/web/components/tracking/`,
+  `apps/web/app/[locale]/{login,register,dashboard}/`.
+- **Technical work**: JWT cookie authentication (register/login/refresh/
+  logout, CSRF double-submit); `tracked_items` (4 nullable entity FKs +
+  a `CHECK`/`UNIQUE ... NULLS NOT DISTINCT` pair — see
+  [DATABASE.md](DATABASE.md) §17) and `notifications`/
+  `notification_delivery_attempts` (polymorphic, DB-deduplicated —
+  §18); change detection via the pre-existing `ChangeRecord`/
+  `ChangeReviewStatus` (§3), gated on `APPROVED`; deadline reminders,
+  change notifications, and unavailability notifications; an optional
+  Resend-backed email channel (default disabled); a
+  `run_notification_sweep`/`deliver_notification_emails` pair invoked
+  by `scripts/run_notification_sweep.py` (no scheduler exists yet —
+  see the Known Limitations note below); dashboard
+  (`/dashboard/tracking`, `/dashboard/profile`) and tracking controls
+  on job/scheme/service/document detail pages.
+- **Tests**: 495 backend tests (`apps/api/tests/test_auth`,
+  `test_tracking`, `test_notifications`, plus updated migration
+  walk-downs across every existing package), 139 frontend tests
+  (Vitest), and a live smoke test against a real ad-hoc PostgreSQL
+  instance exercising register → track → sweep → notify → dedup →
+  mark-read → pause/resume → cross-user-denial → remove → logout end
+  to end with real cookies/CSRF.
+- **Documentation**: [DATABASE.md](DATABASE.md) §17-18,
+  [API.md](API.md), [SECURITY.md](SECURITY.md), [PRIVACY.md](PRIVACY.md),
+  [FRONTEND.md](FRONTEND.md), [TESTING.md](TESTING.md) updated against
+  the realized implementation.
+- **Acceptance criteria**: Met — tracking a fictional test entity and
+  running the sweep against a real (non-fabricated) deadline produces a
+  visible in-app notification; verified in the live smoke test above.
 - **Risks**: Notification spam from noisy change detection — mitigated by
-  only notifying on changes that pass human review (Phase 13), consistent
-  with [DATA_SOURCES.md](DATA_SOURCES.md) §4.
-- **Rollback**: Additive; feature-flaggable.
+  only notifying on changes with `review_status == APPROVED`, consistent
+  with [DATA_SOURCES.md](DATA_SOURCES.md) §4. Since Phase 13 (Admin
+  Intelligence Center, below) does not exist yet, nothing in this
+  codebase can currently move a `ChangeRecord` to `APPROVED` outside a
+  test or a future admin tool — change-detected notifications are wired
+  and tested but will not fire on real data until Phase 13 ships. This
+  is the intended trust boundary, not a bug.
+- **Rollback**: Additive; feature-flaggable (email delivery defaults to
+  disabled; the sweep script is not invoked by anything else in this
+  codebase).
+- **Known limitations** (see also
+  [FRONTEND.md](FRONTEND.md)/[SECURITY.md](SECURITY.md) for detail):
+  no production scheduler/worker exists — `run_notification_sweep`/
+  `deliver_notification_emails` are safe, idempotent, documented
+  execution boundaries a future scheduler can invoke, not a running
+  recurring process; no admin review UI exists yet to approve/reject a
+  `ChangeRecord` (Phase 13's job); OAuth login remains deferred per
+  ADR-009; no SMS/WhatsApp/push notification channel.
 
 ## Phase 13 — Admin Intelligence Center
 - **Objective**: Ingestion pipeline + human review tooling per

@@ -16,6 +16,13 @@ vi.mock("@/i18n/navigation", () => ({
   ),
 }));
 
+// Tracking controls are a separate concern with their own dedicated
+// test coverage (components/tracking/TrackButton.test.tsx) — stubbed
+// here so this domain page's tests don't need auth/i18n client context.
+vi.mock("@/components/tracking", () => ({
+  TrackButton: () => null,
+}));
+
 const notFound = vi.fn(() => {
   throw new Error("NEXT_NOT_FOUND");
 });
