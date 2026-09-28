@@ -1,0 +1,61 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--color-border);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 24rem;
+}
+
+.errorText {
+  font: var(--text-body);
+  color: var(--color-error);
+}
+
+.result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.resultHeading {
+  font: var(--text-h4);
+  color: var(--color-text-primary);
+}
+
+.conditionList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.conditionItem {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  font: var(--text-body-sm);
+}
+
+.conditionStatus {
+  flex-shrink: 0;
+  font-weight: 600;
+  min-width: 5rem;
+}
+
+.conditionStatus[data-tone="success"] {
+  color: var(--color-success);
+}
+
+.conditionStatus[data-tone="error"] {
+  color: var(--color-error);
+}
+
+.conditionStatus[data-tone="warning"] {
+  color: var(--color-warning);
+}

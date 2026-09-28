@@ -98,3 +98,55 @@ pairs using clearly-fictional fixture data
 - Any eligibility computation performed by calling an LLM.
 - Auto-applying on a user's behalf (this is a "check and explain" engine,
   not an application-automation engine, at v1).
+
+## 8. Phase 11 Implementation Notes (Realized)
+
+This document's §1–§7 above described the target design before an
+implementation existed; this section records where the real
+implementation (`apps/api/app/eligibility/`) landed, and the deliberate
+narrowings from the original sketch. Full architectural rationale lives
+in [DATABASE.md](DATABASE.md) §15; this section summarizes it from the
+evaluation-semantics angle §1–§7 already established.
+
+- **Entity reference**: `eligibility_rules` carries three nullable FKs
+  (`job_id`/`scheme_id`/`service_id`, `CHECK` exactly one set) instead of
+  §2's `entity_type`/`entity_id` polymorphic pair — real referential
+  integrity for a fixed, small entity-type set. Scholarships are
+  evaluated via their parent `scheme_id`, matching their status as a
+  `Scheme` specialization ([DATABASE.md](DATABASE.md) §13), not a fourth
+  entity type.
+- **Attribute enum, finalized**: `AGE`, `INCOME_ANNUAL`,
+  `EDUCATION_LEVEL`, `ACADEMIC_PERCENTAGE`, `ACADEMIC_CGPA`,
+  `RESIDENCE_STATE`, `CATEGORY` — a subset of §2's illustrative list.
+  `qualification`/`gender`/`experience_years` were not implemented: real
+  qualification wording rarely reduces to one structured value (the same
+  reasoning `Job.qualification_summary` already documents), and no
+  documented product requirement named gender or experience as
+  evaluation criteria for this phase. **Date windows are explicitly not
+  an attribute** — an application window is a fact about the
+  opportunity, already shown on its own detail page, not a question
+  asked of the applicant.
+- **Operators, exactly as specified**: `EQ`, `NEQ`, `GTE`, `LTE`,
+  `BETWEEN`, `IN`, `NOT_IN` — §3's fixed set, unchanged. `BETWEEN` is
+  inclusive on both bounds (documented and unit-tested at both
+  boundaries).
+- **Evaluation is stateless, not `Profile`-backed.** §1's table listed
+  `profiles` as where "user attributes" live. No authentication module
+  exists yet (Phase 3 built identity storage only), so there is no
+  session to load a persisted profile from — `POST
+  /api/v1/eligibility/evaluate` takes answers directly in the request
+  body instead, evaluates them, and never persists them. A future
+  authenticated flow could pre-fill this form from `Profile` fields
+  without any change to the pure evaluation core.
+- **Evaluability gate, stricter than every other domain's visibility
+  rule**: only `verification_status == VERIFIED` rules are evaluated
+  (not `NEEDS_REVIEW`) — §6's "no engine hardcodes an assumption that
+  unverified data is safe to act on" principle, made concrete.
+- **Versioning**: `EligibilityRule.rule_version` is a plain incrementing
+  integer on an otherwise-immutable published row — simpler than §5's
+  implied temporal history, sufficient because no rule-authoring/
+  superseding admin workflow exists yet (matching every other domain's
+  fixture-only-authoring stage).
+- **Test matrix**: 100% branch coverage achieved on
+  `app.eligibility.evaluator.evaluate_rule` (37 dedicated pure unit
+  tests, `pytest --cov-branch`), satisfying §6's mandatory gate.

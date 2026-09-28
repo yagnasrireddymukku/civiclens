@@ -228,14 +228,15 @@ request → get_db dependency (opens a Session) → route/service function
 
 ## 12. Explicitly Not Built Yet
 
-- Any domain-content business route beyond Jobs, Services, Schemes, and
-  Documents (exams, representatives, elections, eligibility, tracking,
-  AI) or its request/response models — `health`/`health/ready` (§11),
-  `/search` (Phase 5, [SEARCH.md](SEARCH.md) §12), `/jobs` (Phase 6,
-  §13), `/services` (Phase 7, §14), `/schemes` (Phase 8, §15), and
-  `/documents` (Phase 10, §17) exist so far. Scholarships (Phase 9,
-  §16) are not a separate route — `category=SCHOLARSHIP` schemes
-  returned by the same `/schemes` endpoints.
+- Any domain-content business route beyond Jobs, Services, Schemes,
+  Documents, and Eligibility (exams, representatives, elections,
+  tracking, AI) or its request/response models — `health`/`health/ready`
+  (§11), `/search` (Phase 5, [SEARCH.md](SEARCH.md) §12), `/jobs` (Phase
+  6, §13), `/services` (Phase 7, §14), `/schemes` (Phase 8, §15),
+  `/documents` (Phase 10, §17), and `/eligibility` (Phase 11, §18) exist
+  so far. Scholarships (Phase 9, §16) are not a separate route —
+  `category=SCHOLARSHIP` schemes returned by the same `/schemes`
+  endpoints.
 - Concrete rate-limit thresholds, cache headers, or CDN interaction rules
   (deferred to [SECURITY.md](SECURITY.md) / [ARCHITECTURE.md](ARCHITECTURE.md)
   performance work in later phases).
@@ -369,9 +370,8 @@ scholarships exactly as they serve any other scheme, with two additions:
   `VERIFIED`/`NEEDS_REVIEW` — there is no separate scholarship
   visibility rule to keep in sync, since it is the same row.
 - No eligibility endpoint, no `ELIGIBLE`/`NOT_ELIGIBLE`/`INCOMPLETE`
-  field anywhere in either response — the Eligibility Engine's domain,
-  entirely (rescheduled from its original Phase 10 slot — see
-  [ROADMAP.md](ROADMAP.md)).
+  field anywhere in either response — the Eligibility Engine's own
+  domain, entirely (`/eligibility`, §18, Phase 11).
 
 ## 17. Documents & Certificates Domain (Phase 10)
 
@@ -424,6 +424,52 @@ provided):
   a search result (`entity_type="document"`), the fourth real domain to
   do so — with an explicit test that Jobs, Services, Schemes, and
   Documents all appear together in one cross-domain search result set.
+
+## 18. Eligibility Engine (Phase 11)
+
+Two endpoints, deliberately not shaped like every other domain's
+list/detail pair — an evaluation is an action, not a browsable resource:
+
+- `GET /api/v1/eligibility/criteria?entity_type=&entity_slug=` — the
+  questions needed for an evaluation, no answers submitted. `entity_type`
+  is `JOB`/`SCHEME`/`SERVICE` (`EligibilityEntityType` — Documents are
+  excluded, see [DATABASE.md](DATABASE.md) §15); `entity_slug` resolves
+  through that domain's own `get_*_by_slug` (its own visibility rule
+  applies — an unpublished entity 404s here exactly as it would on its
+  own detail page). Response: `supported` (`false` when no verified,
+  published `EligibilityRule` exists for this entity — never fabricated
+  as an evaluable case), and when `true`: `criteria` (one entry per
+  condition — `attribute`, `operator`, a human-readable `expected`
+  string, and a sourced `description`), `rule_id`/`rule_version`,
+  `source`, `verification_status`, `last_verified`.
+- `POST /api/v1/eligibility/evaluate` — body `{entity_type, entity_slug,
+  answers}`. `answers` is every supported attribute, individually
+  optional and range-validated (`age: 0-130`, `academic_percentage:
+  0-100`, `academic_cgpa: 0-10`, etc.) — Pydantic's `extra="forbid"`
+  rejects an unrecognized field outright, not silently. Response mirrors
+  `criteria`'s shape plus: `outcome` (`ELIGIBLE`/`NOT_ELIGIBLE`/
+  `INCOMPLETE`, `null` only when `supported` is `false`), `conditions`
+  (the full per-criterion trace — `status`
+  `PASS`/`FAIL`/`UNKNOWN`, the submitted value, and a `reason` string),
+  `missing_attributes`/`failed_attributes` (convenience lists derived
+  from `conditions`, so a client doesn't have to filter the trace
+  itself), and `evaluated_at`.
+- Submitted answers are read, evaluated, and discarded within the
+  request — never persisted to any table, never logged (this phase's
+  §G; [PRIVACY.md](PRIVACY.md) §1's minimization principle). No `auth`
+  module exists yet ([DATABASE.md](DATABASE.md) §15's note), so there is
+  no session to attach a stored `Profile` to in the first place —
+  evaluation is stateless by necessity as well as by design.
+- Evaluability is stricter than the standard visibility rule used by
+  every list/detail endpoint above: only `verification_status ==
+  VERIFIED` rules are ever evaluated (not `NEEDS_REVIEW`), since a
+  verdict is a claim of fact rather than displayed content — see
+  [DATABASE.md](DATABASE.md) §15.
+- No pagination, filtering, or sorting conventions from §6 apply — this
+  is a two-endpoint evaluation action, not a listing.
+- See [ELIGIBILITY_ENGINE.md](ELIGIBILITY_ENGINE.md) for the underlying
+  evaluation semantics and [DATABASE.md](DATABASE.md) §15 for the schema
+  and its deviation from this document's original polymorphic sketch.
 
 This document defines the target API conventions for Phase 2 onward; each
 domain phase (6–9, 10–12) implements against it and updates this document

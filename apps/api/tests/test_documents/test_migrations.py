@@ -49,11 +49,22 @@ def test_documents_domain_migration_applies_and_reverses_cleanly(
         finally:
             engine.dispose()
 
-        # This migration is the current head, so "-1" isolates it
-        # cleanly (see tests/test_jobs/test_migrations.py for the
-        # walk-down pattern needed once a later phase adds its own
-        # migration on top of this one).
-        command.downgrade(config, "-1")
+        # No longer the current head (Phase 11's eligibility migration
+        # now sits on top), so a single "-1" no longer isolates this
+        # migration — walk down one revision at a time until the
+        # document tables are gone, mirroring
+        # tests/test_jobs/test_migrations.py's identical pattern.
+        for _ in range(2):
+            command.downgrade(config, "-1")
+            engine = sa.create_engine(db_url, future=True)
+            try:
+                tables = set(sa.inspect(engine).get_table_names())
+            finally:
+                engine.dispose()
+            if DOCUMENT_TABLES.isdisjoint(tables):
+                break
+        else:
+            raise AssertionError("document tables were still present after 2 downgrades")
 
         engine = sa.create_engine(db_url, future=True)
         try:

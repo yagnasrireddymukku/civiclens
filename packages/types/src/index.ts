@@ -513,3 +513,86 @@ export interface DocumentListResponse {
   results: DocumentListItem[];
   pagination: PaginationMeta;
 }
+
+/**
+ * Mirrors `apps/api/app/eligibility/schemas.py` and
+ * `apps/api/app/eligibility/enums.py` exactly (Phase 11, the Eligibility
+ * Engine). `SourceSummary` above is reused as-is. `EducationLevel` above
+ * (Phase 9) is reused for the `education_level` answer field.
+ */
+export type EligibilityEntityType = "JOB" | "SCHEME" | "SERVICE";
+
+export type EligibilityAttribute =
+  | "AGE"
+  | "INCOME_ANNUAL"
+  | "EDUCATION_LEVEL"
+  | "ACADEMIC_PERCENTAGE"
+  | "ACADEMIC_CGPA"
+  | "RESIDENCE_STATE"
+  | "CATEGORY";
+
+export type EligibilityOperator = "EQ" | "NEQ" | "GTE" | "LTE" | "BETWEEN" | "IN" | "NOT_IN";
+
+export type EligibilityOutcome = "ELIGIBLE" | "NOT_ELIGIBLE" | "INCOMPLETE";
+
+export type ConditionStatus = "PASS" | "FAIL" | "UNKNOWN";
+
+export interface EligibilityAnswers {
+  age?: number | null;
+  income_annual?: string | null;
+  education_level?: EducationLevel | null;
+  academic_percentage?: string | null;
+  academic_cgpa?: string | null;
+  residence_state_code?: string | null;
+  category?: string | null;
+}
+
+export interface EligibilityEntitySummary {
+  entity_type: EligibilityEntityType;
+  slug: string;
+  name: string;
+}
+
+export interface EligibilityCriterionQuestion {
+  attribute: EligibilityAttribute;
+  operator: EligibilityOperator;
+  expected: string;
+  description: string | null;
+}
+
+export interface EligibilityCriteriaResponse {
+  entity: EligibilityEntitySummary;
+  supported: boolean;
+  rule_id: string | null;
+  rule_version: number | null;
+  source: SourceSummary | null;
+  verification_status: VerificationStatus | null;
+  last_verified: string | null;
+  criteria: EligibilityCriterionQuestion[];
+}
+
+export interface EligibilityConditionResult {
+  attribute: EligibilityAttribute;
+  operator: EligibilityOperator;
+  description: string | null;
+  expected: string;
+  submitted_value: string | null;
+  status: ConditionStatus;
+  reason: string | null;
+}
+
+export interface EligibilityEvaluateResponse {
+  entity: EligibilityEntitySummary;
+  supported: boolean;
+  message: string | null;
+  outcome: EligibilityOutcome | null;
+  conditions: EligibilityConditionResult[];
+  missing_attributes: EligibilityAttribute[];
+  failed_attributes: EligibilityAttribute[];
+  rule_id: string | null;
+  rule_version: number | null;
+  source: SourceSummary | null;
+  verification_status: VerificationStatus | null;
+  last_verified: string | null;
+  evaluated_at: string;
+}

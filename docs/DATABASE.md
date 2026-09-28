@@ -40,6 +40,12 @@ Exams remain design-only, implemented incrementally against real domain
 content in a future phase (this document does not guess which number,
 per [ROADMAP.md](ROADMAP.md)'s Phase 9/10 rescheduling note).
 
+**Phase 11 status**: the Eligibility Engine (§2.4's sketch, realized in a
+different shape) is implemented — see §15, which also covers why
+`eligibility_rules` deviates from this section's own
+`entity_type`/`entity_id` sketch. Representatives/Elections (§2.6) and
+exams remain design-only.
+
 ## 0. Design Rules
 
 1. Every entity is created because a documented requirement in
@@ -242,7 +248,7 @@ per-row provenance (contrast with §2.3's `source_id` columns).
   The three child tables carry no provenance of their own — each
   inherits its parent `civic_documents` row's `source_id`.
 
-### 2.4 Requirements & Eligibility — the `documents`/`entity_documents` sketch below is **realized, Phase 10** (in a different shape — see §14); `eligibility_rules`/`eligibility_conditions` remain deferred (Eligibility Engine, rescheduled from this section's original "Phase 10" slot — see [ROADMAP.md](ROADMAP.md)'s Phase 9/10 rescheduling note; this document does not guess its new number)
+### 2.4 Requirements & Eligibility — **fully realized** (documents/entity_documents in a different shape, Phase 10, §14; eligibility_rules/eligibility_conditions in a different shape, Phase 11, §15)
 - ~~**documents** — id, name, description, issuing_authority_id
   (organization/department), typical_use~~ — realized as `civic_documents`
   (§14), with substantially more structure than sketched here (document
@@ -250,12 +256,20 @@ per-row provenance (contrast with §2.3's `source_id` columns).
   validity/renewal summaries, an "obtained through" `Service` link,
   requirements, supporting documents, application methods) once a real
   implementation phase worked out what the domain actually needed.
-- **eligibility_rules** — id, entity_type, entity_id (polymorphic reference
-  to job/scheme/scholarship/service), source_id, effective_date
-- **eligibility_conditions** — id, rule_id, attribute (e.g. `age`,
+- ~~**eligibility_rules** — id, entity_type, entity_id (polymorphic reference
+  to job/scheme/scholarship/service), source_id, effective_date~~ —
+  realized as `eligibility_rules` (§15) with three nullable FKs
+  (`job_id`/`scheme_id`/`service_id`, a `CHECK` requiring exactly one)
+  instead of a polymorphic `entity_type`/`entity_id` pair — the same
+  "reject the polymorphic sketch once a real implementation has to choose"
+  pattern §14 established for `entity_documents`, applied a second time.
+- ~~**eligibility_conditions** — id, rule_id, attribute (e.g. `age`,
   `qualification`, `domicile_state_id`, `income_annual`), operator
-  (`>=`,`<=`,`in`,`==`, etc.), value — see
-  [ELIGIBILITY_ENGINE.md](ELIGIBILITY_ENGINE.md) for evaluation semantics
+  (`>=`,`<=`,`in`,`==`, etc.), value~~ — realized as `eligibility_conditions`
+  (§15) with the same attribute/operator shape sketched here, but typed
+  value columns (`numeric_value`/`numeric_value_max`/`text_value`/
+  `text_values`) instead of one generic `value` column — see
+  [ELIGIBILITY_ENGINE.md](ELIGIBILITY_ENGINE.md) for evaluation semantics.
 - ~~Join table **entity_documents** — links jobs/schemes/services to required
   `documents`~~ — **not built**; superseded by §14's smaller design: two
   additive, nullable `civic_document_id` columns directly on
@@ -324,9 +338,12 @@ documented tradeoff of the polymorphic-association pattern.
 states 1─* districts 1─* constituencies
 organizations 1─* jobs 1─* job_notifications 1─* exams
 departments 1─* schemes / scholarships / services
-(jobs|schemes|scholarships|services) 1─* eligibility_rules 1─* eligibility_conditions
+(job|scheme|service) 1─* eligibility_rules 1─* eligibility_conditions — three
+  direct nullable FKs (§15), not a polymorphic pair; scholarships are
+  covered via their parent `scheme_id`
 (jobs|schemes|scholarships|services) 1─* deadlines
-(jobs|schemes|scholarships|services) *─* documents (via entity_documents)
+(jobs|schemes|scholarships|services) *─* civic_documents (via additive
+  civic_document_id columns, §14 — not a join table)
 constituencies 1─* representatives
 constituencies 1─* elections 1─* election_results
 every fact-bearing row ──> sources / verification_records
@@ -824,3 +841,110 @@ first), so `app/documents/fixtures.py` stays independently runnable —
 and the linked `Scheme`'s one `SchemeRequiredDocument` row is what gives
 `get_required_by()` something real to find, demonstrating the full
 reverse relationship end to end from fixture data alone.
+
+## 15. Phase 11 Implementation Notes: Eligibility Engine
+
+**Architectural decision (this phase's §3/§C)**: informational
+requirements (`SchemeRequirement`/`ServiceRequirement`/
+`DocumentRequirement` — prose + a bounded `requirement_type` + an
+optional integer range) stay exactly as they were, untouched by this
+phase. A new, additive pair of tables — `eligibility_rules` and
+`eligibility_conditions` — holds the machine-evaluable predicate model
+these tables were always documented as *not* being (see each of their
+module docstrings, going back to Phase 7). This confirms, rather than
+changes, three phases' worth of "this is deliberately not the
+eligibility engine" comments.
+
+**`eligibility_rules` deviates from this document's own §2.4 sketch**
+(a polymorphic `entity_type`/`entity_id` pair). Instead it carries three
+nullable foreign keys — `job_id`, `scheme_id`, `service_id`, each
+`ON DELETE CASCADE` — with a Postgres `CHECK` constraint
+(`num_nonnulls(job_id, scheme_id, service_id) = 1`) enforcing that
+exactly one is set. This is the same "reject the polymorphic sketch for
+a small, fixed type set" reasoning Phase 10 applied to
+`entity_documents` (§14), scaled to a second, larger case: a real
+foreign key gives referential integrity a `(text, uuid)` pair never
+could (a rule can't outlive or mis-point at the entity it governs), and
+cascading delete cleans up automatically. The cost — a new migration if
+a fourth entity type is ever added — was judged acceptable against
+CLAUDE.md rule 12 ("avoid premature optimization") for a set this
+phase's kickoff names as exactly three (jobs, schemes — which cover
+scholarships via their parent `scheme_id`, since Scholarships remain a
+`Scheme` specialization per §13 — and services). `CivicDocument` is
+deliberately excluded: a document isn't itself something a citizen is
+eligible/not-eligible for.
+
+**`eligibility_conditions`** holds one predicate per row: `attribute`
+(a closed 7-value enum — `AGE`, `INCOME_ANNUAL`, `EDUCATION_LEVEL`,
+`ACADEMIC_PERCENTAGE`, `ACADEMIC_CGPA`, `RESIDENCE_STATE`, `CATEGORY`),
+`operator` (`EQ`/`NEQ`/`GTE`/`LTE`/`BETWEEN`/`IN`/`NOT_IN` — the fixed
+set [ELIGIBILITY_ENGINE.md](ELIGIBILITY_ENGINE.md) §3 specifies, no
+free-form expression evaluation), and typed value columns
+(`numeric_value`/`numeric_value_max` as `Numeric(12,2)` — never `Float`,
+matching `ScholarshipDetail`'s precedent — for numeric attributes;
+`text_value`/`text_values` (`JSONB`) for text/enum attributes) rather
+than one generic `value` column, so a malformed attribute/operator/value
+combination can be rejected in application code
+(`app.eligibility.evaluator.validate_condition_shape`) before it ever
+reaches the evaluation function. A `CHECK` constraint
+(`ck_eligibility_conditions_has_a_value`) guards against a row with no
+value at all, as a cheap database-level backstop.
+
+**Date windows are deliberately not a supported attribute.** This
+phase's kickoff lists "date windows" among the criteria types the engine
+should support "provided the underlying rule has adequate structured
+data." An application-opens/application-closes window is a fact about
+the *opportunity* (already shown on the job/scheme's own detail page via
+existing fields — `JobNotification.application_start/end`,
+`ScholarshipDetail.application_opens/closes`), not something an
+*applicant* answers in a Q&A form — so it was excluded from the
+applicant-facing answer set rather than forced in. This is the
+"integration gap disclosed, not fabricated" pattern the kickoff itself
+permits (§ "If the existing domain data is insufficient, implement the
+reusable engine and clearly identify the integration gap").
+
+**Evaluability is stricter than the standard display-visibility rule.**
+Every prior domain treats `verification_status IN (VERIFIED,
+NEEDS_REVIEW)` plus `publication_status == PUBLISHED` as sufficient to
+*display* a fact. This phase's kickoff explicitly asks that "unverified,
+expired, or review-required rules must not silently produce
+authoritative outcomes" — since an eligibility verdict is a claim of
+fact about a real person's situation, not merely displayed content, only
+`verification_status == VERIFIED` rules are ever evaluated
+(`app.eligibility.service.get_evaluable_rule`). A published, verified
+rule with zero conditions is also treated as not evaluable — it can't
+express anything, so it's never a silent, vacuous `ELIGIBLE`.
+
+**No `profiles` read, by design.** `app.users.models.Profile` already
+holds `date_of_birth`/`qualification`/`state_id`/`district_id`/
+`category` — exactly the shape a future authenticated flow could map to
+this engine's answers. But no `app.auth` module exists yet (Phase 3
+built identity storage only, per that phase's own scope note), so there
+is no session to attach a persisted profile to. The engine is therefore
+stateless: `POST /api/v1/eligibility/evaluate` takes submitted answers
+directly in the request body, evaluates them, and returns a result — no
+answer is read from or written to `profiles` or any other table. This
+is also the more privacy-conservative choice
+([PRIVACY.md](PRIVACY.md) §1's minimization principle), not merely a
+consequence of missing auth.
+
+**The pure evaluation core has zero infrastructure dependencies.**
+`app.eligibility.evaluator.evaluate_rule` takes plain dataclasses in and
+returns plain dataclasses out — no SQLAlchemy `Session`, no Pydantic
+model, no wall-clock read. `app.eligibility.service` is the only caller,
+responsible for converting ORM rows to `RuleSpec`/`ConditionSpec` and a
+validated `EligibilityAnswers` Pydantic model to the plain
+`Mapping[EligibilityAttribute, Decimal | str | None]` the evaluator
+accepts. This is what makes "100% branch coverage on the evaluation
+function" ([TESTING.md](TESTING.md) §6) tractable as a pure-unit-test
+target with no database in the loop.
+
+**Fixture geography/organization/department are shared, not
+duplicated**, extending §14's identical fix: `app/eligibility/
+fixtures.py` get-or-creates the same "Testland" state and "Test
+Recruitment Board — Not Real" organization every other domain's
+fixtures create, plus its own small, dedicated Job/Scheme/Service (not a
+hard dependency on `app.jobs.fixtures`/`app.schemes.fixtures`/
+`app.services.fixtures` having run), each carrying exactly one
+`EligibilityRule` — together exercising every supported attribute and
+operator from fixture data alone.

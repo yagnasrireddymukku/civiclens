@@ -93,29 +93,45 @@ silently drift:
 - **Fixture loading** is itself tested, so a broken fixture can't silently
   pass every downstream test against empty data.
 
-## 6. §eligibility — Deterministic Test Matrix (Mandatory)
+## 6. §eligibility — Deterministic Test Matrix (Mandatory, Implemented Phase 11)
 
 Per [ELIGIBILITY_ENGINE.md](ELIGIBILITY_ENGINE.md) §6, the Eligibility
 Engine is the highest-priority deterministic test target in the system —
 a pure function with no LLM in the decision path, so no branch is excused
-from coverage.
+from coverage. Realized in `apps/api/tests/test_eligibility/
+test_evaluator.py` (37 tests against `app.eligibility.evaluator`, no
+database, no network):
 
-- **Every operator** (`eq`, `neq`, `gte`, `lte`, `between`, `in`,
-  `not_in`) has a unit test per outcome it can produce.
+- **Every operator** (`EQ`, `NEQ`, `GTE`, `LTE`, `BETWEEN`, `IN`,
+  `NOT_IN`) has a unit test per outcome it can produce, including both
+  `BETWEEN` boundaries (inclusive, tested at, just-inside, and
+  just-outside each bound) and a dedicated Decimal-precision test
+  (`59.999999` never satisfies a `>= 60.00` threshold — no float drift).
 - **Every condition outcome** (`PASS`/`FAIL`/`UNKNOWN`) is exercised per
   operator, including the missing-attribute path, which must yield
-  `UNKNOWN`, never a guessed default.
+  `UNKNOWN`, never a guessed default (`TestMissingAnswers`).
 - **Every overall result** (`ELIGIBLE`/`NOT_ELIGIBLE`/`INCOMPLETE`) has a
-  test for the exact condition combination that produces it.
-- **Evaluation trace shape** is asserted, not just the verdict — the
-  trace is a public contract consumed by the frontend and AI layer
-  ([ELIGIBILITY_ENGINE.md](ELIGIBILITY_ENGINE.md) §4).
-- Fixtures are clearly fictional (§fixtures), e.g. a
-  "Test Scheme — Not Real" rule set.
-- Target: 100% branch coverage on the evaluation function specifically,
-  as an explicit CI gate — matching the Eligibility Engine's acceptance
-  criterion in [ROADMAP.md](ROADMAP.md) (rescheduled from its original
-  Phase 10 slot; see that document's Phase 9/10 rescheduling notes).
+  test for the exact condition combination that produces it
+  (`TestOverallOutcome`), including the specific rule that a `FAIL`
+  outranks an `UNKNOWN` and is never masked as merely `INCOMPLETE`.
+- **Malformed/unsupported/contradictory rules are rejected**
+  (`TestMalformedRuleRejection` — `InvalidEligibilityRuleError` for a
+  `BETWEEN` with an inverted or missing bound, a numeric operator on a
+  text attribute and vice versa, `IN`/`NOT_IN` with no values) —
+  validated at `ConditionSpec` construction time, so a malformed
+  condition can never reach `evaluate_rule` at all.
+- **Reproducibility**: identical `(rule, answers)` input produces an
+  identical result across repeated calls (`test_reproducible_for_identical_inputs`).
+- Fixtures are clearly fictional (§fixtures) — `app/eligibility/
+  fixtures.py`'s "Test Merit Scholarship (Fixture)" and
+  "Test Junior Assistant Recruitment (Fixture)" rule sets.
+- **Achieved: 100% branch coverage** on `evaluate_rule` specifically
+  (`pytest --cov=app.eligibility.evaluator --cov-branch`), the explicit
+  CI gate this section names — matching the Eligibility Engine's
+  acceptance criterion in [ROADMAP.md](ROADMAP.md) Phase 11.
+- Beyond the pure-function matrix: model/service/API/fixture/migration
+  tests bring the domain's backend total to 69 tests
+  (`apps/api/tests/test_eligibility/`), plus 10 frontend form/page tests.
 
 This is the **§eligibility** anchor referenced from
 [ROADMAP.md](ROADMAP.md) and [ELIGIBILITY_ENGINE.md](ELIGIBILITY_ENGINE.md).

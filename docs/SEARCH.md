@@ -451,6 +451,26 @@ distinction from `RequiredDocument`/`SchemeRequiredDocument`):
   test_cross_domain_search_returns_jobs_services_schemes_and_documents`)
   — verified live end-to-end as well as via automated tests.
 
+## 19. Eligibility (Phase 11) — No New `entity_type`, No Indexing At All
+
+Unlike every domain covered above, the Eligibility Engine
+(`apps/api/app/eligibility/`) calls `upsert_search_document` for
+**nothing**. `EligibilityRule`/`EligibilityCondition` rows are not
+independently browsable or searchable content — they are criteria
+*attached to* an already-indexed Job/Scheme/Service, which remains
+findable exactly as it always was. Searching "eligibility" would find
+nothing new to return that a rule's own parent entity doesn't already
+surface. `POST /api/v1/eligibility/evaluate` is an action (submit
+answers, get a verdict), not content with a stable, cacheable identity —
+there is no reasonable `searchable_text`/`route` for an evaluation
+result, and indexing the *rule* itself would either duplicate its
+parent entity's existing search result or require exposing
+provenance-only content (the rule's criteria text) as if it were a
+first-class result, which this phase's kickoff never asked for. This is
+a deliberate, documented "no" (matching §17's Scholarships precedent for
+justifying the *absence* of new search-index behavior), not an
+oversight.
+
 This document is updated again with real query patterns as each further
 domain module starts calling `upsert_search_document`, per
 [ROADMAP.md](ROADMAP.md)'s documentation requirement.

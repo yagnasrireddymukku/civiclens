@@ -733,32 +733,86 @@ rule 22 applies to code applies here to roadmap ordering):
 
 ---
 
-**Eligibility Engine — rescheduled from Phase 10.** Original scope,
-unchanged from this document's earlier plan, kept here rather than
-assigned a new number for the same reason Phase 9's rescheduling note
-gives — this document does not guess at a sequencing decision that
-belongs to explicit product-owner approval:
-- **Objective**: Implement the deterministic eligibility engine per
-  [ELIGIBILITY_ENGINE.md](ELIGIBILITY_ENGINE.md) / [ADR-007](ADR/ADR-007-eligibility-engine.md).
-- **Dependencies**: Phases 6–8 (entities to attach rules to).
-- **Files/modules**: `apps/api/app/eligibility/`, frontend eligibility
-  check UI.
-- **Technical work**: `eligibility_rules`/`conditions` migrations,
-  evaluation function, evaluation-trace API, frontend result rendering.
-- **Tests**: Full deterministic unit-test matrix (every operator ×
-  PASS/FAIL/UNKNOWN) — mandatory, see
-  [TESTING.md](TESTING.md) §eligibility.
-- **Documentation**: [ELIGIBILITY_ENGINE.md](ELIGIBILITY_ENGINE.md) updated
-  with the finalized attribute enum.
-- **Acceptance criteria**: 100% branch coverage on the evaluation function;
-  a fictional rule set evaluates correctly against fictional profiles
-  including an `INCOMPLETE` case.
-- **Risks**: Attribute enum growing unmanaged — mitigated by requiring a
-  documented product need (§2 of the eligibility doc) per new attribute.
-- **Rollback**: Evaluation is a pure function with no side effects; safe to
-  disable the check UI without data loss.
+## Phase 11 — Eligibility Engine
 
-## Phase 11 — Civic AI + RAG
+**Realizes the "Eligibility Engine — rescheduled from Phase 10" entry**
+this document previously carried in this slot (unnumbered, appended
+after Phase 9 in the version of this document Phase 10 shipped) — the
+scope described there is what actually landed, with one deliberate
+narrowing (see below). This is the second phase-number collision this
+document has recorded (the first: Phase 9/Scholarships vs. the original
+Representatives + Elections plan) — resolved identically: this section
+now holds what was actually built; the section it displaces
+("Civic AI + RAG") is preserved verbatim, unnumbered, immediately below,
+rather than renumbering Phases 12–18 or guessing a new slot for it.
+
+- **Objective**: A deterministic Eligibility Engine evaluating
+  ELIGIBLE/NOT_ELIGIBLE/INCOMPLETE for jobs, schemes (including
+  scholarships), and services against citizen-submitted answers — never
+  an LLM in the decision path (ADR-007).
+- **Architecture decision**: `EligibilityRule`/`EligibilityCondition`
+  (new tables) deliberately deviate from this document's own §2.4 sketch
+  (`entity_type`/`entity_id` polymorphic pair): `EligibilityRule` carries
+  three nullable FKs (`job_id`/`scheme_id`/`service_id`, `ON DELETE
+  CASCADE`) with a `CHECK` requiring exactly one set — real referential
+  integrity instead of an unenforceable pointer, extending Phase 10's
+  precedent (rejecting `entity_documents`) to a second, larger case. See
+  [DATABASE.md](DATABASE.md) §15 for the full writeup.
+- **Scope narrowing**: the supported attribute set is a small, closed
+  list (age, annual income, education level, academic percentage/CGPA,
+  residence state, category) — date windows were evaluated and
+  deliberately excluded (an application-window date is a fact about the
+  *opportunity*, already shown on its own detail page, not something an
+  *applicant* answers). No auth/session module exists yet, so evaluation
+  is stateless over answers submitted in the request — never against a
+  stored `Profile` — matching this phase's own privacy-minimization
+  instruction more than it contradicts it.
+- **Evaluability gate**: stricter than every other domain's display-
+  visibility rule (`VERIFIED` OR `NEEDS_REVIEW`) — only
+  `verification_status == VERIFIED` rules are ever evaluated, since a
+  verdict is a claim of fact, not just displayed content.
+- **Dependencies**: Phases 6–8 (entities to attach rules to) — met.
+- **Files/modules**: `apps/api/app/eligibility/` (`enums.py`,
+  `evaluator.py` — the pure core — `models.py`, `schemas.py`,
+  `service.py`, `fixtures.py`), `apps/api/app/api/v1/eligibility.py`,
+  `apps/web/app/[locale]/eligibility/[entityType]/[slug]/`.
+- **Technical work**: `eligibility_rules`/`eligibility_conditions`
+  migration; a pure `evaluate_rule()` function (typed dataclasses in/out,
+  `Decimal` throughout, no DB/HTTP/wall-clock access); `GET
+  /api/v1/eligibility/criteria` and `POST /api/v1/eligibility/evaluate`;
+  a citizen-facing form rendering only the fields a given rule actually
+  asks about, reusing the pre-existing `EligibilityStatus` design-system
+  component (built in Phase 4, unused until now) plus `LastVerified`/
+  `SourceBadge`/`VerificationStatus`.
+- **Tests**: 100% branch coverage on `evaluate_rule` (37 dedicated unit
+  tests, `--cov-branch`) — the mandatory gate from
+  [TESTING.md](TESTING.md) §6; plus model/service/API/fixture/migration
+  tests (69 total backend tests) and frontend form/page tests (10 total).
+- **Documentation**: [ELIGIBILITY_ENGINE.md](ELIGIBILITY_ENGINE.md),
+  [DATABASE.md](DATABASE.md) §15, [API.md](API.md) §18,
+  [ARCHITECTURE.md](ARCHITECTURE.md) §6, [FRONTEND.md](FRONTEND.md),
+  [SEARCH.md](SEARCH.md), [SEO.md](SEO.md), this entry.
+- **Acceptance criteria**: 100% branch coverage on the evaluation
+  function — met; a fictional rule set evaluates correctly against
+  fictional answers including an `INCOMPLETE` case — met (see the fixture
+  job/scheme/service in `app/eligibility/fixtures.py` and the live smoke
+  test below).
+- **Risks**: Attribute enum growing unmanaged — mitigated by requiring a
+  documented product need per new attribute, same as this document's
+  original plan. No cross-domain link yet from a job/scheme/service
+  detail page to its eligibility check (discoverable only via direct
+  URL) — a known, disclosed limitation, not fabricated as done.
+- **Rollback**: Evaluation is a pure function with no side effects, and
+  the new tables are purely additive; safe to disable the route without
+  data loss.
+
+---
+
+**Civic AI + RAG — rescheduled from Phase 11.** Original scope,
+unchanged from this document's earlier plan, kept here rather than
+assigned a new number for the same reason the Phase 9 and Phase 10
+rescheduling notes give — this document does not guess at a sequencing
+decision that belongs to explicit product-owner approval:
 - **Objective**: Implement the AI pipeline per
   [AI_ARCHITECTURE.md](AI_ARCHITECTURE.md) / [ADR-006](ADR/ADR-006-ai-rag-architecture.md).
 - **Dependencies**: Phases 5 (search), 6–9 (retrievable content), 10

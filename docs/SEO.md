@@ -381,7 +381,46 @@ pattern §12–§14 document for Jobs/Services/Schemes:
   relationship without stretching semantics, the same reasoning §15
   gives for leaving the scholarship-specific fields out of JSON-LD.
 
+## 17. Phase 11 Implementation Note: Eligibility
+
+`apps/web/app/[locale]/eligibility/[entityType]/[slug]/page.tsx` is
+indexable, with one deliberate difference from every prior domain page:
+
+- Canonical + hreflang alternates via the same `buildLocaleAwareMetadata`
+  helper (§12–§16's precedent, unchanged) — title `"Eligibility — <entity
+  name>"`, description drawn from the published criteria (or an honest
+  "not yet available" description when `supported` is `false` — never a
+  fabricated one).
+- **No JSON-LD structured data is emitted at all** — considered and
+  rejected, not an oversight. No schema.org type honestly represents "a
+  form that evaluates whether you meet published criteria": `FAQPage`
+  was considered and rejected (this isn't a fixed Q&A list, it's an
+  interactive evaluation with a citizen-specific verdict); `GovernmentService`
+  (reused for Jobs/Services/Schemes/Documents, §6/§12–§16) doesn't fit
+  either — the page doesn't describe a government service itself, it
+  describes a check *against* one. Matches this document's own
+  type-by-type-honesty rule (§6) more than it deviates from precedent:
+  every prior phase's structured-data choice was justified by a genuine
+  schema.org fit, and the absence of one here is the same discipline
+  applied to a "no."
+- `BreadcrumbList` is likewise not emitted — the page's `Breadcrumb`
+  component renders CivicLens → (Job/Scheme/Service label) → entity
+  name, but without a stable, crawlable parent listing page for
+  "Eligibility" itself (there is no `/eligibility` index page, only
+  per-entity check pages), a `BreadcrumbList` would describe a hierarchy
+  that doesn't actually exist as a navigable site structure.
+- Same known, disclosed `notFound()`/404-status limitation §12–§16
+  document, mitigated identically with `noindex, nofollow` on the
+  not-found response — including for an invalid `entityType` URL
+  segment (e.g. `/eligibility/not-a-real-type/x`), which 404s before
+  ever reaching the API.
+- The evaluation result itself (`EligibilityForm`'s client-rendered
+  outcome) is never part of page metadata or structured data — it's
+  per-citizen, computed after page load from submitted answers, and
+  this document's own principle (never index personalized/session-
+  specific content) already covers why.
+
 This document defines the target SEO architecture for Phase 14; it is
 finalized against real, live URL patterns once indexable content exists
-from all of Phases 6–10, per Phase 6, 7, 8, 9, and 10's domain-specific
+from all of Phases 6–11, per Phase 6, 7, 8, 9, 10, and 11's domain-specific
 head starts above.

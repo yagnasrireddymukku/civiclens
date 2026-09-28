@@ -3,26 +3,40 @@ import { AlertTriangleIcon, CheckCircleIcon, XCircleIcon } from "../icons";
 
 /**
  * Mirrors the Eligibility Engine's three-state result
- * (docs/ELIGIBILITY_ENGINE.md §3: ELIGIBLE/NOT_ELIGIBLE/INCOMPLETE) — no
- * engine exists yet (docs/ROADMAP.md Phase 10); this is the reusable
- * presentation it will use once it does.
+ * (docs/ELIGIBILITY_ENGINE.md §3: ELIGIBLE/NOT_ELIGIBLE/INCOMPLETE),
+ * real as of Phase 11 (apps/web/app/[locale]/eligibility). Tone+icon
+ * carry the meaning, never color alone (docs/FRONTEND.md §6).
  */
 export type EligibilityStatusValue = "ELIGIBLE" | "NOT_ELIGIBLE" | "INCOMPLETE";
 
-const CONFIG: Record<
+const TONE_AND_ICON: Record<
   EligibilityStatusValue,
-  { label: string; tone: "success" | "error" | "warning"; icon: typeof CheckCircleIcon }
+  { tone: "success" | "error" | "warning"; icon: typeof CheckCircleIcon }
 > = {
-  ELIGIBLE: { label: "Eligible", tone: "success", icon: CheckCircleIcon },
-  NOT_ELIGIBLE: { label: "Not eligible", tone: "error", icon: XCircleIcon },
-  INCOMPLETE: { label: "Incomplete", tone: "warning", icon: AlertTriangleIcon },
+  ELIGIBLE: { tone: "success", icon: CheckCircleIcon },
+  NOT_ELIGIBLE: { tone: "error", icon: XCircleIcon },
+  INCOMPLETE: { tone: "warning", icon: AlertTriangleIcon },
 };
 
-export function EligibilityStatus({ status }: { status: EligibilityStatusValue }) {
-  const { label, tone, icon: Icon } = CONFIG[status];
+const DEFAULT_LABELS: Record<EligibilityStatusValue, string> = {
+  ELIGIBLE: "Eligible",
+  NOT_ELIGIBLE: "Not eligible",
+  INCOMPLETE: "Incomplete",
+};
+
+export interface EligibilityStatusProps {
+  status: EligibilityStatusValue;
+  /** Translated label; defaults to English so the component works
+   * standalone (e.g. in tests) without requiring the i18n provider —
+   * same convention as `LastVerified`'s `label` prop. */
+  label?: string;
+}
+
+export function EligibilityStatus({ status, label }: EligibilityStatusProps) {
+  const { tone, icon: Icon } = TONE_AND_ICON[status];
   return (
     <Badge tone={tone} icon={<Icon />}>
-      {label}
+      {label ?? DEFAULT_LABELS[status]}
     </Badge>
   );
 }

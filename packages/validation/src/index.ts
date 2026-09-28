@@ -527,3 +527,87 @@ export const documentListResponseSchema = z.object({
 
 export type DocumentDetailInput = z.infer<typeof documentDetailSchema>;
 export type DocumentListResponseInput = z.infer<typeof documentListResponseSchema>;
+
+/**
+ * Mirrors `apps/api/app/eligibility/schemas.py` and
+ * `apps/api/app/eligibility/enums.py` exactly (Phase 11). `sourceSummarySchema`/
+ * `verificationStatusSchema`/`educationLevelSchema` above are reused as-is.
+ */
+export const eligibilityEntityTypeSchema = z.enum(["JOB", "SCHEME", "SERVICE"]);
+
+export const eligibilityAttributeSchema = z.enum([
+  "AGE",
+  "INCOME_ANNUAL",
+  "EDUCATION_LEVEL",
+  "ACADEMIC_PERCENTAGE",
+  "ACADEMIC_CGPA",
+  "RESIDENCE_STATE",
+  "CATEGORY",
+]);
+
+export const eligibilityOperatorSchema = z.enum([
+  "EQ",
+  "NEQ",
+  "GTE",
+  "LTE",
+  "BETWEEN",
+  "IN",
+  "NOT_IN",
+]);
+
+export const eligibilityOutcomeSchema = z.enum(["ELIGIBLE", "NOT_ELIGIBLE", "INCOMPLETE"]);
+
+export const conditionStatusSchema = z.enum(["PASS", "FAIL", "UNKNOWN"]);
+
+export const eligibilityEntitySummarySchema = z.object({
+  entity_type: eligibilityEntityTypeSchema,
+  slug: z.string(),
+  name: z.string(),
+});
+
+export const eligibilityCriterionQuestionSchema = z.object({
+  attribute: eligibilityAttributeSchema,
+  operator: eligibilityOperatorSchema,
+  expected: z.string(),
+  description: z.string().nullable(),
+});
+
+export const eligibilityCriteriaResponseSchema = z.object({
+  entity: eligibilityEntitySummarySchema,
+  supported: z.boolean(),
+  rule_id: z.string().nullable(),
+  rule_version: z.number().nullable(),
+  source: sourceSummarySchema.nullable(),
+  verification_status: verificationStatusSchema.nullable(),
+  last_verified: z.string().nullable(),
+  criteria: z.array(eligibilityCriterionQuestionSchema),
+});
+
+export const eligibilityConditionResultSchema = z.object({
+  attribute: eligibilityAttributeSchema,
+  operator: eligibilityOperatorSchema,
+  description: z.string().nullable(),
+  expected: z.string(),
+  submitted_value: z.string().nullable(),
+  status: conditionStatusSchema,
+  reason: z.string().nullable(),
+});
+
+export const eligibilityEvaluateResponseSchema = z.object({
+  entity: eligibilityEntitySummarySchema,
+  supported: z.boolean(),
+  message: z.string().nullable(),
+  outcome: eligibilityOutcomeSchema.nullable(),
+  conditions: z.array(eligibilityConditionResultSchema),
+  missing_attributes: z.array(eligibilityAttributeSchema),
+  failed_attributes: z.array(eligibilityAttributeSchema),
+  rule_id: z.string().nullable(),
+  rule_version: z.number().nullable(),
+  source: sourceSummarySchema.nullable(),
+  verification_status: verificationStatusSchema.nullable(),
+  last_verified: z.string().nullable(),
+  evaluated_at: z.string(),
+});
+
+export type EligibilityCriteriaResponseInput = z.infer<typeof eligibilityCriteriaResponseSchema>;
+export type EligibilityEvaluateResponseInput = z.infer<typeof eligibilityEvaluateResponseSchema>;
