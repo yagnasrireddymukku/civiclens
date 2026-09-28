@@ -12,6 +12,7 @@ import type {
 } from "@civiclens/types";
 import { EligibilityStatus } from "@/components/civic/EligibilityStatus";
 import { Button, Input, Select } from "@/components/primitives";
+import { explainEligibilityWithAI } from "@/lib/ai";
 import { evaluateEligibility } from "@/lib/eligibility";
 import styles from "./EligibilityForm.module.css";
 
@@ -45,11 +46,16 @@ interface FormLabels {
   fieldCategory: string;
   errorGeneric: string;
   loading: string;
+  explainWithAI: string;
+  explainWithAILoading: string;
+  explainWithAIHeading: string;
+  explainWithAIError: string;
 }
 
 export interface EligibilityFormProps {
   entityType: EligibilityEntityType;
   entitySlug: string;
+  locale: string;
   criteria: EligibilityCriterionQuestion[];
   attributeLabels: Record<EligibilityAttribute, string>;
   educationLevelLabels: Record<EducationLevel, string>;
@@ -92,6 +98,7 @@ const STATUS_TONE: Record<ConditionStatus, "success" | "error" | "warning"> = {
 export function EligibilityForm({
   entityType,
   entitySlug,
+  locale,
   criteria,
   attributeLabels,
   educationLevelLabels,
@@ -101,17 +108,18 @@ export function EligibilityForm({
   const [result, setResult] = useState<EligibilityEvaluateResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [explanation, setExplanation] = useState<string | null>(null);
+  const [explanationLoading, setExplanationLoading] = useState(false);
+  const [explanationError, setExplanationError] = useState<string | null>(null);
   const resultHeadingId = useId();
 
   const attributes = new Set(criteria.map((c) => c.attribute));
+  const [submittedAnswers, setSubmittedAnswers] = useState<ReturnType<typeof buildAnswers> | null>(
+    null,
+  );
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setLoading(true);
-    setError(null);
-    setResult(null);
-
-    const answers = {
+  function buildAnswers() {
+    return {
       age: form.age ? Number(form.age) : null,
       income_annual: form.income_annual || null,
       education_level: (form.education_level || null) as EducationLevel | null,
@@ -120,7 +128,17 @@ export function EligibilityForm({
       residence_state_code: form.residence_state_code || null,
       category: form.category || null,
     };
+  }
 
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setLoading(true);
+    setError(null);
+    setResult(null);
+    setExplanation(null);
+    setExplanationError(null);
+
+    const answers = buildAnswers();
     const response = await evaluateEligibility(entityType, entitySlug, answers);
     setLoading(false);
     if (!response.reachable) {
@@ -128,6 +146,25 @@ export function EligibilityForm({
       return;
     }
     setResult(response.data);
+    setSubmittedAnswers(answers);
+  }
+
+  async function handleExplainWithAI() {
+    if (!submittedAnswers) return;
+    setExplanationLoading(true);
+    setExplanationError(null);
+    const response = await explainEligibilityWithAI(
+      entityType,
+      entitySlug,
+      submittedAnswers,
+      locale,
+    );
+    setExplanationLoading(false);
+    if (!response.reachable) {
+      setExplanationError(response.error);
+      return;
+    }
+    setExplanation(response.data.explanation ?? response.data.message);
   }
 
   const outcomeLabel = {
@@ -244,6 +281,28 @@ export function EligibilityForm({
               </li>
             ))}
           </ul>
+
+          <Button
+            type="button"
+            variant="secondary"
+            loading={explanationLoading}
+            onClick={handleExplainWithAI}
+          >
+            {labels.explainWithAI}
+          </Button>
+
+          {explanationError && (
+            <p role="alert" className={styles.errorText}>
+              {labels.explainWithAIError}: {explanationError}
+            </p>
+          )}
+
+          {explanation && (
+            <div className={styles.aiExplanation}>
+              <h3 className={styles.aiExplanationHeading}>{labels.explainWithAIHeading}</h3>
+              <p>{explanation}</p>
+            </div>
+          )}
         </div>
       )}
     </section>

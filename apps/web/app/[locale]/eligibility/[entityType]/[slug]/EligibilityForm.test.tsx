@@ -7,6 +7,11 @@ vi.mock("@/lib/eligibility", () => ({
   evaluateEligibility: (...args: unknown[]) => evaluateEligibility(...args),
 }));
 
+const explainEligibilityWithAI = vi.fn();
+vi.mock("@/lib/ai", () => ({
+  explainEligibilityWithAI: (...args: unknown[]) => explainEligibilityWithAI(...args),
+}));
+
 import { EligibilityForm } from "./EligibilityForm";
 
 const ATTRIBUTE_LABELS = {
@@ -49,6 +54,10 @@ const LABELS = {
   fieldCategory: "Your category",
   errorGeneric: "Could not check eligibility",
   loading: "Checking…",
+  explainWithAI: "Explain this result with Civic AI",
+  explainWithAILoading: "Asking Civic AI…",
+  explainWithAIHeading: "Civic AI explanation",
+  explainWithAIError: "Could not get an explanation",
 };
 
 const AGE_CRITERION = {
@@ -61,6 +70,7 @@ const AGE_CRITERION = {
 describe("EligibilityForm (Phase 11)", () => {
   beforeEach(() => {
     evaluateEligibility.mockReset();
+    explainEligibilityWithAI.mockReset();
   });
 
   it("renders only the fields the criteria actually ask about", () => {
@@ -68,6 +78,7 @@ describe("EligibilityForm (Phase 11)", () => {
       <EligibilityForm
         entityType="JOB"
         entitySlug="test-job"
+        locale="en"
         criteria={[AGE_CRITERION]}
         attributeLabels={ATTRIBUTE_LABELS}
         educationLevelLabels={EDUCATION_LEVEL_LABELS}
@@ -115,6 +126,7 @@ describe("EligibilityForm (Phase 11)", () => {
       <EligibilityForm
         entityType="JOB"
         entitySlug="test-job"
+        locale="en"
         criteria={[AGE_CRITERION]}
         attributeLabels={ATTRIBUTE_LABELS}
         educationLevelLabels={EDUCATION_LEVEL_LABELS}
@@ -172,6 +184,7 @@ describe("EligibilityForm (Phase 11)", () => {
       <EligibilityForm
         entityType="JOB"
         entitySlug="test-job"
+        locale="en"
         criteria={[AGE_CRITERION]}
         attributeLabels={ATTRIBUTE_LABELS}
         educationLevelLabels={EDUCATION_LEVEL_LABELS}
@@ -221,6 +234,7 @@ describe("EligibilityForm (Phase 11)", () => {
       <EligibilityForm
         entityType="JOB"
         entitySlug="test-job"
+        locale="en"
         criteria={[AGE_CRITERION]}
         attributeLabels={ATTRIBUTE_LABELS}
         educationLevelLabels={EDUCATION_LEVEL_LABELS}
@@ -244,6 +258,7 @@ describe("EligibilityForm (Phase 11)", () => {
       <EligibilityForm
         entityType="JOB"
         entitySlug="test-job"
+        locale="en"
         criteria={[AGE_CRITERION]}
         attributeLabels={ATTRIBUTE_LABELS}
         educationLevelLabels={EDUCATION_LEVEL_LABELS}
@@ -255,5 +270,84 @@ describe("EligibilityForm (Phase 11)", () => {
 
     await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
     expect(screen.getByText(/Could not check eligibility/)).toBeInTheDocument();
+  });
+
+  it("explains the result with Civic AI without changing the deterministic outcome", async () => {
+    evaluateEligibility.mockResolvedValue({
+      reachable: true,
+      data: {
+        entity: { entity_type: "JOB", slug: "test-job", name: "Test Job (Fixture)" },
+        supported: true,
+        message: null,
+        outcome: "ELIGIBLE",
+        conditions: [
+          {
+            attribute: "AGE",
+            operator: "BETWEEN",
+            description: "Applicant must be between 18 and 35 years old (fictional fixture).",
+            expected: "between 18 and 35 (inclusive)",
+            submitted_value: "25",
+            status: "PASS",
+            reason: null,
+          },
+        ],
+        missing_attributes: [],
+        failed_attributes: [],
+        rule_id: "11111111-1111-1111-1111-111111111111",
+        rule_version: 1,
+        source: null,
+        verification_status: "VERIFIED",
+        last_verified: "2026-08-01T00:00:00Z",
+        evaluated_at: "2026-09-28T00:00:00Z",
+      },
+    });
+    explainEligibilityWithAI.mockResolvedValue({
+      reachable: true,
+      data: {
+        status: "EXPLAINED",
+        outcome: "ELIGIBLE",
+        explanation: "You meet the age requirement for this fictional job.",
+        rule_id: "11111111-1111-1111-1111-111111111111",
+        rule_version: 1,
+        source: null,
+        verification_status: "VERIFIED",
+        last_verified: "2026-08-01T00:00:00Z",
+        message: "",
+      },
+    });
+
+    const user = userEvent.setup();
+    render(
+      <EligibilityForm
+        entityType="JOB"
+        entitySlug="test-job"
+        locale="en"
+        criteria={[AGE_CRITERION]}
+        attributeLabels={ATTRIBUTE_LABELS}
+        educationLevelLabels={EDUCATION_LEVEL_LABELS}
+        labels={LABELS}
+      />,
+    );
+
+    await user.type(screen.getByLabelText("Your age (years)"), "25");
+    await user.click(screen.getByRole("button", { name: "Check eligibility" }));
+    await waitFor(() => expect(screen.getByText("Eligible")).toBeInTheDocument());
+
+    await user.click(screen.getByRole("button", { name: "Explain this result with Civic AI" }));
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("You meet the age requirement for this fictional job."),
+      ).toBeInTheDocument(),
+    );
+    expect(explainEligibilityWithAI).toHaveBeenCalledWith(
+      "JOB",
+      "test-job",
+      expect.objectContaining({ age: 25 }),
+      "en",
+    );
+    // The outcome shown is still the one from the deterministic
+    // evaluation, unaffected by the AI explanation call.
+    expect(screen.getByText("Eligible")).toBeInTheDocument();
   });
 });

@@ -11,6 +11,7 @@ detail server-side and returned to the client as a generic message only.
 """
 
 import logging
+from collections.abc import Mapping
 
 from fastapi import FastAPI, status
 from fastapi.exceptions import RequestValidationError
@@ -37,11 +38,12 @@ def _error_response(
     code: str,
     message: str,
     details: list[dict[str, str]] | None = None,
+    headers: Mapping[str, str] | None = None,
 ) -> JSONResponse:
     error_body: dict[str, object] = {"code": code, "message": message}
     if details:
         error_body["details"] = details
-    return JSONResponse(status_code=status_code, content={"error": error_body})
+    return JSONResponse(status_code=status_code, content={"error": error_body}, headers=headers)
 
 
 def register_exception_handlers(app: FastAPI) -> None:
@@ -70,7 +72,11 @@ def register_exception_handlers(app: FastAPI) -> None:
     async def handle_http_exception(request: Request, exc: HTTPException) -> JSONResponse:
         code = _STATUS_TO_CODE.get(exc.status_code, "HTTP_ERROR")
         message = exc.detail if isinstance(exc.detail, str) else "Request failed."
-        return _error_response(exc.status_code, code, message)
+        # Forwards e.g. a 429's `Retry-After` (docs/SECURITY.md §6: "never
+        # a silent drop") — `exc.headers` is `None` for the overwhelming
+        # majority of raises, which `_error_response`/`JSONResponse`
+        # already treat as "no extra headers."
+        return _error_response(exc.status_code, code, message, headers=exc.headers)
 
     @app.exception_handler(Exception)
     async def handle_unexpected_exception(request: Request, exc: Exception) -> JSONResponse:

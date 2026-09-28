@@ -50,7 +50,7 @@ def test_search_documents_migration_applies_and_reverses_cleanly(
         # each phase that added a migration on top (5 -> 6 in Phase 10);
         # it is a distance-from-head count, not a fundamental limit, and
         # is expected to keep growing.
-        for _ in range(7):
+        for _ in range(8):
             command.downgrade(config, "-1")
             engine = sa.create_engine(db_url, future=True)
             try:
@@ -60,7 +60,7 @@ def test_search_documents_migration_applies_and_reverses_cleanly(
             if "search_documents" not in tables:
                 break
         else:
-            raise AssertionError("search_documents was still present after 7 downgrades")
+            raise AssertionError("search_documents was still present after 8 downgrades")
 
         assert "states" in tables  # Phase 3 tables untouched
 

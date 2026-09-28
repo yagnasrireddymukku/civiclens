@@ -55,7 +55,7 @@ Each domain below is an isolated FastAPI router mounted under
 | `/elections` | `elections`, `election_results` |
 | `/eligibility` | `eligibility_rules`, `eligibility_conditions` |
 | `/calculators` | none (pure functions — see §9) |
-| `/ai` | none owned; retrieves via search + domain tables + `sources` ([AI_ARCHITECTURE.md](AI_ARCHITECTURE.md)) |
+| `/ai` | `ai_knowledge_chunks` (Phase 12); retrieves via `search_documents` + domain tables + `sources` ([AI_ARCHITECTURE.md](AI_ARCHITECTURE.md)) |
 | `/tracking` | `tracking_items` |
 | `/notifications` | `notifications` |
 | `/sources` | `sources`, `source_versions`, `verification_records` |
@@ -229,17 +229,21 @@ request → get_db dependency (opens a Session) → route/service function
 ## 12. Explicitly Not Built Yet
 
 - Any domain-content business route beyond Jobs, Services, Schemes,
-  Documents, and Eligibility (exams, representatives, elections,
-  tracking, AI) or its request/response models — `health`/`health/ready`
-  (§11), `/search` (Phase 5, [SEARCH.md](SEARCH.md) §12), `/jobs` (Phase
-  6, §13), `/services` (Phase 7, §14), `/schemes` (Phase 8, §15),
-  `/documents` (Phase 10, §17), and `/eligibility` (Phase 11, §18) exist
+  Documents, Eligibility, and Civic AI (exams, representatives,
+  elections, tracking) or its request/response models —
+  `health`/`health/ready` (§11), `/search` (Phase 5,
+  [SEARCH.md](SEARCH.md) §12), `/jobs` (Phase 6, §13), `/services`
+  (Phase 7, §14), `/schemes` (Phase 8, §15), `/documents` (Phase 10,
+  §17), `/eligibility` (Phase 11, §18), and `/ai` (Phase 12, §20) exist
   so far. Scholarships (Phase 9, §16) are not a separate route —
   `category=SCHOLARSHIP` schemes returned by the same `/schemes`
   endpoints.
-- Concrete rate-limit thresholds, cache headers, or CDN interaction rules
-  (deferred to [SECURITY.md](SECURITY.md) / [ARCHITECTURE.md](ARCHITECTURE.md)
-  performance work in later phases).
+- Concrete rate-limit thresholds/infrastructure for anything beyond
+  `/ai/*`'s own in-process MVP limiter (§20), cache headers, or CDN
+  interaction rules (deferred to [SECURITY.md](SECURITY.md) /
+  [ARCHITECTURE.md](ARCHITECTURE.md) performance work in later phases).
+- Any re-indexing/admin route for `/ai` — no auth/role-check mechanism
+  exists anywhere in this codebase yet (§20).
 - GraphQL or any query language beyond the filter/sort conventions in §6 —
   not needed at MVP scope and not planned without a documented reason.
 
@@ -470,6 +474,58 @@ list/detail pair — an evaluation is an action, not a browsable resource:
 - See [ELIGIBILITY_ENGINE.md](ELIGIBILITY_ENGINE.md) for the underlying
   evaluation semantics and [DATABASE.md](DATABASE.md) §15 for the schema
   and its deviation from this document's original polymorphic sketch.
+
+## 20. Civic AI Domain (Phase 12)
+
+Three endpoints, none shaped like a list/detail pair — every one is an
+action, not a browsable resource:
+
+- `POST /api/v1/ai/ask` — body `{question, locale, entity_context?}`.
+  `question` is length-validated (3–500 chars); `locale` is `en`/`te`;
+  `entity_context` (optional `{entity_type, entity_slug}`) guarantees
+  that entity's own knowledge chunk is considered even if the free-text
+  question doesn't literally match it. Response: `grounding_status`
+  (`GROUNDED`/`UNGROUNDED`/`INSUFFICIENT_EVIDENCE`/
+  `PROVIDER_UNAVAILABLE` — see [AI_ARCHITECTURE.md](AI_ARCHITECTURE.md)
+  §10), `answer` (`null` for every status except `GROUNDED` — an
+  ungrounded or unavailable answer is never shown as if it were real),
+  `citations[]` (each with `title`, `route`, `source`,
+  `verification_status`, `last_verified`, `needs_review_caveat`),
+  `message`, `disclaimer`, `locale`.
+- `POST /api/v1/ai/explain-eligibility` — body `{entity_type,
+  entity_slug, answers, locale}`, the same `answers` shape
+  `/eligibility/evaluate` accepts (§18). Calls the real deterministic
+  Eligibility Engine unmodified and only ever phrases its result — see
+  [AI_ARCHITECTURE.md](AI_ARCHITECTURE.md) §10's eligibility-integration
+  note and `tests/test_ai/test_eligibility_explainer.py` for the proof
+  that a provider actively trying to state the wrong outcome cannot
+  succeed. Response: `status`
+  (`EXPLAINED`/`NOT_SUPPORTED`/`PROVIDER_UNAVAILABLE`/
+  `ENTITY_NOT_FOUND`), `outcome`, `explanation`, `rule_id`/
+  `rule_version`, `source`, `verification_status`, `last_verified`,
+  `message`.
+- `GET /api/v1/ai/health` — diagnostic only: `{llm_configured,
+  llm_provider, embedding_configured, embedding_provider}`. Never
+  returns whether a call would actually succeed (no live provider ping)
+  — only whether credentials are configured at all.
+- Both POST endpoints are rate-limited (`app.ai.rate_limit`, an
+  in-process per-IP sliding window — [SECURITY.md](SECURITY.md) §6's
+  "strictest per-user limits" class) — a `429` includes `Retry-After`,
+  using the standard error envelope (§7), which required fixing
+  `handle_http_exception` to forward `exc.headers` (a real, previously
+  latent gap: no endpoint had ever raised an `HTTPException` with custom
+  headers before this phase).
+- Submitted questions and eligibility answers are read, evaluated, and
+  discarded within the request — never persisted to any table, never
+  logged (no request-body logging exists anywhere in
+  `app/core/logging.py`, and this router adds none) — this phase's
+  explicit privacy requirement.
+- No re-indexing endpoint exists — see
+  [DATABASE.md](DATABASE.md) §16's "no auth mechanism exists yet" note.
+- See [AI_ARCHITECTURE.md](AI_ARCHITECTURE.md) §10 for the underlying
+  retrieval/prompting/citation-validation pipeline and
+  [DATABASE.md](DATABASE.md) §16 for the schema and its deviations from
+  the original `pgvector`/foreign-key sketches.
 
 This document defines the target API conventions for Phase 2 onward; each
 domain phase (6–9, 10–12) implements against it and updates this document

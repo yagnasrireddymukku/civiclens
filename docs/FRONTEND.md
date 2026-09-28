@@ -332,25 +332,31 @@ endpoints for the current user:
 ## 12. Explicitly Not Built Yet
 
 - Any real domain content page beyond Jobs, Services, Schemes,
-  Documents, and Eligibility (representatives/exams/etc.) — Jobs (Phase
-  6, `apps/web/app/[locale]/jobs/`), Services (Phase 7, `.../services/`),
-  Schemes (Phase 8, `.../schemes/`), Documents (Phase 10,
-  `.../documents/`), and the Eligibility check (Phase 11,
-  `.../eligibility/[entityType]/[slug]/`) are the first five; the rest
-  land incrementally against the same foundation, reusing the same
-  component set (`InformationCard`/`SourceBadge`/`VerificationStatus`/
-  `Breadcrumb`) rather than each domain inventing its own card/detail
-  shape — Schemes', Documents', and Eligibility's pages all reuse them
-  as-is, with no new shared component extracted for any (each domain's
-  shape differed enough — benefits/related services for Schemes;
-  supporting-document links/required-by/related-service for Documents;
-  a dynamic answer form for Eligibility — that page-level composition,
-  not a shared component, is what changed each time). Eligibility does
-  reuse one design-system component that had sat unused since Phase 4:
+  Documents, Eligibility, and Civic AI (representatives/exams/etc.) —
+  Jobs (Phase 6, `apps/web/app/[locale]/jobs/`), Services (Phase 7,
+  `.../services/`), Schemes (Phase 8, `.../schemes/`), Documents (Phase
+  10, `.../documents/`), the Eligibility check (Phase 11,
+  `.../eligibility/[entityType]/[slug]/`), and Civic AI (Phase 12,
+  `.../ai/`) are the first six; the rest land incrementally against the
+  same foundation, reusing the same component set
+  (`InformationCard`/`SourceBadge`/`VerificationStatus`/`Breadcrumb`)
+  rather than each domain inventing its own card/detail shape —
+  Schemes', Documents', Eligibility's, and Civic AI's pages all reuse
+  them as-is, with no new shared component extracted for any (each
+  domain's shape differed enough — benefits/related services for
+  Schemes; supporting-document links/required-by/related-service for
+  Documents; a dynamic answer form for Eligibility; a question form with
+  citations for Civic AI — that page-level composition, not a shared
+  component, is what changed each time). Eligibility reuses one
+  design-system component that had sat unused since Phase 4:
   `components/civic/EligibilityStatus`, built ahead of any real engine
   to exist, extended with an optional translated `label` prop (the same
-  convention `LastVerified` already used) rather than duplicated.
-  Scholarships (Phase 9) are not a separate page — they extend
+  convention `LastVerified` already used) rather than duplicated. Civic
+  AI's page also composes an "Explain this result with Civic AI" button
+  directly into the existing `EligibilityForm` (Phase 11) rather than
+  building a second eligibility UI — one deterministic result, one
+  optional AI-phrased explanation of it, in the same place. Scholarships
+  (Phase 9) are not a separate page — they extend
   `.../schemes/page.tsx`'s filter row (one more `<select>`, reusing
   `Pagination`) and `.../schemes/[slug]/page.tsx`'s existing
   `styles.section`/`styles.factItemList` pattern with one more
@@ -360,14 +366,14 @@ endpoints for the current user:
   beyond the constraints in §5 — every list/detail page (search, jobs,
   services, schemes, documents) still fetches server-side in a Server
   Component via a `lib/*.ts` wrapper following `lib/api.ts`'s original
-  health-check pattern. Eligibility (Phase 11) is the first page with a
-  genuine client-side fetch — `EligibilityForm` (`"use client"`) calls
-  `POST /api/v1/eligibility/evaluate` directly via `lib/eligibility.ts`
-  on submit, since the citizen's own answers and the resulting verdict
-  are interactive, not something to server-render — but this remains a
-  plain `fetch` call in a `useState`-driven handler, not a new library;
-  the criteria question list itself still loads server-side exactly
-  like every other domain's detail data.
+  health-check pattern. Eligibility (Phase 11) and Civic AI (Phase 12)
+  are the two pages with a genuine client-side fetch — `EligibilityForm`/
+  `AskCivicAIForm` (`"use client"`) call `POST /api/v1/eligibility/
+  evaluate` and `POST /api/v1/ai/ask`/`explain-eligibility` directly via
+  `lib/eligibility.ts`/`lib/ai.ts` on submit, since the citizen's own
+  input and the resulting answer are interactive, not something to
+  server-render — but this remains a plain `fetch` call in a
+  `useState`-driven handler, not a new library.
 - A component library published as a standalone package — components live
   in `apps/web` until (if ever) a documented reuse need (a second
   consuming app) justifies extraction.
@@ -380,11 +386,12 @@ endpoints for the current user:
 - Real translations reviewed by a professional Telugu editor (§7) — the
   Schemes namespace's Telugu strings (including the Phase 9 education-
   level/scholarship-detail keys added to the same namespace), the
-  Documents namespace's Telugu strings (Phase 10), and the new
-  Eligibility namespace's Telugu strings (Phase 11) are a good-faith
-  machine/manual translation, not yet professionally reviewed, same
-  caveat as every other namespace so far.
+  Documents namespace's Telugu strings (Phase 10), the Eligibility
+  namespace's Telugu strings (Phase 11), and the new CivicAI namespace's
+  Telugu strings (Phase 12) are a good-faith machine/manual translation,
+  not yet professionally reviewed, same caveat as every other namespace
+  so far.
 
 This document now reflects the realized Phase 4 design system/shell and
-Phase 5–11's real pages built on it; it is extended, not rewritten, as
+Phase 5–12's real pages built on it; it is extended, not rewritten, as
 further real content pages land.

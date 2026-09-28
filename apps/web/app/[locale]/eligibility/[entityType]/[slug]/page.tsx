@@ -168,6 +168,7 @@ export default async function EligibilityPage({ params }: EligibilityPageProps) 
             <EligibilityForm
               entityType={entityType}
               entitySlug={slug}
+              locale={locale}
               criteria={criteria.criteria}
               attributeLabels={attributeLabels}
               educationLevelLabels={educationLevelLabels}
@@ -189,6 +190,10 @@ export default async function EligibilityPage({ params }: EligibilityPageProps) 
                 fieldCategory: t("fieldCategoryLabel"),
                 errorGeneric: t("errorGeneric"),
                 loading: t("loadingLabel"),
+                explainWithAI: t("explainWithAI"),
+                explainWithAILoading: t("explainWithAILoading"),
+                explainWithAIHeading: t("explainWithAIHeading"),
+                explainWithAIError: t("explainWithAIError"),
               }}
             />
           </>

@@ -611,3 +611,65 @@ export const eligibilityEvaluateResponseSchema = z.object({
 
 export type EligibilityCriteriaResponseInput = z.infer<typeof eligibilityCriteriaResponseSchema>;
 export type EligibilityEvaluateResponseInput = z.infer<typeof eligibilityEvaluateResponseSchema>;
+
+/**
+ * Mirrors `apps/api/app/ai/schemas.py` and `apps/api/app/ai/enums.py`
+ * exactly (Phase 12). `sourceSummarySchema`/`verificationStatusSchema`/
+ * `eligibilityOutcomeSchema` above are reused as-is.
+ */
+export const aiEntityTypeSchema = z.enum(["job", "service", "scheme", "document"]);
+
+export const groundingStatusSchema = z.enum([
+  "GROUNDED",
+  "UNGROUNDED",
+  "INSUFFICIENT_EVIDENCE",
+  "PROVIDER_UNAVAILABLE",
+]);
+
+export const eligibilityExplanationStatusSchema = z.enum([
+  "EXPLAINED",
+  "NOT_SUPPORTED",
+  "PROVIDER_UNAVAILABLE",
+  "ENTITY_NOT_FOUND",
+]);
+
+export const aiCitationSchema = z.object({
+  citation_id: z.number(),
+  title: z.string(),
+  route: z.string(),
+  source: sourceSummarySchema,
+  verification_status: verificationStatusSchema,
+  last_verified: z.string().nullable(),
+  needs_review_caveat: z.boolean(),
+});
+
+export const aiAskResponseSchema = z.object({
+  grounding_status: groundingStatusSchema,
+  answer: z.string().nullable(),
+  citations: z.array(aiCitationSchema),
+  message: z.string(),
+  disclaimer: z.string(),
+  locale: z.string(),
+});
+
+export const aiExplainEligibilityResponseSchema = z.object({
+  status: eligibilityExplanationStatusSchema,
+  outcome: eligibilityOutcomeSchema.nullable(),
+  explanation: z.string().nullable(),
+  rule_id: z.string().nullable(),
+  rule_version: z.number().nullable(),
+  source: sourceSummarySchema.nullable(),
+  verification_status: verificationStatusSchema.nullable(),
+  last_verified: z.string().nullable(),
+  message: z.string(),
+});
+
+export const aiProviderHealthSchema = z.object({
+  llm_configured: z.boolean(),
+  llm_provider: z.string(),
+  embedding_configured: z.boolean(),
+  embedding_provider: z.string(),
+});
+
+export type AIAskResponseInput = z.infer<typeof aiAskResponseSchema>;
+export type AIExplainEligibilityResponseInput = z.infer<typeof aiExplainEligibilityResponseSchema>;

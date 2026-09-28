@@ -30,9 +30,22 @@ def test_eligibility_domain_migration_applies_and_reverses_cleanly(
         finally:
             engine.dispose()
 
-        # This migration is the current head, so "-1" isolates it
-        # cleanly — no later phase's migration sits on top of it yet.
-        command.downgrade(config, "-1")
+        # No longer the current head (Phase 12's ai_knowledge_chunks
+        # migration now sits on top), so a single "-1" no longer
+        # isolates this migration — walk down one revision at a time,
+        # mirroring tests/test_documents/test_migrations.py's identical
+        # pattern.
+        for _ in range(2):
+            command.downgrade(config, "-1")
+            engine = sa.create_engine(db_url, future=True)
+            try:
+                tables = set(sa.inspect(engine).get_table_names())
+            finally:
+                engine.dispose()
+            if ELIGIBILITY_TABLES.isdisjoint(tables):
+                break
+        else:
+            raise AssertionError("eligibility tables were still present after 2 downgrades")
 
         engine = sa.create_engine(db_url, future=True)
         try:

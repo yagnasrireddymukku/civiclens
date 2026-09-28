@@ -46,6 +46,13 @@ different shape) is implemented — see §15, which also covers why
 `entity_type`/`entity_id` sketch. Representatives/Elections (§2.6) and
 exams remain design-only.
 
+**Phase 12 status**: Civic AI + RAG (the `embeddings` table
+[ARCHITECTURE.md](ARCHITECTURE.md) §5 named, realized in a different
+shape and without pgvector) is implemented — see §16, which also covers
+why `ai_knowledge_chunks` deliberately does **not** carry a real foreign
+key (unlike §15's `eligibility_rules`), and why it stores plain float
+arrays instead of a `vector` column.
+
 ## 0. Design Rules
 
 1. Every entity is created because a documented requirement in
@@ -346,6 +353,9 @@ departments 1─* schemes / scholarships / services
   civic_document_id columns, §14 — not a join table)
 constituencies 1─* representatives
 constituencies 1─* elections 1─* election_results
+(jobs|schemes|services|civic_documents) via search_documents ─┬ ai_knowledge_chunks
+  — a shared (entity_type, entity_id, locale) key (§16), not a foreign
+  key; retrieval always JOINs through search_documents as the trust gate
 every fact-bearing row ──> sources / verification_records
 users 1─* profiles, saved_items, tracking_items, notifications
 change_records reference the entity + source_version that produced them
@@ -948,3 +958,96 @@ hard dependency on `app.jobs.fixtures`/`app.schemes.fixtures`/
 `app.services.fixtures` having run), each carrying exactly one
 `EligibilityRule` — together exercising every supported attribute and
 operator from fixture data alone.
+
+## 16. Phase 12 Implementation Notes: Civic AI + RAG
+
+**No pgvector — verified unavailable in this project's actual
+environment, not assumed.** [ARCHITECTURE.md](ARCHITECTURE.md) §5 and
+[AI_ARCHITECTURE.md](AI_ARCHITECTURE.md) both name `pgvector` as the
+target embedding store. Checked by hand before building anything: the
+local/test PostgreSQL distribution this project's own test suite uses
+(`C:/civiclens-test-postgres/pgsql`, per `tests/_full_pg_utils.py`) ships
+no `vector.control` file — the `pgvector` extension was never installed
+into it — and this development environment has no Docker, the usual way
+to get a pgvector-enabled Postgres without a manual extension build.
+This phase's kickoff itself conditions pgvector on "if feasible within
+the existing setup," which it explicitly is not. `ai_knowledge_chunks.
+embedding` is therefore a plain `ARRAY(Float)` column, with cosine
+similarity computed in Python (`app.ai.retrieval.semantic_retrieve`,
+bounded to a capped candidate scan) rather than an in-database `<=>`
+operator. This is disclosed as a real, current limitation — adequate at
+this project's actual scale (fixture-only content; no real government
+data before Phase 13) — not a claim of production-scale performance. A
+`CHECK` constraint (`array_length(embedding, 1) = embedding_dimensions`)
+guards against a corrupted-length vector at the database layer as a
+backstop beyond the provider-side dimension check
+(`app.ai.providers_openai.OpenAIEmbeddingProvider.embed`). Swapping to a
+real `vector(N)` column later is a migration plus a rewrite of that one
+query function — every caller's signature (`semantic_retrieve(...)  ->
+list[RetrievedChunk]`) stays the same.
+
+**`ai_knowledge_chunks` deliberately does NOT carry a real foreign
+key** — the opposite choice from Phase 11's `EligibilityRule` (three
+real FKs for a small, fixed entity set). Instead it uses a plain,
+indexed `(entity_type, entity_id, locale)` key, following
+`app.search.models.SearchDocument`'s established precedent (itself
+following `VerificationRecord`/`ChangeRecord`'s precedent) rather than
+Phase 11's. Two reasons, both explicit: (1) the entity-type set here is
+the same open-ended "any current or future fact-bearing domain" set
+`SearchDocument` already serves, not Phase 11's fixed three (jobs,
+schemes, services); (2) FK'ing to `search_documents.id` specifically was
+considered and rejected — `search_documents` is explicitly documented
+as droppable/rebuildable at any time "with no data loss" (its own module
+docstring), and cascading that drop onto every knowledge chunk would
+force a costly full re-embedding (a real LLM-provider API cost) of
+everything on what is meant to be a cheap, lossless operation for that
+table alone.
+
+**No `source_id`/`verification_status`/`route` columns on
+`ai_knowledge_chunks`** — retrieval always `JOIN`s to `search_documents`
+on the shared `(entity_type, entity_id, locale)` key to get them. This
+is the trust gate, not a duplicated one: a chunk whose entity is no
+longer in `search_documents` (unpublished, expired, or never re-indexed
+after a status change) simply cannot be retrieved — an `INNER JOIN`
+filters it out automatically, the same way `VERIFIED`/`NEEDS_REVIEW`-only
+membership in `search_documents` already gates ordinary search results.
+Belt-and-suspenders: `app.ai.indexing.reindex_all` also actively deletes
+any `ai_knowledge_chunks` row whose key no longer appears in
+`search_documents`, rather than relying on the join alone.
+
+**Knowledge-chunk text is built from richer per-domain detail than
+`search_documents` carries**, not reused verbatim from it.
+`search_documents.searchable_text` is deliberately thin (a low-weight
+full-text snippet, per that table's own module docstring) — real grounded
+answers need an entity's fuller description and structured child rows
+(requirements, benefits, fees, application methods), so
+`app.ai.chunking` reads each domain's own ORM models directly (the same
+established cross-module-read precedent `app.eligibility.service` and
+`app.documents.service.get_required_by` already use) and formats one
+deterministic plain-text chunk per entity per locale — one chunk per
+entity is this phase's deliberate MVP granularity, avoiding
+chunk-boundary/overlap logic a real multi-chunk-per-entity split would
+need; `chunk_index` exists in the schema so that split is a future
+chunking-logic change, not a migration.
+
+**Idempotent re-indexing via content hash, not source-version
+tracking.** `ai_knowledge_chunks.content_hash` (a sha256 of the built
+chunk text) lets `app.ai.indexing.index_one` skip calling the embedding
+provider entirely when an entity's chunk text hasn't changed since the
+last index run — satisfying this phase's explicit "avoid unnecessary
+embedding regeneration" cost-control requirement without needing to
+separately track which `source_version_id` produced the current
+content. `embedding_model`/`embedding_dimensions` are recorded per row
+(not only in application config) so retrieval can filter to the
+currently-configured provider identity — the "safe compatibility check"
+this phase requires — without every row needing to be re-indexed the
+moment `AI_EMBEDDING_MODEL` changes; old rows simply become invisible to
+semantic search (never silently compared against incompatible vectors)
+until re-indexed.
+
+**No re-indexing HTTP endpoint exists.** No auth/role-check mechanism
+exists anywhere in this codebase yet (verified by hand — see Phase 11's
+identical finding). Per this phase's explicit "never expose an
+unauthenticated destructive indexing endpoint," `reindex_all` is exposed
+only as an internal service function and a manual ops script
+(`scripts/reindex_ai_knowledge.py`), never a route.

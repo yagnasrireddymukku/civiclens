@@ -596,3 +596,59 @@ export interface EligibilityEvaluateResponse {
   last_verified: string | null;
   evaluated_at: string;
 }
+
+/**
+ * Mirrors `apps/api/app/ai/schemas.py` and `apps/api/app/ai/enums.py`
+ * exactly (Phase 12, Civic AI + RAG). `SourceSummary`/`EligibilityOutcome`
+ * above are reused as-is.
+ */
+export type AIEntityType = "job" | "service" | "scheme" | "document";
+
+export type GroundingStatus =
+  "GROUNDED" | "UNGROUNDED" | "INSUFFICIENT_EVIDENCE" | "PROVIDER_UNAVAILABLE";
+
+export type EligibilityExplanationStatus =
+  "EXPLAINED" | "NOT_SUPPORTED" | "PROVIDER_UNAVAILABLE" | "ENTITY_NOT_FOUND";
+
+export interface AIEntityContext {
+  entity_type: AIEntityType;
+  entity_slug: string;
+}
+
+export interface AICitation {
+  citation_id: number;
+  title: string;
+  route: string;
+  source: SourceSummary;
+  verification_status: VerificationStatus;
+  last_verified: string | null;
+  needs_review_caveat: boolean;
+}
+
+export interface AIAskResponse {
+  grounding_status: GroundingStatus;
+  answer: string | null;
+  citations: AICitation[];
+  message: string;
+  disclaimer: string;
+  locale: string;
+}
+
+export interface AIExplainEligibilityResponse {
+  status: EligibilityExplanationStatus;
+  outcome: EligibilityOutcome | null;
+  explanation: string | null;
+  rule_id: string | null;
+  rule_version: number | null;
+  source: SourceSummary | null;
+  verification_status: VerificationStatus | null;
+  last_verified: string | null;
+  message: string;
+}
+
+export interface AIProviderHealth {
+  llm_configured: boolean;
+  llm_provider: string;
+  embedding_configured: boolean;
+  embedding_provider: string;
+}

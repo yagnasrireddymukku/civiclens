@@ -219,7 +219,12 @@ findings are fixed forward, not rolled back.
 ## 14. Explicitly Not Built Yet
 
 - No authentication/authorization middleware or API exists yet.
-- No secrets manager, WAF, or rate-limiting infrastructure is provisioned.
+- No secrets manager, WAF, or general rate-limiting infrastructure is
+  provisioned. Phase 12 added one deliberately minimal exception: an
+  in-process, single-instance, per-IP sliding-window limiter scoped only
+  to `/api/v1/ai/*` (`app.ai.rate_limit`) — disclosed as an MVP, not a
+  claim that rate-limiting infrastructure now exists generally (it does
+  not coordinate across processes/instances and covers no other route).
 - No dependency-scanning CI job exists yet (arrives with CI, Phase 1).
 - No penetration test or formal security audit has been performed — that
   is Phase 15's deliverable, not something this document certifies.

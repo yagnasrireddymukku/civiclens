@@ -337,7 +337,28 @@
     "fieldCategoryLabel": "మీ వర్గం",
     "submitButton": "అర్హతను తనిఖీ చేయండి",
     "loadingLabel": "తనిఖీ చేస్తోంది…",
-    "errorGeneric": "అర్హతను తనిఖీ చేయలేకపోయాము"
+    "errorGeneric": "అర్హతను తనిఖీ చేయలేకపోయాము",
+    "explainWithAI": "ఈ ఫలితాన్ని Civic AI తో వివరించండి",
+    "explainWithAILoading": "Civic AI ని అడుగుతోంది…",
+    "explainWithAIHeading": "Civic AI వివరణ",
+    "explainWithAIError": "వివరణ పొందలేకపోయాము"
+  },
+  "CivicAI": {
+    "pageTitle": "CivicLens ను అడగండి",
+    "disclaimer": "Civic AI CivicLens స్వంత ప్రచురించిన, ధృవీకరించిన సమాచారాన్ని ఉపయోగించి సమాధానం ఇస్తుంది మరియు ఎల్లప్పుడూ దాని మూలాలను చూపిస్తుంది. ఇది సమాచార ప్రయోజనాల కోసం మాత్రమే, అధికారిక ప్రభుత్వ నిర్ణయం కాదు.",
+    "questionLabel": "మీ ప్రశ్న",
+    "questionHint": "ప్రచురించిన ఉద్యోగం, సేవ, పథకం లేదా పత్రం గురించి అడగండి (3 నుండి 500 అక్షరాలు).",
+    "submitButton": "అడగండి",
+    "loadingLabel": "ఆలోచిస్తోంది…",
+    "sectionAnswer": "సమాధానం",
+    "sectionCitations": "మూలాలు",
+    "needsReviewCaveat": "ఈ మూలం ప్రస్తుతం తిరిగి-సమీక్షలో ఉంది — తగిన జాగ్రత్తతో పరిగణించండి.",
+    "statusInsufficientEvidence": "దీనికి సమాధానం ఇవ్వడానికి CivicLens వద్ద ఇంకా తగినంత ప్రచురించిన సమాచారం లేదు.",
+    "statusProviderUnavailable": "Civic AI ప్రస్తుతం అందుబాటులో లేదు.",
+    "statusUngrounded": "ఈ ప్రశ్నకు నమ్మదగిన మూలాధారంతో సమాధానాన్ని CivicLens కనుగొనలేకపోయింది.",
+    "searchLinkLabel": "బదులుగా CivicLens శోధనను ప్రయత్నించండి",
+    "errorGeneric": "సమాధానం పొందలేకపోయాము",
+    "lastVerifiedLabel": "చివరిగా ధృవీకరించబడింది"
   },
   "DesignSystem": {
     "title": "CivicLens డిజైన్ సిస్టమ్",

@@ -7,6 +7,13 @@ requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.20.0",
     "fastapi>=0.141.1",
+    # Phase 12 (docs/AI_ARCHITECTURE.md): the one HTTP client the
+    # provider-abstraction layer (app/ai/providers_*.py) uses to call an
+    # LLM/embedding vendor's REST API directly, instead of adding a
+    # vendor SDK per provider (CLAUDE.md rule 13). Already a dev
+    # dependency (used by FastAPI's TestClient) — promoted to a real
+    # runtime dependency now that production code uses it too.
+    "httpx>=0.28.1",
     "psycopg[binary]>=3.2",
     "pydantic-settings>=2.15.0",
     "sqlalchemy>=2.0",
@@ -15,7 +22,6 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "httpx>=0.28.1",
     "mypy>=2.3.1",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",

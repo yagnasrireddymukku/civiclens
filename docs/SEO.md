@@ -420,7 +420,23 @@ indexable, with one deliberate difference from every prior domain page:
   this document's own principle (never index personalized/session-
   specific content) already covers why.
 
+## 18. Phase 12 Implementation Note: Civic AI
+
+`apps/web/app/[locale]/ai/page.tsx` is the first real page in this
+document to be **deliberately `noindex, nofollow`**, unconditionally —
+not the usual not-found-response mitigation §12–§17 document, an
+outright decision for the page itself. An AI answer is per-question,
+generated live from a citizen's own submitted text; there is no stable
+canonical content at this URL for a crawler to index, and indexing a
+generic "ask a question" shell page would add nothing a search engine
+should rank. No JSON-LD is emitted for the same reason no schema.org
+type honestly represents "an interactive Q&A form" — `FAQPage` was
+considered and rejected, matching this document's own repeated
+type-by-type-honesty discipline (§6): `FAQPage` describes a fixed,
+pre-written list of questions and answers, not a live, per-citizen
+generated one.
+
 This document defines the target SEO architecture for Phase 14; it is
 finalized against real, live URL patterns once indexable content exists
-from all of Phases 6–11, per Phase 6, 7, 8, 9, 10, and 11's domain-specific
-head starts above.
+from all of Phases 6–12, per Phase 6, 7, 8, 9, 10, 11, and 12's
+domain-specific head starts above.

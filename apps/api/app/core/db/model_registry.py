@@ -5,6 +5,7 @@ domain module added in a later phase registers itself here in one place,
 rather than every future migration needing to remember every module.
 """
 
+from app.ai import models as ai_models  # noqa: F401
 from app.documents import models as documents_models  # noqa: F401
 from app.eligibility import models as eligibility_models  # noqa: F401
 from app.geography import models as geography_models  # noqa: F401

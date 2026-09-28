@@ -336,7 +336,28 @@
     "fieldCategoryLabel": "Your category",
     "submitButton": "Check eligibility",
     "loadingLabel": "Checking…",
-    "errorGeneric": "Could not check eligibility"
+    "errorGeneric": "Could not check eligibility",
+    "explainWithAI": "Explain this result with Civic AI",
+    "explainWithAILoading": "Asking Civic AI…",
+    "explainWithAIHeading": "Civic AI explanation",
+    "explainWithAIError": "Could not get an explanation"
+  },
+  "CivicAI": {
+    "pageTitle": "Ask CivicLens",
+    "disclaimer": "Civic AI answers using CivicLens's own published, verified information and always shows its sources. It is informational only, not an official government decision.",
+    "questionLabel": "Your question",
+    "questionHint": "Ask about a published job, service, scheme, or document (3 to 500 characters).",
+    "submitButton": "Ask",
+    "loadingLabel": "Thinking…",
+    "sectionAnswer": "Answer",
+    "sectionCitations": "Sources",
+    "needsReviewCaveat": "This source is currently under re-review — treat with appropriate caution.",
+    "statusInsufficientEvidence": "CivicLens does not have enough published information to answer this yet.",
+    "statusProviderUnavailable": "Civic AI is not currently available.",
+    "statusUngrounded": "CivicLens could not find a reliably sourced answer to this question.",
+    "searchLinkLabel": "Try CivicLens search instead",
+    "errorGeneric": "Could not get an answer",
+    "lastVerifiedLabel": "Last verified"
   },
   "DesignSystem": {
     "title": "CivicLens Design System",

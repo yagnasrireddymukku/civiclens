@@ -111,12 +111,13 @@ civiclens/
 │           │                 # only, no models/tables
 │           ├── jobs/ (Phase 6+) services/ (Phase 7+) schemes/ (Phase 8+,
 │           │   includes scholarships as a Scheme specialization, Phase 9+)
-│           │   documents/ (Phase 10+) eligibility/ (Phase 11+) exams/
+│           │   documents/ (Phase 10+) eligibility/ (Phase 11+)
+│           │   ai/ (Phase 12+) exams/
 │           ├── representatives/ elections/ # rescheduled from Phase 9 —
 │           │                 # see ROADMAP.md's Phase 9/10 rescheduling note
-│           ├── search/ (Phase 5+) ai/ tracking/ notifications/ # ai/
-│           │                 # rescheduled from Phase 11 — see ROADMAP.md's
-│           │                 # Phase 11 rescheduling note
+│           ├── search/ (Phase 5+) tracking/ notifications/ # tracking/
+│           │                 # notifications/ rescheduled from Phase 12 —
+│           │                 # see ROADMAP.md's Phase 12 rescheduling note
 │           ├── sources/            # source & verification records (Phase 3+)
 │           ├── users/ auth/          # identity Phase 3+, auth flows later
 │           └── core/               # settings, db/ (engine, session, base,

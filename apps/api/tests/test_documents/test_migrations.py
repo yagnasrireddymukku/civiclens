@@ -54,7 +54,7 @@ def test_documents_domain_migration_applies_and_reverses_cleanly(
         # migration — walk down one revision at a time until the
         # document tables are gone, mirroring
         # tests/test_jobs/test_migrations.py's identical pattern.
-        for _ in range(2):
+        for _ in range(3):
             command.downgrade(config, "-1")
             engine = sa.create_engine(db_url, future=True)
             try:
@@ -64,7 +64,7 @@ def test_documents_domain_migration_applies_and_reverses_cleanly(
             if DOCUMENT_TABLES.isdisjoint(tables):
                 break
         else:
-            raise AssertionError("document tables were still present after 2 downgrades")
+            raise AssertionError("document tables were still present after 3 downgrades")
 
         engine = sa.create_engine(db_url, future=True)
         try:

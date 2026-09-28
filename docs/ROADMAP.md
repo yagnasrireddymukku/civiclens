@@ -808,36 +808,108 @@ rather than renumbering Phases 12–18 or guessing a new slot for it.
 
 ---
 
-**Civic AI + RAG — rescheduled from Phase 11.** Original scope,
-unchanged from this document's earlier plan, kept here rather than
-assigned a new number for the same reason the Phase 9 and Phase 10
+## Phase 12 — Civic AI + RAG
+
+**Realizes the "Civic AI + RAG — rescheduled from Phase 11" entry** this
+document previously carried in this slot. This is the third
+phase-number collision this document has recorded (Phase 9/Scholarships
+vs. Representatives + Elections; Phase 10/Documents vs. the Eligibility
+Engine; Phase 11/Eligibility vs. Civic AI + RAG) — resolved identically
+each time: this section now holds what was actually built; the section
+it displaces ("Tracking + Notifications") is preserved verbatim,
+unnumbered, immediately below.
+
+- **Objective**: A source-grounded Civic AI system answering from
+  retrieved, permitted CivicLens content only — citing sources,
+  disclosing insufficient/unavailable evidence, and explaining (never
+  computing) Eligibility Engine results — per
+  [AI_ARCHITECTURE.md](AI_ARCHITECTURE.md) / [ADR-006](ADR/ADR-006-ai-rag-architecture.md).
+- **Architecture decisions**:
+  - **No pgvector** — verified unavailable in this project's actual
+    local/test Postgres distribution and this development environment
+    (no Docker); the kickoff's own "if feasible within the existing
+    setup" wording anticipates exactly this. Embeddings are a plain
+    `ARRAY(Float)` column with Python-side cosine similarity, disclosed
+    as a scale-bounded MVP. See [DATABASE.md](DATABASE.md) §16.
+  - `ai_knowledge_chunks` uses a shared `(entity_type, entity_id,
+    locale)` key (not a foreign key, the opposite of Phase 11's
+    `EligibilityRule`), and retrieval always `JOIN`s to
+    `search_documents` as the trust/visibility gate — reusing the exact
+    mechanism ordinary search already relies on rather than
+    re-implementing a verification-status check.
+  - Two independent provider abstractions
+    (`LLMProvider`/`EmbeddingProvider`), both plain `httpx` adapters
+    (Anthropic for completion, OpenAI for embeddings — Anthropic has no
+    public embeddings endpoint), both defaulting to `"none"` so the app
+    builds/boots/tests with AI fully disabled.
+  - No re-indexing HTTP endpoint — no auth/role-check mechanism exists
+    anywhere in this codebase yet, so per the kickoff's own
+    "never expose an unauthenticated destructive indexing endpoint,"
+    indexing is an internal function + `scripts/reindex_ai_knowledge.py`
+    only.
+- **Dependencies**: Phases 5 (search), 6, 7, 8 (retrievable content), 11
+  (eligibility explanation source) — all met.
+- **Files/modules**: `apps/api/app/ai/` (`providers.py`,
+  `providers_anthropic.py`, `providers_openai.py`, `models.py`,
+  `chunking.py`, `indexing.py`, `retrieval.py`, `prompting.py`,
+  `citations.py`, `eligibility_explainer.py`, `service.py`,
+  `rate_limit.py`, `schemas.py`), `apps/api/app/api/v1/ai.py`,
+  `apps/web/app/[locale]/ai/`, an "Explain this result with Civic AI"
+  addition to the existing `EligibilityForm` (Phase 11) rather than a
+  second eligibility UI.
+- **Technical work**: deterministic per-domain chunk builders (one
+  chunk per entity, content-hash-keyed for idempotent re-indexing);
+  lexical retrieval (reusing `search.service.search_documents` as-is)
+  plus semantic retrieval (Python cosine similarity, filtered to the
+  currently-configured embedding model/dimensions); a structured
+  JSON response contract (not inline citation markers) so citations can
+  be validated server-side against the actual retrieved evidence set;
+  `<evidence>`-tag wrapping of all retrieved content as the structural
+  prompt-injection defense; `POST /api/v1/ai/ask`, `POST /api/v1/ai/
+  explain-eligibility`, `GET /api/v1/ai/health`; an in-process per-IP
+  rate limiter for `/ai/*`; a real, previously-latent bug fix
+  (`handle_http_exception` wasn't forwarding `exc.headers`, so no
+  `429` had ever actually carried `Retry-After` before this phase
+  exercised the path).
+- **Tests**: 84 backend tests (`tests/test_ai/`) — citation-fabrication
+  rejection, prompt-injection-wrapping structure, provider-unavailable
+  degradation, idempotent-indexing, the `search_documents` trust-gate
+  join, and — the phase's core safety property — a fake provider that
+  actively tries to override a deterministic eligibility outcome and
+  fails to. 20 frontend tests (Civic AI page + form, plus the
+  eligibility-explanation addition). All against fake providers; no live
+  credentials used or required.
+- **Documentation**: [AI_ARCHITECTURE.md](AI_ARCHITECTURE.md) §9-10,
+  [DATABASE.md](DATABASE.md) §16, [API.md](API.md) §20,
+  [ARCHITECTURE.md](ARCHITECTURE.md) §6, [SEARCH.md](SEARCH.md) §20,
+  [SEO.md](SEO.md) §18, [FRONTEND.md](FRONTEND.md), [TESTING.md](TESTING.md) §8,
+  [SECURITY.md](SECURITY.md) §14, this entry.
+- **Acceptance criteria**: a fabricated/out-of-range citation can never
+  surface as `GROUNDED` — met (proven directly, not just asserted); the
+  Eligibility Engine's outcome cannot be changed by the LLM — met
+  (proven directly); the app builds, boots, and passes its full test
+  suite with zero provider credentials configured — met.
+- **Risks**: real-model answer quality/hallucination risk is
+  **unmeasured** — this phase proves the mechanical safety guarantees
+  (citation validity, eligibility non-interference), not real-model
+  groundedness quality, since no live provider calls are made in the
+  test suite and no real government content exists yet to evaluate
+  against. A live-model eval harness with a product-owner-set accuracy
+  bar remains a named future task ([TESTING.md](TESTING.md) §8/§17).
+  Rate limiting is a single-process MVP (no cross-instance
+  coordination).
+- **Rollback**: Both provider settings default to `"none"`; disabling
+  either (or both) via environment variables degrades the feature to
+  `PROVIDER_UNAVAILABLE` responses with no code change, and the new
+  `ai_knowledge_chunks` table is purely additive.
+
+---
+
+**Tracking + Notifications — rescheduled from Phase 12.** Original
+scope, unchanged from this document's earlier plan, kept here rather
+than assigned a new number for the same reason the Phase 9, 10, and 11
 rescheduling notes give — this document does not guess at a sequencing
 decision that belongs to explicit product-owner approval:
-- **Objective**: Implement the AI pipeline per
-  [AI_ARCHITECTURE.md](AI_ARCHITECTURE.md) / [ADR-006](ADR/ADR-006-ai-rag-architecture.md).
-- **Dependencies**: Phases 5 (search), 6–9 (retrievable content), 10
-  (eligibility explanation source).
-- **Files/modules**: `apps/api/app/ai/`, `embeddings` table/migration,
-  provider-abstraction interface, frontend Civic AI chat UI.
-- **Technical work**: Intent parsing, retrieval, context assembly, provider
-  interface + one concrete provider implementation, citation-carrying
-  response contract, groundedness evaluation.
-- **Tests**: Groundedness/citation-accuracy/refusal-correctness evaluation
-  suite ([TESTING.md](TESTING.md) §AI evaluation); prompt-injection test
-  cases using fixture "malicious" documents.
-- **Documentation**: [AI_ARCHITECTURE.md](AI_ARCHITECTURE.md) updated with
-  finalized prompt/response contract.
-- **Acceptance criteria**: AI cannot answer a question outside its grounded
-  context without an explicit "I don't know" response in the eval suite;
-  every answer in the eval suite carries valid citations.
-- **Risks**: Hallucination risk is the single largest product-trust risk in
-  this phase — mitigated by shipping behind a flag until eval suite passes
-  a defined accuracy bar, TBD with product owner.
-- **Rollback**: AI feature is additive and can be feature-flagged off
-  without affecting any other engine (per [ARCHITECTURE.md](ARCHITECTURE.md)
-  §4, AI holds no authoritative data of its own).
-
-## Phase 12 — Tracking + Notifications
 - **Objective**: User tracking subscriptions and change notifications.
 - **Dependencies**: Phase 6–9 (trackable entities), Phase 3 (users).
 - **Files/modules**: `apps/api/app/tracking/`,
@@ -859,8 +931,10 @@ decision that belongs to explicit product-owner approval:
 ## Phase 13 — Admin Intelligence Center
 - **Objective**: Ingestion pipeline + human review tooling per
   [DATA_SOURCES.md](DATA_SOURCES.md).
-- **Dependencies**: Phases 3, 6–9 (entities to ingest into), Phase 12
-  (notification trigger on approved change).
+- **Dependencies**: Phases 3, 6–9 (entities to ingest into), the
+  "Tracking + Notifications — rescheduled from Phase 12" entry above
+  (notification trigger on approved change) — not yet built; this
+  phase's own review-queue tooling does not require it to exist first.
 - **Files/modules**: `services/ingestion/`, `apps/api/app/admin/`
   (review queue endpoints), `apps/web/app/admin/`.
 - **Technical work**: Source onboarding tooling (per-source legal

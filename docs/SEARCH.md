@@ -471,6 +471,24 @@ a deliberate, documented "no" (matching §17's Scholarships precedent for
 justifying the *absence* of new search-index behavior), not an
 oversight.
 
+## 20. Civic AI Integration (Phase 12) — Consumer, Not a New `entity_type`
+
+Civic AI (`apps/api/app/ai/`) is the first module to *read*
+`search_documents` for a purpose other than the `/search` endpoint
+itself — its lexical retrieval path (`app.ai.retrieval.lexical_retrieve`)
+calls `search.service.search_documents` directly, the exact same
+ranking/typo-tolerance code every browse/search page already depends
+on. This is a pure consumer relationship: no new `entity_type` was
+added, no new row shape, and `search_documents` itself gained no new
+columns. Civic AI's own new table, `ai_knowledge_chunks` (§16 of
+[DATABASE.md](DATABASE.md)), keys off the same `(entity_type, entity_id,
+locale)` shape `search_documents` already uses, and retrieval always
+joins the two — meaning `search_documents`'s existing
+`VERIFIED`/`NEEDS_REVIEW`-only visibility rule (§3) is inherited for
+free, not re-implemented. An AI-generated answer itself is never
+indexed here or anywhere — it's a per-question, generated response, not
+stable content with an identity of its own.
+
 This document is updated again with real query patterns as each further
 domain module starts calling `upsert_search_document`, per
 [ROADMAP.md](ROADMAP.md)'s documentation requirement.

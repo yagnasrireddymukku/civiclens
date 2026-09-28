@@ -6,26 +6,33 @@ enforcement summary. When in doubt, the linked document is authoritative.
 
 ## Current Phase
 
-Phases 0–11 are complete and approved (architecture/governance,
+Phases 0–12 are complete and approved (architecture/governance,
 monorepo foundation, database + core data model, frontend design
 system, search infrastructure, government jobs, government services,
 government schemes, scholarships & education opportunities, documents
-& certificates, the eligibility engine). Scholarships (Phase 9) are a
-`Scheme` specialization, not a new domain module; Documents (Phase 10)
-and Eligibility (Phase 11) *are* new domain modules (`app.documents`/
-`CivicDocument`, `app.eligibility`/`EligibilityRule`) — see
-[docs/ROADMAP.md](docs/ROADMAP.md)'s Phase 9/10/11 entries and
-[docs/DATABASE.md](docs/DATABASE.md) §13/§14/§15 for all three
-architectural decisions. Two features, originally planned as Phase 9
-(Public Representatives + Elections) and Phase 11 (Civic AI + RAG), are
+& certificates, the eligibility engine, Civic AI + RAG). Scholarships
+(Phase 9) are a `Scheme` specialization, not a new domain module;
+Documents (Phase 10), Eligibility (Phase 11), and Civic AI (Phase 12)
+*are* new domain modules (`app.documents`/`CivicDocument`,
+`app.eligibility`/`EligibilityRule`, `app.ai`/`KnowledgeChunk`) — see
+[docs/ROADMAP.md](docs/ROADMAP.md)'s Phase 9/10/11/12 entries and
+[docs/DATABASE.md](docs/DATABASE.md) §13/§14/§15/§16 for all four
+architectural decisions. **Civic AI does not use pgvector** — verified
+unavailable in this project's actual local/test Postgres distribution
+and development environment (no Docker); embeddings are stored as plain
+float arrays with Python-side cosine similarity instead, a disclosed
+deviation from ADR-006's aspiration (see
+[docs/DATABASE.md](docs/DATABASE.md) §16). One feature, originally
+planned as Phase 9 (Public Representatives + Elections), and one,
+originally planned as Phase 12 (Tracking + Notifications), remain
 rescheduled — their scope is unchanged but neither yet has a new phase
 number; see the rescheduling notes in
-[docs/ROADMAP.md](docs/ROADMAP.md) after the Phase 9 and Phase 11
-entries respectively (the Eligibility Engine's own earlier "rescheduled
-from Phase 10" placeholder is now resolved — it is Phase 11, realized).
-The project is now awaiting approval to begin its next phase. Real
-government data still does not exist and must not be added until the
-project explicitly enters a real-data phase (Phase 13, per
+[docs/ROADMAP.md](docs/ROADMAP.md) after the Phase 9 and Phase 12
+entries respectively (the Civic AI + RAG feature's own earlier
+"rescheduled from Phase 11" placeholder is now resolved — it is Phase
+12, realized). The project is now awaiting approval to begin its next
+phase. Real government data still does not exist and must not be added
+until the project explicitly enters a real-data phase (Phase 13, per
 [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md)) — every domain module
 built so far uses clearly-synthetic fixtures only, gated to `local`/
 `test` environments (see

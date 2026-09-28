@@ -41,7 +41,7 @@ def test_scholarship_details_migration_applies_and_reverses_cleanly(
         # walk-down, needed for the same reason: "-1" alone no longer
         # isolates this migration once a later phase adds its own on
         # top.
-        for _ in range(6):
+        for _ in range(7):
             command.downgrade(config, "-1")
             engine = sa.create_engine(db_url, future=True)
             try:
@@ -51,7 +51,7 @@ def test_scholarship_details_migration_applies_and_reverses_cleanly(
             if "scholarship_details" not in tables:
                 break
         else:
-            raise AssertionError("scholarship_details was still present after 6 downgrades")
+            raise AssertionError("scholarship_details was still present after 7 downgrades")
 
         engine = sa.create_engine(db_url, future=True)
         try:
